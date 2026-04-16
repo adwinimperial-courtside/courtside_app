@@ -49,6 +49,7 @@ export default function StartingLineup({
           player_id: playerId,
           team_id: game.home_team_id,
           is_starter: true,
+          is_active: true,
         })),
         ...awayStarters.map(playerId => ({
           game_id: game.id,
@@ -56,6 +57,7 @@ export default function StartingLineup({
           player_id: playerId,
           team_id: game.away_team_id,
           is_starter: true,
+          is_active: true,
         })),
       ];
 

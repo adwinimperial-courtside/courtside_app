@@ -1,207 +1,553 @@
-import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { supabase } from "@/lib/supabaseClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { BarChart3, Filter, BarChart4 } from "lucide-react";
+import { BarChart3, Filter, Shield, User, Trophy, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 
-import TeamStats from "../components/stats/TeamStats";
-import PlayerStats from "../components/stats/PlayerStats";
-import LeagueLeaders from "../components/stats/LeagueLeaders";
-import GameStats from "../components/stats/GameStats";
-import MobileTeamStats from "../components/stats/mobile/MobileTeamStats";
-import MobilePlayerStats from "../components/stats/mobile/MobilePlayerStats";
-import MobileLeagueLeaders from "../components/stats/mobile/MobileLeagueLeaders";
-import MobileGameStats from "../components/stats/mobile/MobileGameStats";
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const fmt1 = (n) => (n == null ? "0.0" : Number(n).toFixed(1));
 
-export default function StatisticsPage() {
-  const [selectedLeague, setSelectedLeague] = useState(null);
-  const [selectedTeam, setSelectedTeam] = useState("all");
-  const [playerSearch, setPlayerSearch] = useState("");
+function calcPts(s) {
+  return (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0);
+}
+
+// ─── Sortable column header ───────────────────────────────────────────────────
+
+function SortTh({ label, col, sortCol, sortDir, onSort, className = "" }) {
+  const active = sortCol === col;
+  return (
+    <th
+      onClick={() => onSort(col)}
+      className={`py-3 px-2 text-center font-semibold cursor-pointer select-none whitespace-nowrap ${
+        active ? "text-purple-700" : "text-slate-500"
+      } ${className}`}
+    >
+      <span className="inline-flex items-center gap-0.5">
+        {label}
+        {active ? (
+          sortDir === "desc" ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronUp className="w-3 h-3" />
+          )
+        ) : (
+          <span className="text-slate-300 text-[10px]">↕</span>
+        )}
+      </span>
+    </th>
+  );
+}
+
+function useSort(defaultCol, defaultDir = "desc") {
+  const [sortCol, setSortCol] = useState(defaultCol);
+  const [sortDir, setSortDir] = useState(defaultDir);
+  const onSort = (col) => {
+    if (col === sortCol) setSortDir(d => d === "desc" ? "asc" : "desc");
+    else { setSortCol(col); setSortDir("desc"); }
+  };
+  const sortFn = (a, b) => {
+    const av = a[sortCol] ?? 0;
+    const bv = b[sortCol] ?? 0;
+    return sortDir === "desc" ? bv - av : av - bv;
+  };
+  return { sortCol, sortDir, onSort, sortFn };
+}
+
+// ─── Tab 1: Team Stats ────────────────────────────────────────────────────────
+
+function TeamStatsTab({ teams, allStats, selectedTeamId }) {
+  const { sortCol, sortDir, onSort, sortFn } = useSort("pts");
+
+  const rows = useMemo(() => {
+    const filtered = selectedTeamId === "all" ? teams : teams.filter(t => t.id === selectedTeamId);
+    return filtered.map(team => {
+      const ts = allStats.filter(s => s.team_id === team.id);
+      const gameIds = new Set(ts.map(s => s.game_id));
+      const gp = gameIds.size;
+      if (gp === 0) return { ...team, gp: 0, pts: 0, reb: 0, ast: 0, oreb: 0, dreb: 0, stl: 0, blk: 0, to: 0 };
+      const tot = ts.reduce((a, s) => ({
+        pts:  a.pts  + calcPts(s),
+        reb:  a.reb  + (s.offensive_rebounds || 0) + (s.defensive_rebounds || 0),
+        ast:  a.ast  + (s.assists || 0),
+        oreb: a.oreb + (s.offensive_rebounds || 0),
+        dreb: a.dreb + (s.defensive_rebounds || 0),
+        stl:  a.stl  + (s.steals || 0),
+        blk:  a.blk  + (s.blocks || 0),
+        to:   a.to   + (s.turnovers || 0),
+      }), { pts: 0, reb: 0, ast: 0, oreb: 0, dreb: 0, stl: 0, blk: 0, to: 0 });
+      return {
+        ...team, gp,
+        pts:  tot.pts  / gp,
+        reb:  tot.reb  / gp,
+        ast:  tot.ast  / gp,
+        oreb: tot.oreb / gp,
+        dreb: tot.dreb / gp,
+        stl:  tot.stl  / gp,
+        blk:  tot.blk  / gp,
+        to:   tot.to   / gp,
+      };
+    }).filter(t => t.gp > 0).sort(sortFn);
+  }, [teams, allStats, selectedTeamId, sortFn]);
+
+  if (rows.length === 0) {
+    return <p className="text-slate-500 text-center py-12">No team stats available yet.</p>;
+  }
+
+  const thProps = { sortCol, sortDir, onSort };
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <Shield className="w-4 h-4 text-purple-600" />
+        <span className="font-semibold text-slate-900">Team Statistics (Per Game Averages)</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="py-3 px-3 text-left font-semibold text-slate-500 whitespace-nowrap">Team</th>
+              <SortTh label="GP"   col="gp"   {...thProps} />
+              <SortTh label="PTS"  col="pts"  {...thProps} />
+              <SortTh label="REB"  col="reb"  {...thProps} />
+              <SortTh label="AST"  col="ast"  {...thProps} />
+              <SortTh label="OREB" col="oreb" {...thProps} />
+              <SortTh label="DREB" col="dreb" {...thProps} />
+              <SortTh label="STL"  col="stl"  {...thProps} />
+              <SortTh label="BLK"  col="blk"  {...thProps} />
+              <SortTh label="TO"   col="to"   {...thProps} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(team => (
+              <tr key={team.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                <td className="py-3 px-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                      style={{ backgroundColor: team.color || "#3b82f6" }}
+                    >
+                      {team.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="font-bold text-slate-900 uppercase tracking-wide text-xs">{team.name}</span>
+                  </div>
+                </td>
+                <td className="py-3 px-2 text-center text-slate-700">{team.gp}</td>
+                <td className="py-3 px-2 text-center font-bold text-purple-700">{fmt1(team.pts)}</td>
+                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.reb)}</td>
+                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.ast)}</td>
+                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.oreb)}</td>
+                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.dreb)}</td>
+                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.stl)}</td>
+                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.blk)}</td>
+                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.to)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab 2: Player Stats ──────────────────────────────────────────────────────
+
+function PlayerStatsTab({ players, teams, allStats, selectedTeamId, playerSearch }) {
+  const { sortCol, sortDir, onSort, sortFn } = useSort("ppg");
+
+  const rows = useMemo(() => {
+    const search = playerSearch.trim().toLowerCase();
+    let filteredPlayers = selectedTeamId === "all"
+      ? players
+      : players.filter(p => p.team_id === selectedTeamId);
+    if (search) filteredPlayers = filteredPlayers.filter(p =>
+      (p.name || `${p.first_name || ""} ${p.last_name || ""}`.trim()).toLowerCase().includes(search)
+    );
+
+    return filteredPlayers.map(player => {
+      const ps = allStats.filter(s => s.player_id === player.id);
+      if (ps.length === 0) return null;
+
+      // Group by game, sum per game, then average
+      const byGame = {};
+      ps.forEach(s => {
+        if (!byGame[s.game_id]) byGame[s.game_id] = [];
+        byGame[s.game_id].push(s);
+      });
+      const gp = Object.keys(byGame).length;
+      if (gp === 0) return null;
+
+      const gameTotals = Object.values(byGame).map(rows => ({
+        pts:  rows.reduce((a, s) => a + calcPts(s), 0),
+        pm2:  rows.reduce((a, s) => a + (s.points_2 || 0), 0),
+        pm3:  rows.reduce((a, s) => a + (s.points_3 || 0), 0),
+        ftm:  rows.reduce((a, s) => a + (s.free_throws || 0), 0),
+        oreb: rows.reduce((a, s) => a + (s.offensive_rebounds || 0), 0),
+        dreb: rows.reduce((a, s) => a + (s.defensive_rebounds || 0), 0),
+        reb:  rows.reduce((a, s) => a + (s.offensive_rebounds || 0) + (s.defensive_rebounds || 0), 0),
+        ast:  rows.reduce((a, s) => a + (s.assists || 0), 0),
+        stl:  rows.reduce((a, s) => a + (s.steals || 0), 0),
+        blk:  rows.reduce((a, s) => a + (s.blocks || 0), 0),
+        to:   rows.reduce((a, s) => a + (s.turnovers || 0), 0),
+        pf:   rows.reduce((a, s) => a + (s.fouls || 0), 0),
+      }));
+      const sum = key => gameTotals.reduce((a, g) => a + g[key], 0);
+      const team = teams.find(t => t.id === player.team_id);
+
+      return {
+        ...player,
+        team,
+        gp,
+        ppg:  sum("pts")  / gp,
+        pm2:  sum("pm2")  / gp,
+        pm3:  sum("pm3")  / gp,
+        ftm:  sum("ftm")  / gp,
+        oreb: sum("oreb") / gp,
+        dreb: sum("dreb") / gp,
+        rpg:  sum("reb")  / gp,
+        apg:  sum("ast")  / gp,
+        stl:  sum("stl")  / gp,
+        blk:  sum("blk")  / gp,
+        to:   sum("to")   / gp,
+        pf:   sum("pf")   / gp,
+      };
+    }).filter(Boolean).sort(sortFn);
+  }, [players, teams, allStats, selectedTeamId, playerSearch, sortFn]);
+
+  if (rows.length === 0) {
+    return <p className="text-slate-500 text-center py-12">No player stats available yet.</p>;
+  }
+
+  const thProps = { sortCol, sortDir, onSort };
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <User className="w-4 h-4 text-purple-600" />
+        <span className="font-semibold text-slate-900">Player Statistics</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[900px]">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="py-3 px-3 text-left font-semibold text-slate-500 whitespace-nowrap">Player</th>
+              <th className="py-3 px-2 text-left font-semibold text-slate-500 whitespace-nowrap">Team</th>
+              <SortTh label="GP"   col="gp"   {...thProps} />
+              <SortTh label="PPG"  col="ppg"  {...thProps} />
+              <SortTh label="2PM"  col="pm2"  {...thProps} />
+              <SortTh label="3PM"  col="pm3"  {...thProps} />
+              <SortTh label="FTM"  col="ftm"  {...thProps} />
+              <SortTh label="OREB" col="oreb" {...thProps} />
+              <SortTh label="DREB" col="dreb" {...thProps} />
+              <SortTh label="RPG"  col="rpg"  {...thProps} />
+              <SortTh label="APG"  col="apg"  {...thProps} />
+              <SortTh label="STL"  col="stl"  {...thProps} />
+              <SortTh label="BLK"  col="blk"  {...thProps} />
+              <SortTh label="TO"   col="to"   {...thProps} />
+              <SortTh label="PF"   col="pf"   {...thProps} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(player => {
+              const name = player.name || `${player.first_name || ""} ${player.last_name || ""}`.trim() || "Unknown";
+              return (
+                <tr key={player.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                  <td className="py-3 px-3">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: player.team?.color || "#3b82f6" }}
+                      >
+                        {player.jersey_number ?? "—"}
+                      </div>
+                      <span className="font-bold text-slate-900 uppercase tracking-wide text-xs whitespace-nowrap">{name}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-2 text-slate-500 uppercase text-xs font-semibold whitespace-nowrap">
+                    {player.team?.short_name || player.team?.name || "—"}
+                  </td>
+                  <td className="py-3 px-2 text-center text-slate-700">{player.gp}</td>
+                  <td className="py-3 px-2 text-center font-bold text-purple-700">{fmt1(player.ppg)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.pm2)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.pm3)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.ftm)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.oreb)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.dreb)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.rpg)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.apg)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.stl)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.blk)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.to)}</td>
+                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.pf)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab 3: League Leaders ────────────────────────────────────────────────────
+
+const LEADER_CATEGORIES = [
+  { key: "ppg",  label: "PPG Leaders",  icon: "🏀" },
+  { key: "pm3",  label: "3PM Leaders",  icon: "🎯" },
+  { key: "rpg",  label: "RPG Leaders",  icon: "💪" },
+  { key: "apg",  label: "APG Leaders",  icon: "🤝" },
+  { key: "stl",  label: "SPG Leaders",  icon: "🏆" },
+  { key: "blk",  label: "BPG Leaders",  icon: "🚫" },
+];
+
+const RANK_STYLE = [
+  "bg-yellow-400 text-yellow-900",   // #1 gold
+  "bg-slate-300 text-slate-700",     // #2 silver
+  "bg-orange-400 text-white",        // #3 bronze
+  "bg-slate-200 text-slate-500",     // #4
+  "bg-slate-200 text-slate-500",     // #5
+];
+
+function LeaderCard({ category, leaderRows }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xl">{category.icon}</span>
+        <span className="font-bold text-slate-900 text-sm">{category.label}</span>
+      </div>
+      {leaderRows.length === 0 ? (
+        <p className="text-slate-400 text-xs text-center py-4">No data yet</p>
+      ) : (
+        <div className="space-y-2">
+          {leaderRows.map((row, i) => (
+            <div key={row.id} className="flex items-center gap-2">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${RANK_STYLE[i] || RANK_STYLE[4]}`}>
+                {i + 1}
+              </span>
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                style={{ backgroundColor: row.team?.color || "#3b82f6" }}
+              >
+                {row.jersey_number ?? "—"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-slate-900 text-xs truncate uppercase">{row.playerName}</div>
+                <div className="text-slate-400 text-[10px] truncate uppercase">{row.team?.short_name || row.team?.name || "—"}</div>
+              </div>
+              <span className="font-bold text-purple-700 text-sm flex-shrink-0">{fmt1(row[category.key])}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LeagueLeadersTab({ players, teams, allStats }) {
+  const leaderData = useMemo(() => {
+    return players.map(player => {
+      const ps = allStats.filter(s => s.player_id === player.id);
+      if (ps.length === 0) return null;
+
+      const byGame = {};
+      ps.forEach(s => {
+        if (!byGame[s.game_id]) byGame[s.game_id] = [];
+        byGame[s.game_id].push(s);
+      });
+      const gp = Object.keys(byGame).length;
+      if (gp === 0) return null;
+
+      const gameTotals = Object.values(byGame).map(rows => ({
+        pts:  rows.reduce((a, s) => a + calcPts(s), 0),
+        pm3:  rows.reduce((a, s) => a + (s.points_3 || 0), 0),
+        reb:  rows.reduce((a, s) => a + (s.offensive_rebounds || 0) + (s.defensive_rebounds || 0), 0),
+        ast:  rows.reduce((a, s) => a + (s.assists || 0), 0),
+        stl:  rows.reduce((a, s) => a + (s.steals || 0), 0),
+        blk:  rows.reduce((a, s) => a + (s.blocks || 0), 0),
+      }));
+      const sum = key => gameTotals.reduce((a, g) => a + g[key], 0);
+      const team = teams.find(t => t.id === player.team_id);
+      const playerName = player.name || `${player.first_name || ""} ${player.last_name || ""}`.trim() || "Unknown";
+
+      return {
+        ...player, team, gp, playerName,
+        ppg: sum("pts") / gp,
+        pm3: sum("pm3") / gp,
+        rpg: sum("reb") / gp,
+        apg: sum("ast") / gp,
+        stl: sum("stl") / gp,
+        blk: sum("blk") / gp,
+      };
+    }).filter(Boolean);
+  }, [players, teams, allStats]);
+
+  const top5 = (key) => [...leaderData].sort((a, b) => b[key] - a[key]).slice(0, 5);
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <Trophy className="w-4 h-4 text-purple-600" />
+        <span className="font-semibold text-slate-900">League Leaders</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {LEADER_CATEGORIES.map(cat => (
+          <LeaderCard key={cat.key} category={cat} leaderRows={top5(cat.key)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+export default function Statistics() {
+  const [selectedLeagueId, setSelectedLeagueId] = useState(null);
+  const [selectedTeamId,   setSelectedTeamId]   = useState("all");
+  const [playerSearch,     setPlayerSearch]      = useState("");
+  const [activeTab,        setActiveTab]         = useState("team");
+
+  // Debounce player search
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
-  const [mobileTab, setMobileTab] = useState("teamstats");
-  const [desktopTab, setDesktopTab] = useState("teamstats");
-
-  React.useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-        if (user?.default_league_id) {
-          setSelectedLeague(user.default_league_id);
-        } else if (user?.assigned_league_ids?.length === 1) {
-          setSelectedLeague(user.assigned_league_ids[0]);
-        } else {
-          setSelectedLeague("all");
-        }
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
-      }
-    };
-    fetchUser();
-  }, []);
-
-  // Debounce player search with 300ms delay
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(playerSearch);
-    }, 300);
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(playerSearch), 300);
+    return () => clearTimeout(t);
   }, [playerSearch]);
 
-  const { data: leagues } = useQuery({
-    queryKey: ['leagues'],
-    queryFn: () => base44.entities.League.list(),
-    initialData: [],
+  // 1. Leagues
+  const { data: leagues = [], isLoading: leaguesLoading } = useQuery({
+    queryKey: ["leagues", "active"],
+    queryFn: () =>
+      supabase.from("leagues").select("*").eq("is_active", true)
+        .then(({ data, error }) => { if (error) throw error; return data || []; }),
   });
 
-  const isAppAdmin = currentUser?.user_type === 'app_admin';
-  const assignedLeagueIds = currentUser?.assigned_league_ids || [];
-  const hasAssignedLeagues = assignedLeagueIds.length > 0;
-  const visibleLeagues = isAppAdmin
-    ? leagues
-    : hasAssignedLeagues
-      ? leagues.filter(league => assignedLeagueIds.includes(league.id))
-      : leagues;
+  // Default to first league
+  useEffect(() => {
+    if (leagues.length > 0 && !selectedLeagueId) setSelectedLeagueId(leagues[0].id);
+  }, [leagues, selectedLeagueId]);
 
-  const { data: teams = [] } = useQuery({
-    queryKey: ['teams', selectedLeague],
-    queryFn: async () => {
-      if (!selectedLeague || selectedLeague === 'all') return [];
-      return base44.entities.Team.filter({ league_id: selectedLeague });
-    },
-    enabled: !!selectedLeague && selectedLeague !== 'all',
-    staleTime: 300000,
+  // 2. Teams
+  const { data: teams = [], isLoading: teamsLoading } = useQuery({
+    queryKey: ["teams", selectedLeagueId],
+    queryFn: () =>
+      supabase.from("teams").select("*").eq("league_id", selectedLeagueId).eq("is_active", true)
+        .then(({ data, error }) => { if (error) throw error; return data || []; }),
+    enabled: !!selectedLeagueId,
   });
 
-  const { data: players = [] } = useQuery({
-    queryKey: ['players', selectedLeague],
-    queryFn: async () => {
-      if (!selectedLeague || selectedLeague === 'all') return [];
-      const leagueTeams = await base44.entities.Team.filter({ league_id: selectedLeague });
-      const teamIds = leagueTeams.map(t => t.id);
-      if (teamIds.length === 0) return [];
-      return base44.entities.Player.filter({ team_id: { $in: teamIds } });
-    },
-    enabled: !!selectedLeague && selectedLeague !== 'all',
-    staleTime: 300000,
+  const teamIds = useMemo(() => teams.map(t => t.id), [teams]);
+
+  // 3. Players
+  const { data: players = [], isLoading: playersLoading } = useQuery({
+    queryKey: ["players", teamIds],
+    queryFn: () =>
+      supabase.from("players").select("*").in("team_id", teamIds)
+        .then(({ data, error }) => { if (error) throw error; return data || []; }),
+    enabled: teamIds.length > 0,
   });
 
-  const { data: games = [] } = useQuery({
-    queryKey: ['games', selectedLeague],
-    queryFn: async () => {
-      if (!selectedLeague || selectedLeague === 'all') return [];
-      return base44.entities.Game.filter({ league_id: selectedLeague });
-    },
-    enabled: !!selectedLeague && selectedLeague !== 'all',
-    staleTime: 5000,
+  // 4. Completed games
+  const { data: games = [], isLoading: gamesLoading } = useQuery({
+    queryKey: ["games", selectedLeagueId, "final"],
+    queryFn: () =>
+      supabase.from("games").select("*").eq("league_id", selectedLeagueId).eq("status", "final")
+        .then(({ data, error }) => { if (error) throw error; return data || []; }),
+    enabled: !!selectedLeagueId,
   });
 
-  const { data: allStats = [] } = useQuery({
-    queryKey: ['allPlayerStats', selectedLeague],
-    queryFn: async () => {
-      if (!selectedLeague || selectedLeague === 'all') return [];
-      const leagueGames = await base44.entities.Game.filter({ league_id: selectedLeague });
-      const gameIds = leagueGames.map(g => g.id);
-      if (gameIds.length === 0) return [];
-      return base44.entities.PlayerStats.filter({ game_id: { $in: gameIds } });
-    },
-    enabled: !!selectedLeague && selectedLeague !== 'all',
-    staleTime: 5000,
+  const gameIds = useMemo(() => games.map(g => g.id), [games]);
+
+  // 5. Player stats
+  const { data: allStats = [], isLoading: statsLoading } = useQuery({
+    queryKey: ["player_stats", gameIds],
+    queryFn: () =>
+      supabase.from("player_stats").select("*").in("game_id", gameIds)
+        .then(({ data, error }) => { if (error) throw error; return data || []; }),
+    enabled: gameIds.length > 0,
   });
 
-  // Already league-filtered from queries above
-  const filteredTeams = teams;
-  const filteredPlayers = selectedTeam === "all" 
-    ? players 
-    : players.filter(p => p.team_id === selectedTeam);
+  const isLoading = leaguesLoading || teamsLoading || playersLoading || gamesLoading || statsLoading;
 
-  const filteredGames = selectedTeam === "all" 
-    ? games 
-    : games.filter(g => g.home_team_id === selectedTeam || g.away_team_id === selectedTeam);
-
-  const filteredStats = selectedTeam === "all"
-    ? allStats
-    : allStats.filter(s => s.team_id === selectedTeam);
-
-  const availableTeams = teams;
-
-  const searchedPlayers = debouncedSearch.trim()
-    ? filteredPlayers.filter(p => 
-        p.name.toLowerCase().includes(debouncedSearch.toLowerCase())
-      )
-    : filteredPlayers;
+  const TABS = [
+    { id: "team",    label: "Team Stats" },
+    { id: "player",  label: "Player Stats" },
+    { id: "leaders", label: "League Leaders" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <BarChart3 className="w-6 h-6 text-white" />
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-4 md:py-12">
+
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <BarChart3 className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900">Statistics & Analytics</h1>
+            <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-slate-900">Statistics</h1>
           </div>
-          <p className="text-slate-600 ml-15">Comprehensive league, team, and player statistics</p>
+          <p className="text-slate-600 text-xs sm:text-sm pl-1">League, team and player statistics</p>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Filter className="w-5 h-5 text-purple-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-6 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Filter className="w-4 h-4 text-purple-600" />
+            <span className="font-semibold text-slate-900 text-base">Filters</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {/* League */}
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 block">League</label>
-              <Select value={selectedLeague} onValueChange={(value) => {
-                setSelectedLeague(value);
-                setSelectedTeam("all");
-                setPlayerSearch("");
-              }}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select league" />
-                </SelectTrigger>
-                <SelectContent>
-                   <SelectItem value="all">All Leagues</SelectItem>
-                   {visibleLeagues.map(league => (
-                     <SelectItem key={league.id} value={league.id}>
-                       {league.name} ({league.season})
-                     </SelectItem>
-                   ))}
-                 </SelectContent>
-              </Select>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">League</label>
+              {leaguesLoading ? (
+                <div className="flex items-center gap-2 text-slate-400 text-sm py-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
+              ) : (
+                <Select
+                  value={selectedLeagueId || ""}
+                  onValueChange={v => { setSelectedLeagueId(v); setSelectedTeamId("all"); setPlayerSearch(""); }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select league" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {leagues.map(l => (
+                      <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
+            {/* Team */}
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 block">Team</label>
-              <Select value={selectedTeam} onValueChange={(value) => {
-                setSelectedTeam(value);
-                setPlayerSearch("");
-              }}>
+              <label className="text-xs font-medium text-slate-600 mb-1 block">Team</label>
+              <Select
+                value={selectedTeamId}
+                onValueChange={v => { setSelectedTeamId(v); setPlayerSearch(""); }}
+                disabled={!selectedLeagueId || teams.length === 0}
+              >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select team" />
+                  <SelectValue placeholder="All Teams" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Teams</SelectItem>
-                  {availableTeams.map(team => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
+                  {teams.map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {(mobileTab === "players" || desktopTab === "players") && (
+
+            {/* Player search — only on Player Stats tab */}
+            {activeTab === "player" && (
               <div>
-                <label className="text-sm font-medium text-slate-700 mb-2 block">Search Player</label>
+                <label className="text-xs font-medium text-slate-600 mb-1 block">Search Player</label>
                 <Input
                   type="text"
-                  placeholder="Filter by player name..."
+                  placeholder="Filter by player name…"
                   value={playerSearch}
-                  onChange={(e) => setPlayerSearch(e.target.value)}
+                  onChange={e => setPlayerSearch(e.target.value)}
                   className="w-full"
                 />
               </div>
@@ -209,97 +555,62 @@ export default function StatisticsPage() {
           </div>
         </div>
 
-        {selectedLeague === "all" ? (
-          <div className="flex flex-col items-center justify-center py-20 px-4 bg-white rounded-2xl shadow-sm border border-slate-200">
-            <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mb-6">
-              <BarChart3 className="w-12 h-12 text-purple-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-2">Select a League</h3>
-            <p className="text-slate-600 text-center max-w-md">
-              Please select a league from the filter above to view statistics and analytics.
-            </p>
+        {/* Tabs */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Tab bar */}
+          <div className="flex items-center gap-1 px-3 pt-3 pb-0 border-b border-slate-100">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-purple-600 text-white"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
-        ) : (
-          <>
-            {/* Mobile tab selector - only shown on mobile */}
-            <div className="block md:hidden mb-4">
-              <Select value={mobileTab} onValueChange={setMobileTab}>
-                <SelectTrigger className="w-full bg-white border-slate-200">
-                  <div className="flex items-center gap-2">
-                    <BarChart4 className="w-4 h-4 text-purple-600" />
-                    <span>
-                      View: {
-                        mobileTab === "teamstats" ? "Team Stats" :
-                        mobileTab === "players" ? "Player Stats" :
-                        mobileTab === "leaders" ? "League Leaders" :
-                        "Game Stats"
-                      }
-                    </span>
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="teamstats">Team Stats</SelectItem>
-                  <SelectItem value="players">Player Stats</SelectItem>
-                  <SelectItem value="leaders">League Leaders</SelectItem>
 
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Tab content */}
+          <div className="p-4 sm:p-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+              </div>
+            ) : !selectedLeagueId ? (
+              <div className="flex flex-col items-center justify-center py-20 px-4">
+                <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4">
+                  <BarChart3 className="w-8 h-8 text-purple-300" />
+                </div>
+                <p className="text-slate-500 text-sm">Select a league to view statistics.</p>
+              </div>
+            ) : activeTab === "team" ? (
+              <TeamStatsTab
+                teams={teams}
+                allStats={allStats}
+                selectedTeamId={selectedTeamId}
+              />
+            ) : activeTab === "player" ? (
+              <PlayerStatsTab
+                players={players}
+                teams={teams}
+                allStats={allStats}
+                selectedTeamId={selectedTeamId}
+                playerSearch={debouncedSearch}
+              />
+            ) : (
+              <LeagueLeadersTab
+                players={players}
+                teams={teams}
+                allStats={allStats}
+              />
+            )}
+          </div>
+        </div>
 
-            {/* Mobile content */}
-            <div className="block md:hidden">
-              {mobileTab === "teamstats" && (
-                <MobileTeamStats teams={filteredTeams} games={filteredGames} stats={filteredStats} />
-              )}
-              {mobileTab === "players" && (
-                <MobilePlayerStats
-                  players={searchedPlayers}
-                  teams={teams}
-                  stats={filteredStats}
-                  games={games}
-                />
-              )}
-              {mobileTab === "leaders" && (
-                <MobileLeagueLeaders players={filteredPlayers} teams={teams} stats={filteredStats} games={games} />
-              )}
-
-            </div>
-
-            {/* Desktop tabs - hidden on mobile */}
-            <div className="hidden md:block">
-              <Tabs defaultValue="teamstats" value={desktopTab} onValueChange={setDesktopTab} className="space-y-6 w-full">
-                <TabsList className="bg-white border border-slate-200 p-1 h-auto flex-wrap w-full">
-                  <TabsTrigger value="teamstats" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white px-6 py-2.5">
-                    Team Stats
-                  </TabsTrigger>
-                  <TabsTrigger value="players" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white px-6 py-2.5">
-                    Player Stats
-                  </TabsTrigger>
-                  <TabsTrigger value="leaders" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white px-6 py-2.5">
-                    League Leaders
-                  </TabsTrigger>
-
-                </TabsList>
-
-                <TabsContent value="teamstats">
-                  <TeamStats teams={filteredTeams} games={filteredGames} stats={filteredStats} leagues={leagues} />
-                </TabsContent>
-                <TabsContent value="players">
-                  <PlayerStats
-                    players={searchedPlayers}
-                    teams={teams}
-                    stats={filteredStats}
-                    games={games}
-                  />
-                </TabsContent>
-                <TabsContent value="leaders">
-                  <LeagueLeaders players={filteredPlayers} teams={teams} stats={filteredStats} games={games} />
-                </TabsContent>
-
-              </Tabs>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

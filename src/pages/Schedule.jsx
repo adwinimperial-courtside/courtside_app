@@ -289,6 +289,7 @@ export default function SchedulePage() {
                 key={game.id}
                 game={game}
                 teams={teams}
+                leagueName={accessibleLeagues.find((l) => l.id === game.league_id)?.name}
                 canManage={canManage}
                 onGameUpdated={() => queryClient.invalidateQueries({ queryKey: ["games"] })}
                 onStartGame={() => navigate(`/LiveGame?gameId=${game.id}`)}

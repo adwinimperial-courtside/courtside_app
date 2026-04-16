@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -92,6 +93,7 @@ export default function LiveStatTracker({
   const gameId   = propGameId  || propGame?.id;
   const leagueId = propLeagueId || propGame?.league_id;
 
+  const navigate    = useNavigate();
   const queryClient = useQueryClient();
 
   // ─── State ────────────────────────────────────────────────────────────────
@@ -258,11 +260,11 @@ export default function LiveStatTracker({
 
   // ─── Derived State ────────────────────────────────────────────────────────
 
-  const activePlayers     = existingStats.filter(s => s.is_starter);
+  const activePlayers     = existingStats.filter(s => s.is_active);
   const activePlayerIds   = activePlayers.map(s => s.player_id);
 
-  const homeActiveCount = existingStats.filter(s => s.team_id === game?.home_team_id && s.is_starter).length;
-  const awayActiveCount = existingStats.filter(s => s.team_id === game?.away_team_id && s.is_starter).length;
+  const homeActiveCount = existingStats.filter(s => s.team_id === game?.home_team_id && s.is_active).length;
+  const awayActiveCount = existingStats.filter(s => s.team_id === game?.away_team_id && s.is_active).length;
 
   const totalPeriods  = game?.period_count || (game?.period_type === 'halves' ? 2 : 4);
   const currentPeriod = game?.clock_period ?? 1;
@@ -318,7 +320,7 @@ export default function LiveStatTracker({
   const updateValidSnapshots = (freshStats) => {
     const teamIds = [game?.home_team_id, game?.away_team_id].filter(Boolean);
     for (const teamId of teamIds) {
-      const activeIds = new Set(freshStats.filter(s => s.team_id === teamId && s.is_starter).map(s => s.player_id));
+      const activeIds = new Set(freshStats.filter(s => s.team_id === teamId && s.is_active).map(s => s.player_id));
       const activePls = players.filter(p => activeIds.has(p.id));
       const benchPls  = players.filter(p => p.team_id === teamId && !activeIds.has(p.id));
       const eligibleBench = benchPls.filter(p => isPlayerEligible(p.id, freshStats));
@@ -338,7 +340,7 @@ export default function LiveStatTracker({
     const teamIds = [game?.home_team_id, game?.away_team_id].filter(Boolean);
     const teamsNeedingRepair = [];
     for (const teamId of teamIds) {
-      const activeIds  = new Set(freshStats.filter(s => s.team_id === teamId && s.is_starter).map(s => s.player_id));
+      const activeIds  = new Set(freshStats.filter(s => s.team_id === teamId && s.is_active).map(s => s.player_id));
       const activePls  = players.filter(p => activeIds.has(p.id));
       const benchPls   = players.filter(p => p.team_id === teamId && !activeIds.has(p.id));
       const eligible   = benchPls.filter(p => isPlayerEligible(p.id, freshStats));
@@ -367,7 +369,7 @@ export default function LiveStatTracker({
   // Run on every player_stats load and Realtime-triggered refetch, not just when
   // the derived count changes. Using existingStats as the dep fires on every new
   // query result reference — initial load, background refetch, setQueryData call.
-  // is_starter is the on-court flag (player_stats has no is_active column).
+  // is_active = currently on court. is_starter = began game in starting 5.
   useEffect(() => {
     if (existingStats.length === 0) return;
     if (isSubmittingSubRef.current) return;
@@ -545,10 +547,9 @@ export default function LiveStatTracker({
         // when the ejection modal is dismissed without a substitution.
         ejectionInProgressRef.current = true;
 
-        // Mark is_starter = false server-side (player_stats has no is_active column)
         await supabase
           .from('player_stats')
-          .update({ is_starter: false })
+          .update({ is_starter: false, is_active: false })
           .eq('id', playerStat.id);
 
         // Ejection audit log
@@ -704,12 +705,12 @@ export default function LiveStatTracker({
       const reversals = [
         ...out_ids.map(pid => {
           const s = freshStats.find(st => st.player_id === pid);
-          return s ? supabase.from('player_stats').update({ is_starter: true }).eq('id', s.id) : null;
+          return s ? supabase.from('player_stats').update({ is_starter: true, is_active: true }).eq('id', s.id) : null;
         }),
         // Reverse: players who came IN go back to bench
         ...in_ids.map(pid => {
           const s = freshStats.find(st => st.player_id === pid);
-          return s ? supabase.from('player_stats').update({ is_starter: false }).eq('id', s.id) : null;
+          return s ? supabase.from('player_stats').update({ is_starter: false, is_active: false }).eq('id', s.id) : null;
         }),
       ].filter(Boolean);
 
@@ -836,7 +837,7 @@ export default function LiveStatTracker({
             const totalMin = Math.round(((playerMinutesRef.current[playerOut.id] || 0) / 60) * 100) / 100;
             await supabase
               .from('player_stats')
-              .update({ is_starter: false, minutes_played: totalMin })
+              .update({ is_starter: false, is_active: false, minutes_played: totalMin })
               .eq('id', outStat.id);
           }
           if (selectedPlayer?.id === playerOut.id) setSelectedPlayer(null);
@@ -847,7 +848,7 @@ export default function LiveStatTracker({
           if (inStat) {
             await supabase
               .from('player_stats')
-              .update({ is_starter: true })
+              .update({ is_starter: true, is_active: true })
               .eq('id', inStat.id);
           } else {
             await supabase.from('player_stats').insert({
@@ -856,6 +857,7 @@ export default function LiveStatTracker({
               player_id:  playerInId,
               team_id:    teamId,
               is_starter: true,
+              is_active:  true,
               minutes_played: 0,
             });
           }
@@ -936,12 +938,12 @@ export default function LiveStatTracker({
 
     const homeScore = calcTeamScore(game.home_team_id, existingStats);
     const awayScore = calcTeamScore(game.away_team_id, existingStats);
-    const homeWins  = homeScore > awayScore;
 
     const { error: gameErr } = await supabase
       .from('games')
       .update({
-        status:         'completed',
+        status:         'final',
+        ended_at:       new Date().toISOString(),
         player_of_game: findPlayerOfGame(existingStats, game),
         home_score:     homeScore,
         away_score:     awayScore,
@@ -949,22 +951,8 @@ export default function LiveStatTracker({
       .eq('id', gameId);
     if (gameErr) { console.error('[handleEndGameFromModal]', gameErr); return; }
 
-    // Update team win/loss records
-    const [homeTeamRow] = await supabase.from('teams').select('wins,losses').eq('id', game.home_team_id).single().then(r => [r.data]);
-    const [awayTeamRow] = await supabase.from('teams').select('wins,losses').eq('id', game.away_team_id).single().then(r => [r.data]);
-
-    await Promise.all([
-      homeTeamRow && supabase.from('teams').update({
-        wins:   homeWins ? (homeTeamRow.wins || 0) + 1 : (homeTeamRow.wins || 0),
-        losses: !homeWins ? (homeTeamRow.losses || 0) + 1 : (homeTeamRow.losses || 0),
-      }).eq('id', game.home_team_id),
-      awayTeamRow && supabase.from('teams').update({
-        wins:   !homeWins ? (awayTeamRow.wins || 0) + 1 : (awayTeamRow.wins || 0),
-        losses: homeWins  ? (awayTeamRow.losses || 0) + 1 : (awayTeamRow.losses || 0),
-      }).eq('id', game.away_team_id),
-    ].filter(Boolean));
-
     onBack?.();
+    navigate('/Schedule');
   };
 
   const handleEndGame = async () => {
