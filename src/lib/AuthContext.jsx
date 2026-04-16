@@ -5,18 +5,29 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
+  const fetchProfile = async (userId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (!error) setUserProfile(data);
+  };
+
   useEffect(() => {
-    // Load existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session?.user) fetchProfile(session.user.id);
       setIsLoadingAuth(false);
     });
 
-    // Keep session in sync with auth state changes (sign in, sign out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user) fetchProfile(session.user.id);
+      else setUserProfile(null);
     });
 
     return () => subscription.unsubscribe();
@@ -26,6 +37,8 @@ export const AuthProvider = ({ children }) => {
 
   const currentUser = session?.user ?? null;
   const isAuthenticated = !!session;
+  const userType = userProfile?.user_type ?? null;
+  const isAppAdmin = currentUser?.user_metadata?.app_admin === true;
 
   return (
     <AuthContext.Provider value={{
@@ -33,6 +46,9 @@ export const AuthProvider = ({ children }) => {
       session,
       isAuthenticated,
       isLoadingAuth,
+      userProfile,
+      userType,
+      isAppAdmin,
       signOut,
     }}>
       {children}

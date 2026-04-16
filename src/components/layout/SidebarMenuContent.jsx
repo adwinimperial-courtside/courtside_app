@@ -1,9 +1,11 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
-import { Trophy, Users, Calendar, BarChart3, Settings, Medal, Target, ClipboardList, Shield, Eye, Layout, ScrollText, UserCog, LineChart, UserCircle, Trash2, HardDrive, Wrench, Link2, SlidersHorizontal, Newspaper, PlusCircle } from "lucide-react";
+import {
+  Trophy, Users, Calendar, BarChart3, Medal, Target, Layout,
+  ScrollText, UserCog, LineChart, UserCircle, Trash2, HardDrive,
+  Link2, SlidersHorizontal, Newspaper, PlusCircle, ClipboardList,
+} from "lucide-react";
 import {
   SidebarContent,
   SidebarGroup,
@@ -12,197 +14,96 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar
+  useSidebar,
 } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
 
 const navigationItems = [
-  {
-    title: "Leagues",
-    url: createPageUrl("Leagues"),
-    icon: Trophy
-  },
-  {
-    title: "Teams",
-    url: createPageUrl("Teams"),
-    icon: Users
-  },
-  {
-    title: "Schedule",
-    url: createPageUrl("Schedule"),
-    icon: Calendar
-  },
-  {
-    title: "Standings",
-    url: createPageUrl("Standings"),
-    icon: Trophy
-  },
-  {
-    title: "Statistics",
-    url: createPageUrl("Statistics"),
-    icon: BarChart3
-  },
-  {
-    title: "Award Leaders",
-    url: createPageUrl("AwardLeaders"),
-    icon: Medal
-  },
-  {
-    title: "Coach Insights",
-    url: createPageUrl("CoachInsights"),
-    icon: Target
-  },
-  {
-    title: "Whiteboard",
-    url: createPageUrl("Whiteboard"),
-    icon: Layout
-  }
-  ];
-
-const adminItems = [
-  {
-    title: "Admin Tools",
-    url: createPageUrl("AdminTools"),
-    icon: Settings
-  }
+  { title: "Leagues",       url: createPageUrl("Leagues"),      icon: Trophy },
+  { title: "Teams",         url: createPageUrl("Teams"),         icon: Users },
+  { title: "Schedule",      url: createPageUrl("Schedule"),      icon: Calendar },
+  { title: "Standings",     url: createPageUrl("Standings"),     icon: Trophy },
+  { title: "Statistics",    url: createPageUrl("Statistics"),    icon: BarChart3 },
+  { title: "Award Leaders", url: createPageUrl("AwardLeaders"),  icon: Medal },
+  { title: "Coach Insights",url: createPageUrl("CoachInsights"), icon: Target },
+  { title: "Whiteboard",    url: createPageUrl("Whiteboard"),    icon: Layout },
 ];
 
 const leagueAdminItems = [
-  {
-    title: "Game Log",
-    url: createPageUrl("GameLog"),
-    icon: ScrollText
-  },
-  {
-    title: "League Users",
-    url: createPageUrl("LeagueUsers"),
-    icon: Users
-  },
-  {
-    title: "Story Builder",
-    url: createPageUrl("StoryBuilder"),
-    icon: Newspaper
-  }
+  { title: "Application Review", url: createPageUrl("ApplicationReview"), icon: ClipboardList },
+  { title: "Game Log",           url: createPageUrl("GameLog"),           icon: ScrollText },
+  { title: "League Users",       url: createPageUrl("LeagueUsers"),       icon: Users },
+  { title: "Story Builder",      url: createPageUrl("StoryBuilder"),      icon: Newspaper },
 ];
 
 const ownerItems = [
-  {
-    title: "Requests",
-    url: createPageUrl("RequestManagement"),
-    icon: ClipboardList
-  },
-  {
-    title: "User Management",
-    url: createPageUrl("UserManagement"),
-    icon: Users
-  },
-  {
-    title: "User Roles",
-    url: createPageUrl("UserRoles"),
-    icon: UserCog
-  },
-  {
-    title: "Analytics",
-    url: createPageUrl("Analytics"),
-    icon: LineChart
-  },
-  {
-    title: "Delete League",
-    url: createPageUrl("DeleteLeague"),
-    icon: Trash2
-  },
-  {
-    title: "Data Backup",
-    url: createPageUrl("DataBackup"),
-    icon: HardDrive
-  },
-
-  {
-    title: "Roster User Matching",
-    url: createPageUrl("RosterUserMatching"),
-    icon: Link2
-  },
-  {
-    title: "League Award Settings",
-    url: createPageUrl("LeagueAwardSettings"),
-    icon: SlidersHorizontal
-  },
-  {
-    title: "All Players",
-    url: createPageUrl("AllPlayersView"),
-    icon: Users
-  },
-  {
-    title: "Season Recap",
-    url: "/RegularSeasonRecap",
-    icon: Newspaper
-  }
+  { title: "Requests",              url: createPageUrl("RequestManagement"),   icon: ClipboardList },
+  { title: "User Management",       url: createPageUrl("UserManagement"),       icon: Users },
+  { title: "User Roles",            url: createPageUrl("UserRoles"),            icon: UserCog },
+  { title: "Analytics",             url: createPageUrl("Analytics"),            icon: LineChart },
+  { title: "Delete League",         url: createPageUrl("DeleteLeague"),         icon: Trash2 },
+  { title: "Data Backup",           url: createPageUrl("DataBackup"),           icon: HardDrive },
+  { title: "Roster User Matching",  url: createPageUrl("RosterUserMatching"),   icon: Link2 },
+  { title: "League Award Settings", url: createPageUrl("LeagueAwardSettings"),  icon: SlidersHorizontal },
+  { title: "All Players",           url: createPageUrl("AllPlayersView"),       icon: Users },
+  { title: "Season Recap",          url: "/RegularSeasonRecap",                 icon: Newspaper },
 ];
 
-export default function SidebarMenuContent({ currentUser, location, isViewerWithoutAdminAccess }) {
+const playerNavItem = { title: "Player Profile", url: createPageUrl("PlayerProfile"), icon: UserCircle };
+
+export default function SidebarMenuContent({ currentUser, userType, isAppAdmin, isViewerWithoutAdminAccess }) {
+  const location = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
 
-  const { data: userApplications = [] } = useQuery({
-    queryKey: ['userApplications'],
-    queryFn: () => base44.entities.UserApplication.list(),
-    enabled: currentUser?.user_type === 'app_admin',
-    refetchInterval: 30000,
-    staleTime: 0,
-  });
-
-  const { data: allUsers = [] } = useQuery({
-    queryKey: ['sidebarAllUsers'],
-    queryFn: () => base44.entities.User.list('-created_date', 500),
-    enabled: currentUser?.user_type === 'app_admin',
-    refetchInterval: 15000,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-  });
-
-  const pendingRequestsCount = userApplications.filter(r => r.status === 'Pending').length;
-  const totalUsersCount = allUsers.filter(u => u.user_type !== 'app_admin').length;
-
-  const playerNavItem = {
-    title: "Player Profile",
-    url: createPageUrl("PlayerProfile"),
-    icon: UserCircle
+  const handleNavigationClick = () => {
+    if (isMobile) setOpenMobile(false);
   };
 
+  const isAdmin = isAppAdmin || userType === "league_admin";
+
   const getVisibleNavigationItems = () => {
-      if (!currentUser) return navigationItems;
-      const base = currentUser.user_type === "viewer"
-        ? navigationItems.filter(item => !["Leagues", "Teams", "Coach Insights", "Whiteboard"].includes(item.title))
-        : navigationItems;
-      const withRole = (currentUser.user_type === "player" || currentUser.user_type === "coach")
-        ? [playerNavItem, ...base]
-        : base;
-      // Add "Request League Access" for all approved non-admin users
-      if (currentUser.user_type && currentUser.user_type !== "app_admin") {
-        return [...withRole, { title: "Request League Access", url: createPageUrl("ApplyForLeague"), icon: PlusCircle }];
-      }
-      return withRole;
-    };
+    if (!currentUser) return navigationItems;
+    const base = userType === "viewer"
+      ? navigationItems.filter(item => !["Leagues", "Teams", "Coach Insights", "Whiteboard"].includes(item.title))
+      : navigationItems;
+    const withRole = (userType === "player" || userType === "coach")
+      ? [playerNavItem, ...base]
+      : base;
+    if (userType && !isAppAdmin) {
+      return [...withRole, { title: "Request League Access", url: createPageUrl("ApplyForLeague"), icon: PlusCircle }];
+    }
+    return withRole;
+  };
 
   const getVisibleAdminItems = () => {
-    if (!currentUser) return [];
-    if (currentUser.user_type === "app_admin") return [...adminItems, ...leagueAdminItems];
-    if (currentUser.user_type === "league_admin") return [...adminItems, ...leagueAdminItems];
-    return [];
+    if (!isAdmin) return [];
+    return leagueAdminItems;
   };
 
   const getVisibleOwnerItems = () => {
-    if (!currentUser) return [];
-    if (currentUser.user_type === "app_admin") return ownerItems;
-    return [];
+    if (!isAppAdmin) return [];
+    return ownerItems;
   };
 
-  const handleNavigationClick = () => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  };
+  const visibleNavItems = getVisibleNavigationItems();
+  const visibleAdminItems = getVisibleAdminItems();
+  const visibleOwnerItems = getVisibleOwnerItems();
+
+  const menuItemClass = (url) =>
+    `hover:bg-orange-50 hover:text-orange-600 transition-all duration-200 rounded-lg mb-1 ${
+      location.pathname === url ? "bg-orange-50 text-orange-600 font-semibold" : ""
+    }`;
+
+  const renderItems = (items) =>
+    items.map((item) => (
+      <SidebarMenuItem key={item.title}>
+        <SidebarMenuButton asChild className={menuItemClass(item.url)}>
+          <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5" onClick={handleNavigationClick}>
+            <item.icon className="w-5 h-5" />
+            <span>{item.title}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    ));
 
   return (
     <SidebarContent className="p-3">
@@ -211,86 +112,30 @@ export default function SidebarMenuContent({ currentUser, location, isViewerWith
           Navigation
         </SidebarGroupLabel>
         <SidebarGroupContent>
-          <SidebarMenu>
-            {getVisibleNavigationItems().map((item) =>
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  asChild
-                  className={`hover:bg-orange-50 hover:text-orange-600 transition-all duration-200 rounded-lg mb-1 ${
-                    location.pathname === item.url ? 'bg-orange-50 text-orange-600 font-semibold' : ''
-                  }`}
-                >
-                  <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5" onClick={handleNavigationClick}>
-                    <item.icon className="w-5 h-5" />
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-          </SidebarMenu>
+          <SidebarMenu>{renderItems(visibleNavItems)}</SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
 
-      {getVisibleAdminItems().length > 0 && (
-        <>
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
-              Admin
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {getVisibleAdminItems().map((item) =>
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      className={`hover:bg-orange-50 hover:text-orange-600 transition-all duration-200 rounded-lg mb-1 ${
-                        location.pathname === item.url ? 'bg-orange-50 text-orange-600 font-semibold' : ''
-                      }`}
-                    >
-                      <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5" onClick={handleNavigationClick}>
-                        <item.icon className="w-5 h-5" />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+      {visibleAdminItems.length > 0 && (
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
+            Admin
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>{renderItems(visibleAdminItems)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      )}
 
-          {getVisibleOwnerItems().length > 0 && (
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
-                Owner
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {getVisibleOwnerItems().map((item) =>
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        className={`hover:bg-orange-50 hover:text-orange-600 transition-all duration-200 rounded-lg mb-1 ${
-                          location.pathname === item.url ? 'bg-orange-50 text-orange-600 font-semibold' : ''
-                        }`}
-                      >
-                        <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5" onClick={handleNavigationClick}>
-                          <item.icon className="w-5 h-5" />
-                          <span>{item.title}</span>
-                          {item.title === "Requests" && pendingRequestsCount > 0 && (
-                            <Badge className="ml-auto bg-orange-500 text-white">{pendingRequestsCount}</Badge>
-                          )}
-                          {item.title === "User Roles" && totalUsersCount > 0 && (
-                            <Badge className="ml-auto bg-slate-500 text-white">{totalUsersCount}</Badge>
-                          )}
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
-        </>
+      {visibleOwnerItems.length > 0 && (
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
+            Owner
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>{renderItems(visibleOwnerItems)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       )}
     </SidebarContent>
   );

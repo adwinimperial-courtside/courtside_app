@@ -1,3 +1,7 @@
+# src/pages/Home.jsx — current contents
+**Date:** 2026-04-16
+
+```jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
@@ -22,42 +26,35 @@ export default function Home() {
       setIsRouting(true);
       try {
         // Check for active memberships
-        const { data: memberships, error: memError } = await supabase
+        const { data: memberships } = await supabase
           .from('user_league_memberships')
           .select('id')
           .eq('user_id', currentUser.id)
           .eq('is_active', true)
           .limit(1);
 
-        console.log('[Home] memberships result:', memberships, 'error:', memError);
-
         if (memberships && memberships.length > 0) {
-          console.log('[Home] navigating to: /LeagueSelection');
           navigate('/LeagueSelection', { replace: true });
           return;
         }
 
         // Check latest application
-        const { data: applications, error: appError } = await supabase
+        const { data: applications } = await supabase
           .from('league_applications')
           .select('id, status')
           .eq('user_id', currentUser.id)
           .order('created_at', { ascending: false })
           .limit(1);
 
-        console.log('[Home] applications result:', applications, 'error:', appError);
-
         if (applications && applications.length > 0) {
           const latest = applications[0];
           if (latest.status === 'pending') {
-            console.log('[Home] navigating to: /PendingApproval');
             navigate('/PendingApproval', { replace: true });
             return;
           }
         }
 
         // No memberships, no pending application (none at all, or only rejected)
-        console.log('[Home] navigating to: /RoleSelection');
         navigate('/RoleSelection', { replace: true });
       } catch (err) {
         console.error('[Home] routing error', err);
@@ -81,3 +78,19 @@ export default function Home() {
 
   return null;
 }
+```
+
+## Routing logic
+
+| Condition | Destination |
+|-----------|-------------|
+| Not authenticated | `/Landing` |
+| Has active `user_league_memberships` row | `/LeagueSelection` |
+| Latest `league_applications` row is `pending` | `/PendingApproval` |
+| No applications, or all rejected | `/RoleSelection` |
+| Error during queries | `/RoleSelection` (fallback) |
+
+## Notes
+- Spinner shown during `isLoadingAuth` AND while async routing queries are in flight (`isRouting`)
+- Returns `null` after routing completes — component never visibly renders content
+- Auto-registered at `/Home` via pagesConfig; also serves as the `/` root via `MainPage` in App.jsx

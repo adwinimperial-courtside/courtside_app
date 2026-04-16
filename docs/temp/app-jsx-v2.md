@@ -1,3 +1,4 @@
+```jsx
 import './App.css'
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -87,3 +88,4 @@ function App() {
 }
 
 export default App
+```

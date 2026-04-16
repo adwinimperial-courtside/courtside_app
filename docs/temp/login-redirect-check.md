@@ -1,3 +1,11 @@
+# Login redirect check
+**Date:** 2026-04-16
+
+---
+
+## 1. src/components/auth/LoginPage.jsx
+
+```jsx
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -57,7 +65,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-orange-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-11 h-11 rounded-xl overflow-hidden shadow-md">
@@ -69,7 +76,6 @@ export default function LoginPage() {
           </div>
           <span className="text-2xl font-bold text-slate-900">Courtside by AI</span>
         </div>
-
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
           <h1 className="text-2xl font-bold text-slate-900 mb-1">
@@ -80,116 +86,102 @@ export default function LoginPage() {
               ? "Sign in to your account to continue"
               : "Enter your details below to get started"}
           </p>
-
-          {/* Success message */}
           {success && (
             <div className="flex items-start gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 mb-5 text-sm">
               <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{success}</span>
             </div>
           )}
-
-          {/* Error message */}
           {error && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-5 text-sm">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
-
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "register" && (
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  type="text"
-                  placeholder="Full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className="pl-9"
-                />
+                <Input type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="pl-9" />
               </div>
             )}
-
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="pl-9"
-              />
+              <Input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} required className="pl-9" />
             </div>
-
             {mode === "register" && (
               <div className="relative">
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  type="text"
-                  placeholder="Country"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="pl-9"
-                />
+                <Input type="text" placeholder="Country" value={country} onChange={(e) => setCountry(e.target.value)} className="pl-9" />
               </div>
             )}
-
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="pl-9"
-              />
+              <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="pl-9" />
             </div>
-
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold"
-            >
+            <Button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold">
               {isLoading
                 ? mode === "signin" ? "Signing in…" : "Creating account…"
                 : mode === "signin" ? "Sign in" : "Create account"}
             </Button>
           </form>
-
-          {/* Toggle */}
           <p className="text-sm text-center text-slate-500 mt-6">
             {mode === "signin" ? (
-              <>
-                Don't have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => switchMode("register")}
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  Create one
-                </button>
-              </>
+              <>Don't have an account?{" "}<button type="button" onClick={() => switchMode("register")} className="text-blue-600 hover:underline font-medium">Create one</button></>
             ) : (
-              <>
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => switchMode("signin")}
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  Sign in
-                </button>
-              </>
+              <>Already have an account?{" "}<button type="button" onClick={() => switchMode("signin")} className="text-blue-600 hover:underline font-medium">Sign in</button></>
             )}
           </p>
         </div>
-
       </div>
     </div>
   );
 }
+```
+
+### Notes
+- Lives at `src/components/auth/LoginPage.jsx` — is a **component**, not a page
+- No post-login redirect logic — relies on parent/router reacting to auth state change
+- Needs a `Login.jsx` page in `src/pages/` to expose it at `/Login`
+
+---
+
+## 2. src/pages/Home.jsx
+
+```jsx
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/lib/AuthContext';
+
+export default function Home() {
+  const { isAuthenticated, isLoadingAuth } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoadingAuth) return;
+    if (!isAuthenticated) {
+      navigate('/Landing', { replace: true });
+    } else {
+      navigate('/LeagueSelection', { replace: true });
+    }
+  }, [isAuthenticated, isLoadingAuth, navigate]);
+
+  return null;
+}
+```
+
+### Notes
+- Pure redirect component — renders nothing
+- Unauthenticated → `/Landing`
+- Authenticated → `/LeagueSelection`
+- Already wired to `useAuth` correctly
+
+---
+
+## What's missing for the full auth flow
+
+| Missing piece | Action needed |
+|---------------|---------------|
+| `src/pages/Login.jsx` | Create — wraps `LoginPage` component, redirects to `/Schedule` on auth |
+| `LeagueSelection` page | Check if exists — Home redirects there on login |
+| Route protection | Wrap protected pages so unauthenticated users hit `/Login` |

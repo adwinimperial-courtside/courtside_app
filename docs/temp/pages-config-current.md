@@ -1,3 +1,4 @@
+```js
 /**
  * pages.config.js - Page routing configuration
  * 
@@ -77,10 +78,6 @@ import UserManagement from './pages/UserManagement';
 import UserRoles from './pages/UserRoles';
 import Viewers from './pages/Viewers';
 import Whiteboard from './pages/Whiteboard';
-import ApplicationReview from './pages/ApplicationReview';
-import RoleSelection from './pages/RoleSelection';
-import LeagueApplication from './pages/LeagueApplication';
-import PendingApproval from './pages/PendingApproval';
 import __Layout from './Layout.jsx';
 
 
@@ -115,14 +112,11 @@ export const PAGES = {
     "FixManualStats": FixManualStats,
     "RosterUserMatching": RosterUserMatching,
     "LeagueAwardSettings": LeagueAwardSettings,
-    "ApplicationReview": ApplicationReview,
-    "RoleSelection": RoleSelection,
-    "LeagueApplication": LeagueApplication,
-    "PendingApproval": PendingApproval,
 }
 
 export const pagesConfig = {
-    mainPage: "Home",
+    mainPage: "Schedule",
     Pages: PAGES,
     Layout: __Layout,
 };
+```

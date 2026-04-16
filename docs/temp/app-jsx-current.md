@@ -1,3 +1,7 @@
+# src/App.jsx — current contents
+**Date:** 2026-04-16
+
+```jsx
 import './App.css'
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -5,7 +9,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { setupIframeMessaging } from './lib/iframe-messaging';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -17,6 +21,7 @@ import ApplyForLeaguePage from './pages/ApplyForLeague';
 import StoryBuilderPage from './pages/StoryBuilder';
 import LeagueUsersPage from './pages/LeagueUsers';
 import RegularSeasonRecapPage from './pages/RegularSeasonRecap';
+
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
@@ -62,16 +67,13 @@ const AuthenticatedApp = () => {
         <Route path="/StoryBuilder" element={<LayoutWrapper currentPageName="StoryBuilder"><StoryBuilderPage /></LayoutWrapper>} />
         <Route path="/ApplyForLeague" element={<LayoutWrapper currentPageName="ApplyForLeague"><ApplyForLeaguePage /></LayoutWrapper>} />
         <Route path="/RegularSeasonRecap" element={<LayoutWrapper currentPageName="RegularSeasonRecap"><RegularSeasonRecapPage /></LayoutWrapper>} />
-        <Route path="/Login" element={<Navigate to="/Home" replace />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     </LayoutWrapper>
   );
 };
 
-
 function App() {
-
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
@@ -87,3 +89,14 @@ function App() {
 }
 
 export default App
+```
+
+## Notes
+- `AuthProvider` wraps the entire app — `useAuth` available everywhere
+- `AuthenticatedApp` gates all routing:
+  - Loading → full-screen spinner
+  - Unauthenticated → only `/Landing` and `*` (LoginPage) are accessible
+  - Authenticated → full app via pagesConfig auto-routes + hardcoded extras
+- `pagesConfig` auto-registers all `src/pages/` files — no manual route needed for new pages
+- Hardcoded extra routes: AllPlayersView, LeagueUsers, StoryBuilder, ApplyForLeague, RegularSeasonRecap (these wrap in LayoutWrapper explicitly)
+- `/login` hardcoded stub removed this session

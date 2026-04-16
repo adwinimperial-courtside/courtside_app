@@ -1,3 +1,7 @@
+# src/components/auth/LoginPage.jsx — v2 contents
+**Date:** 2026-04-16
+
+```jsx
 import React, { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -193,3 +197,14 @@ export default function LoginPage() {
     </div>
   );
 }
+```
+
+## Summary of changes from v1
+- `displayName` → `fullName` / `setFullName` throughout
+- Placeholder changed from "Display name" to "Full name"
+- `country` state added (empty string default)
+- Country field added in register mode (below email), with `Globe` icon from lucide-react
+- `signUp` now passes `options.data.display_name: fullName` and `options.data.country`
+- `setCountry("")` called on successful registration and in `switchMode`
+- Logo src changed from Supabase CDN URL to `/images/courtside-logo.png`
+- OAuth section (Google/Microsoft/Facebook) removed

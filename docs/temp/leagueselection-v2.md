@@ -1,3 +1,19 @@
+# LeagueSelection.jsx — current contents + navigation analysis
+
+## Navigation concern
+
+There are **two navigate calls** inside `loadLeagues()`, neither of which is problematic on its own, but the logic has a subtle gap:
+
+1. **Line 40** — if `activeLeagues.length === 1`, auto-selects it and navigates to `/Schedule`. ✅ Checks memberships first.
+2. **Line 54** — if `profile.default_league_id` is already set, navigates straight to `/Schedule`. ✅ Checks memberships first (memberships query runs before this).
+
+**The gap:** if `activeLeagues` is **empty** (user has no active memberships), the code falls through to `setLeagues([])` and renders an empty league picker — it does **not** redirect back to `/RoleSelection` or `/LeagueApplication`. The user lands on a blank screen with no leagues to pick and no way forward.
+
+There is no `useEffect` that navigates without checking memberships — all navigation is inside `loadLeagues()` which always queries memberships first. But the empty-memberships case is unhandled.
+
+---
+
+```jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -35,8 +51,9 @@ export default function LeagueSelection() {
         .map(m => ({ ...m.leagues, role: m.role }))
         .filter(l => l && l.is_active);
 
-      if (activeLeagues.length === 0) {
-        navigate('/RoleSelection', { replace: true });
+      // If only one league, auto-set it and go straight to Schedule
+      if (activeLeagues.length === 1) {
+        await setDefaultAndNavigate(activeLeagues[0].id);
         return;
       }
 
@@ -51,12 +68,6 @@ export default function LeagueSelection() {
 
       if (profile.default_league_id) {
         navigate('/Schedule', { replace: true });
-        return;
-      }
-
-      // If only one league, auto-set it and go straight to Schedule
-      if (activeLeagues.length === 1) {
-        await setDefaultAndNavigate(activeLeagues[0].id);
         return;
       }
 
@@ -145,3 +156,4 @@ export default function LeagueSelection() {
     </div>
   );
 }
+```
