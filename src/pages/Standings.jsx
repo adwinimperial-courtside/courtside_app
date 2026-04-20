@@ -2,7 +2,36 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Filter, Loader2 } from "lucide-react";
+import { Trophy, Filter, Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getGameResult(teamId, game) {
+  if (game.is_default_result) {
+    if (game.default_winner_team_id === teamId) return 'W';
+    if (game.default_loser_team_id === teamId) return 'L';
+    return null;
+  }
+  const isHome = game.home_team_id === teamId;
+  const ts = isHome ? (game.home_score || 0) : (game.away_score || 0);
+  const os = isHome ? (game.away_score || 0) : (game.home_score || 0);
+  return ts > os ? 'W' : 'L';
+}
+
+function getTeamStreak(teamId, games) {
+  const teamGames = games
+    .filter(g => g.home_team_id === teamId || g.away_team_id === teamId)
+    .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
+  if (teamGames.length === 0) return null;
+  const type = getGameResult(teamId, teamGames[0]);
+  if (!type) return null;
+  let count = 0;
+  for (const g of teamGames) {
+    if (getGameResult(teamId, g) === type) count++;
+    else break;
+  }
+  return { type, count };
+}
 
 // ─── Standings computation ────────────────────────────────────────────────────
 
@@ -136,10 +165,31 @@ export default function Standings() {
     enabled: !!selectedLeagueId,
   });
 
-  const standings = useMemo(
-    () => computeStandings(teams, games),
-    [teams, games]
-  );
+  const standings = useMemo(() => {
+    const current = computeStandings(teams, games);
+    return current.map((team, idx) => {
+      const currentRank = idx + 1;
+
+      // Streak
+      const streak = getTeamStreak(team.id, games);
+
+      // Trend: standings without this team's most recent game
+      const teamGames = games
+        .filter(g => g.home_team_id === team.id || g.away_team_id === team.id)
+        .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
+
+      let trend = 'neutral';
+      if (teamGames.length > 0) {
+        const withoutLast = games.filter(g => g.id !== teamGames[0].id);
+        const prev = computeStandings(teams, withoutLast);
+        const prevRank = prev.findIndex(t => t.id === team.id) + 1;
+        if (prevRank > currentRank) trend = 'up';
+        else if (prevRank < currentRank) trend = 'down';
+      }
+
+      return { ...team, streak, trend };
+    });
+  }, [teams, games]);
 
   const isLoading = leaguesLoading || teamsLoading || gamesLoading;
 
@@ -224,6 +274,7 @@ export default function Standings() {
                       <th className="text-left py-2 font-semibold">Team</th>
                       <th className="text-center py-2 font-semibold">W</th>
                       <th className="text-center py-2 font-semibold">L</th>
+                      <th className="text-center py-2 font-semibold">Str</th>
                       <th className="text-center py-2 pr-3 font-semibold">+/-</th>
                     </tr>
                   </thead>
@@ -242,10 +293,20 @@ export default function Standings() {
                             <span className="font-bold text-slate-900 uppercase truncate max-w-[110px] text-[11px]">
                               {team.name}
                             </span>
+                            {team.trend === 'up' && <TrendingUp className="w-3 h-3 text-green-600 flex-shrink-0" />}
+                            {team.trend === 'down' && <TrendingDown className="w-3 h-3 text-red-500 flex-shrink-0" />}
+                            {team.trend === 'neutral' && <Minus className="w-3 h-3 text-slate-400 flex-shrink-0" />}
                           </div>
                         </td>
                         <td className="py-2.5 text-center font-bold text-green-600">{team.wins}</td>
                         <td className="py-2.5 text-center font-bold text-red-500">{team.losses}</td>
+                        <td className="py-2.5 text-center font-bold">
+                          {team.streak ? (
+                            <span className={team.streak.type === 'W' ? 'text-green-600' : 'text-red-500'}>
+                              {team.streak.type}{team.streak.count}
+                            </span>
+                          ) : <span className="text-slate-400">—</span>}
+                        </td>
                         <td className={`py-2.5 text-center font-bold pr-3 ${
                           team.pointsDiff > 0 ? 'text-green-600' :
                           team.pointsDiff < 0 ? 'text-red-500' :
@@ -269,6 +330,7 @@ export default function Standings() {
                       <th className="text-center py-3 font-semibold w-16">W</th>
                       <th className="text-center py-3 font-semibold w-16">L</th>
                       <th className="text-center py-3 font-semibold w-20">Win%</th>
+                      <th className="text-center py-3 font-semibold w-20">Streak</th>
                       <th className="text-center py-3 pr-4 font-semibold w-20">+/-</th>
                     </tr>
                   </thead>
@@ -287,12 +349,22 @@ export default function Standings() {
                             <span className="font-bold text-slate-900 uppercase tracking-wide">
                               {team.name}
                             </span>
+                            {team.trend === 'up' && <TrendingUp className="w-4 h-4 text-green-600 flex-shrink-0" />}
+                            {team.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0" />}
+                            {team.trend === 'neutral' && <Minus className="w-4 h-4 text-slate-400 flex-shrink-0" />}
                           </div>
                         </td>
                         <td className="py-3 text-center font-bold text-green-600">{team.wins}</td>
                         <td className="py-3 text-center font-bold text-red-500">{team.losses}</td>
                         <td className="py-3 text-center font-bold text-slate-900">
                           {(team.winPct * 100).toFixed(1)}%
+                        </td>
+                        <td className="py-3 text-center font-bold">
+                          {team.streak ? (
+                            <span className={team.streak.type === 'W' ? 'text-green-600' : 'text-red-500'}>
+                              {team.streak.type}{team.streak.count}
+                            </span>
+                          ) : <span className="text-slate-400">—</span>}
                         </td>
                         <td className={`py-3 text-center font-bold pr-4 ${
                           team.pointsDiff > 0 ? 'text-green-600' :

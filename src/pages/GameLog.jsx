@@ -1,233 +1,456 @@
-import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { format } from "date-fns";
-import { FileText, User, Clock, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { FileText, Download, List, LayoutList, Clock, User } from "lucide-react";
+import { format } from "date-fns";
 
-export default function GameLogPage() {
-  const [selectedLeagueId, setSelectedLeagueId] = useState("");
-  const [selectedGameId, setSelectedGameId] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
+// ─── Constants ────────────────────────────────────────────────────────────────
+const PERIOD_LABELS = { 1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4", 5: "OT" };
 
-  useEffect(() => {
-    base44.auth.me().then(setCurrentUser).catch(() => {});
-  }, []);
+const POINTS_STAT_TYPES = ["points_2", "points_3", "free_throws"];
 
-  const { data: leagues = [] } = useQuery({
-    queryKey: ["leagues"],
-    queryFn: () => base44.entities.League.list(),
-  });
+const STAT_COLORS = {
+  points_2:             "bg-green-100 text-green-800",
+  points_3:             "bg-green-100 text-green-800",
+  free_throws:          "bg-green-100 text-green-800",
+  free_throws_missed:   "bg-red-100 text-red-800",
+  offensive_rebounds:   "bg-blue-100 text-blue-800",
+  defensive_rebounds:   "bg-blue-100 text-blue-800",
+  assists:              "bg-cyan-100 text-cyan-800",
+  steals:               "bg-teal-100 text-teal-800",
+  blocks:               "bg-indigo-100 text-indigo-800",
+  turnovers:            "bg-red-100 text-red-800",
+  fouls:                "bg-amber-100 text-amber-800",
+  technical_fouls:      "bg-red-200 text-red-900",
+  unsportsmanlike_fouls:"bg-red-200 text-red-900",
+};
 
-  const { data: games = [] } = useQuery({
-    queryKey: ["games", selectedLeagueId],
-    queryFn: () => base44.entities.Game.filter({ league_id: selectedLeagueId }, "-game_date"),
-    enabled: !!selectedLeagueId,
-  });
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const periodLabel = (p) => PERIOD_LABELS[p] ?? `P${p}`;
 
-  const { data: teams = [] } = useQuery({
-    queryKey: ["teams"],
-    queryFn: () => base44.entities.Team.list(),
-  });
+const clockDisplay = (seconds) => {
+  if (seconds == null) return "—";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+};
 
-  const { data: players = [] } = useQuery({
-    queryKey: ["players"],
-    queryFn: () => base44.entities.Player.list(),
-  });
+const isAdded = (log) => (log.new_value ?? 0) > (log.old_value ?? 0);
 
+const parseStatLabel = (label) => {
+  if (!label) return null;
+  try {
+    const parsed = JSON.parse(label);
+    return parsed?.display ?? label;
+  } catch {
+    return label;
+  }
+};
+
+const statBadgeColor = (statType) => STAT_COLORS[statType] ?? "bg-slate-100 text-slate-700";
+
+const scoreAtAction = (log, homeTeamId) => {
+  let home = log.old_home_score ?? 0;
+  let away = log.old_away_score ?? 0;
+  const delta = (log.stat_points ?? 0) * (isAdded(log) ? 1 : -1);
+  if (log.team_id === homeTeamId) home += delta;
+  else away += delta;
+  return `${home} – ${away}`;
+};
+
+// ─── CSV / Excel export ───────────────────────────────────────────────────────
+const buildRows = (logs) => logs.map((log) => ({
+  Time:         log.created_at ? format(new Date(log.created_at), "HH:mm:ss") : "",
+  Period:       periodLabel(log.period),
+  Clock:        clockDisplay(log.clock_time),
+  Player:       log.players?.name ?? "Unknown",
+  Jersey:       log.players?.jersey_number ?? "",
+  Team:         log.teams?.name ?? "",
+  Action:       isAdded(log) ? "Added" : "Removed",
+  Stat:         parseStatLabel(log.stat_label) ?? log.stat_type,
+  "Old Value":  log.old_value ?? "",
+  "New Value":  log.new_value ?? "",
+  "Home Score": log.old_home_score ?? "",
+  "Away Score": log.old_away_score ?? "",
+  Undone:       log.undone ? "Yes" : "No",
+  "Logged By":  log.logged_by ?? "",
+  Device:       log.device_name ?? "",
+}));
+
+const downloadCSV = (logs, gameId) => {
+  const rows = buildRows(logs);
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.join(","),
+    ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(",")),
+  ].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  a.download = `game-log-${gameId}.csv`;
+  a.click();
+};
+
+const downloadExcel = (logs, gameId) => {
+  const rows = buildRows(logs);
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const tableRows = [
+    `<tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>`,
+    ...rows.map(r => `<tr>${headers.map(h => `<td>${r[h]}</td>`).join("")}</tr>`),
+  ].join("");
+  const html = `<html><head><meta charset="UTF-8"></head><body><table>${tableRows}</table></body></html>`;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([html], { type: "application/vnd.ms-excel" }));
+  a.download = `game-log-${gameId}.xls`;
+  a.click();
+};
+
+// ─── Log Row ──────────────────────────────────────────────────────────────────
+function LogRow({ log, index, homeTeamId, homeName, awayName }) {
+  const added = isAdded(log);
+  const undone = log.undone;
+
+  return (
+    <div className={`px-4 py-3 flex flex-wrap items-start justify-between gap-2 hover:bg-slate-50 transition-colors ${undone ? "opacity-50" : ""}`}>
+      {/* Left: index + player + action */}
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-xs text-slate-400 font-mono w-6 text-right shrink-0">{index + 1}</span>
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+          style={{ backgroundColor: log.teams?.color || "#94a3b8" }}
+        >
+          {log.players?.jersey_number ?? "?"}
+        </div>
+        <div className="min-w-0">
+          <div className={`flex flex-wrap items-center gap-1.5 ${undone ? "line-through" : ""}`}>
+            <span className="font-semibold text-slate-900 text-sm">{log.players?.name ?? "Unknown"}</span>
+            <span className="text-xs text-slate-400">({log.teams?.name ?? "—"})</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+            <Badge className={`text-xs px-1.5 py-0 ${added ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
+              {added ? "Added" : "Removed"}
+            </Badge>
+            <Badge className={`text-xs px-1.5 py-0 ${statBadgeColor(log.stat_type)}`}>
+              {parseStatLabel(log.stat_label) ?? log.stat_type}
+            </Badge>
+            <span className="text-xs text-slate-500 font-mono">{log.old_value ?? 0} → {log.new_value ?? 0}</span>
+            {undone && <Badge className="text-xs px-1.5 py-0 bg-slate-100 text-slate-500">Undone</Badge>}
+          </div>
+        </div>
+      </div>
+
+      {/* Right: score + logger + time */}
+      <div className="flex flex-col items-end gap-1 shrink-0 text-right">
+        <span className="text-xs font-mono text-slate-700 bg-slate-100 rounded px-2 py-0.5">
+          {homeName} {scoreAtAction(log, homeTeamId)} {awayName}
+        </span>
+        <span className="text-xs text-slate-400">{periodLabel(log.period)} · {clockDisplay(log.clock_time)}</span>
+        <div className="flex items-center gap-1 text-xs text-slate-400">
+          <User className="w-3 h-3" />
+          <span>{log.logged_by ?? "—"}</span>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-slate-400">
+          <Clock className="w-3 h-3" />
+          <span>{log.created_at ? format(new Date(log.created_at), "HH:mm:ss") : "—"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Timeline View ────────────────────────────────────────────────────────────
+function TimelineView({ logs, homeTeamId, homeName, awayName }) {
+  const periods = [...new Set(logs.map(l => l.period).filter(Boolean))].sort((a, b) => a - b);
+
+  if (!periods.length) return <p className="text-center py-8 text-slate-400 text-sm">No data to display</p>;
+
+  return (
+    <div className="space-y-4">
+      {periods.map(period => {
+        const periodLogs = logs.filter(l => l.period === period);
+        const maxClock = 600; // 10 minutes per period
+
+        return (
+          <Card key={period} className="border-slate-200">
+            <CardHeader className="pb-2 pt-3 px-4">
+              <CardTitle className="text-sm font-semibold text-slate-600">{periodLabel(period)}</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {/* Timeline bar */}
+              <div className="relative h-8 bg-slate-100 rounded-full mb-3 overflow-hidden">
+                {periodLogs.map(log => {
+                  const pct = log.clock_time != null
+                    ? ((maxClock - log.clock_time) / maxClock) * 100
+                    : 50;
+                  const added = isAdded(log);
+                  return (
+                    <div
+                      key={log.id}
+                      title={`${log.players?.name ?? "?"} · ${parseStatLabel(log.stat_label)} · ${clockDisplay(log.clock_time)}`}
+                      className={`absolute top-1 w-2 h-6 rounded-full cursor-pointer ${log.undone ? "opacity-30" : ""} ${added ? "bg-emerald-500" : "bg-rose-500"}`}
+                      style={{ left: `calc(${Math.min(pct, 97)}% - 4px)` }}
+                    />
+                  );
+                })}
+              </div>
+              {/* Mini action list */}
+              <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 overflow-hidden">
+                {periodLogs.map((log, i) => (
+                  <LogRow key={log.id} log={log} index={i} homeTeamId={homeTeamId} homeName={homeName} awayName={awayName} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export default function GameLog() {
+  const { currentUser, userType, isAppAdmin } = useAuth();
+  const isAuthorized = isAppAdmin || userType === "league_admin";
+
+  const [leagues, setLeagues] = useState([]);
+  const [games, setGames] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [selectedLeagueId, setSelectedLeagueId] = useState(null);
+  const [selectedGameId, setSelectedGameId] = useState(null);
+  const [periodFilter, setPeriodFilter] = useState("all");
+  const [playerSearch, setPlayerSearch] = useState("");
   const [filterPoints, setFilterPoints] = useState(false);
+  const [filterUndone, setFilterUndone] = useState(false);
+  const [viewMode, setViewMode] = useState("list");
+  const [loadingGames, setLoadingGames] = useState(false);
+  const [loadingLogs, setLoadingLogs] = useState(false);
 
-  const { data: gameLogs = [], isLoading: logsLoading } = useQuery({
-    queryKey: ["gameLogs", selectedGameId],
-    queryFn: () => base44.entities.GameLog.filter({ game_id: selectedGameId }, "created_date"),
-    enabled: !!selectedGameId,
+  // Load accessible leagues
+  useEffect(() => {
+    if (!isAuthorized || !currentUser) return;
+    const load = async () => {
+      if (isAppAdmin) {
+        const { data } = await supabase.from("leagues").select("id, name").eq("is_active", true).order("name");
+        if (data) setLeagues(data);
+      } else {
+        const { data } = await supabase
+          .from("user_league_memberships")
+          .select("leagues(id, name)")
+          .eq("user_id", currentUser.id)
+          .eq("role", "league_admin")
+          .eq("is_active", true);
+        if (data) setLeagues(data.map(m => m.leagues).filter(Boolean));
+      }
+    };
+    load();
+  }, [currentUser, isAppAdmin, isAuthorized]);
+
+  // Auto-select first league
+  useEffect(() => {
+    if (!selectedLeagueId && leagues.length > 0) setSelectedLeagueId(leagues[0].id);
+  }, [leagues, selectedLeagueId]);
+
+  // Load games for selected league
+  useEffect(() => {
+    if (!selectedLeagueId) return;
+    setSelectedGameId(null);
+    setGames([]);
+    setLogs([]);
+    setLoadingGames(true);
+    supabase
+      .from("games")
+      .select("id, scheduled_at, status, home_score, away_score, home_team_id, away_team_id, home_team:teams!home_team_id(id, name), away_team:teams!away_team_id(id, name)")
+      .eq("league_id", selectedLeagueId)
+      .in("status", ["final", "live"])
+      .order("scheduled_at", { ascending: false })
+      .then(({ data, error }) => {
+        console.log("[GameLog] games fetch:", { data, error });
+        if (data) setGames(data);
+        setLoadingGames(false);
+      });
+  }, [selectedLeagueId]);
+
+  // Load logs for selected game
+  useEffect(() => {
+    if (!selectedGameId) { setLogs([]); return; }
+    setLoadingLogs(true);
+    supabase
+      .from("game_logs")
+      .select("*, players(id, name, jersey_number), teams(id, name, color)")
+      .eq("game_id", selectedGameId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        if (data) setLogs(data);
+        setLoadingLogs(false);
+      });
+  }, [selectedGameId]);
+
+  const selectedGame = games.find(g => g.id === selectedGameId);
+  const homeName = selectedGame?.home_team?.name ?? "Home";
+  const awayName = selectedGame?.away_team?.name ?? "Away";
+  const homeTeamId = selectedGame?.home_team_id;
+
+  // Apply filters
+  const filteredLogs = logs.filter(log => {
+    if (filterPoints && !POINTS_STAT_TYPES.includes(log.stat_type)) return false;
+    if (filterUndone && !log.undone) return false;
+    if (periodFilter !== "all" && String(log.period) !== periodFilter) return false;
+    if (playerSearch.trim()) {
+      const name = log.players?.name?.toLowerCase() ?? "";
+      if (!name.includes(playerSearch.toLowerCase())) return false;
+    }
+    return true;
   });
 
-  if (currentUser && currentUser.user_type !== "app_admin" && currentUser.user_type !== "league_admin") {
+  const uniquePeriods = [...new Set(logs.map(l => l.period).filter(Boolean))].sort((a, b) => a - b);
+
+  if (!isAuthorized) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-slate-500">You don't have permission to view this page.</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-slate-500 text-sm">Access denied.</p>
       </div>
     );
   }
 
-  const POINTS_STAT_TYPES = ["points_2", "points_3", "free_throws"];
-
-  const selectedGame = games.find(g => g.id === selectedGameId);
-  const homeTeam = teams.find(t => t.id === selectedGame?.home_team_id);
-  const awayTeam = teams.find(t => t.id === selectedGame?.away_team_id);
-
-  const statTypeColors = {
-    points_2: "bg-green-100 text-green-800",
-    points_3: "bg-blue-100 text-blue-800",
-    free_throws: "bg-yellow-100 text-yellow-800",
-    free_throws_missed: "bg-red-100 text-red-800",
-    offensive_rebounds: "bg-purple-100 text-purple-800",
-    defensive_rebounds: "bg-indigo-100 text-indigo-800",
-    assists: "bg-cyan-100 text-cyan-800",
-    steals: "bg-teal-100 text-teal-800",
-    blocks: "bg-orange-100 text-orange-800",
-    turnovers: "bg-red-100 text-red-800",
-    fouls: "bg-amber-100 text-amber-800",
-    technical_fouls: "bg-red-200 text-red-900",
-    unsportsmanlike_fouls: "bg-red-200 text-red-900",
-  };
-
-  const getActionLabel = (log) => {
-    const added = log.new_value > log.old_value;
-    return added ? "Added" : "Removed";
-  };
-
-  const getActionColor = (log) => {
-    const added = log.new_value > log.old_value;
-    return added ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800";
-  };
-
-  const buildRows = (logs) => logs.map((log) => {
-    const player = players.find(p => p.id === log.player_id);
-    const team = teams.find(t => t.id === log.team_id);
-    const added = log.new_value > log.old_value;
-    return {
-      Time: log.created_date ? format(new Date(log.created_date), "HH:mm:ss") : "",
-      Player: player?.name || "Unknown",
-      Jersey: player?.jersey_number ?? "",
-      Team: team?.name || "",
-      Action: added ? "Added" : "Removed",
-      Stat: log.stat_label || log.stat_type,
-      "Old Value": log.old_value ?? "",
-      "New Value": log.new_value ?? "",
-      "Home Score": log.old_home_score ?? "",
-      "Away Score": log.old_away_score ?? "",
-      "Logged By": log.logged_by || "",
-      "Device": log.device_name || "",
-    };
-  });
-
-  const downloadCSV = () => {
-    const rows = buildRows(gameLogs);
-    if (!rows.length) return;
-    const headers = Object.keys(rows[0]);
-    const csv = [headers.join(","), ...rows.map(r => headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `game-log-${selectedGameId}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const downloadExcel = () => {
-    const rows = buildRows(gameLogs);
-    if (!rows.length) return;
-    const headers = Object.keys(rows[0]);
-    const tableRows = [
-      `<tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>`,
-      ...rows.map(r => `<tr>${headers.map(h => `<td>${r[h]}</td>`).join("")}</tr>`)
-    ].join("");
-    const html = `<html><head><meta charset="UTF-8"></head><body><table>${tableRows}</table></body></html>`;
-    const blob = new Blob([html], { type: "application/vnd.ms-excel" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `game-log-${selectedGameId}.xls`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const getScoreAtTime = (log) => {
-    let homeScore = log.old_home_score ?? 0;
-    let awayScore = log.old_away_score ?? 0;
-    const pointsChange = (log.stat_points ?? 0) * (log.new_value > log.old_value ? 1 : -1);
-    if (log.team_id === selectedGame?.home_team_id) {
-      homeScore += pointsChange;
-    } else {
-      awayScore += pointsChange;
-    }
-    return `${homeTeam?.name || "Home"} ${homeScore} – ${awayScore} ${awayTeam?.name || "Away"}`;
-  };
-
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <FileText className="w-6 h-6 text-orange-500" />
           Game Log
         </h1>
-        <p className="text-slate-500 text-sm mt-1">Track every action recorded during a game</p>
+        <p className="text-slate-500 text-sm mt-1">Every stat action recorded during a game</p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      {/* Filters row 1: league + game */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-3">
         <Select
-          value={selectedLeagueId}
-          onValueChange={(val) => { setSelectedLeagueId(val); setSelectedGameId(""); }}
+          value={selectedLeagueId ?? ""}
+          onValueChange={v => { setSelectedLeagueId(v); setSelectedGameId(null); }}
         >
-          <SelectTrigger className="w-full sm:w-64">
+          <SelectTrigger className="w-full sm:w-56">
             <SelectValue placeholder="Select League" />
           </SelectTrigger>
           <SelectContent>
-            {leagues.map(l => (
-              <SelectItem key={l.id} value={l.id}>{l.name} – {l.season}</SelectItem>
-            ))}
+            {leagues.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
           </SelectContent>
         </Select>
 
         <Select
-          value={selectedGameId}
+          value={selectedGameId ?? ""}
           onValueChange={setSelectedGameId}
-          disabled={!selectedLeagueId}
+          disabled={!selectedLeagueId || loadingGames}
         >
-          <SelectTrigger className="w-full sm:w-80">
-            <SelectValue placeholder="Select Game" />
+          <SelectTrigger className="w-full sm:w-96">
+            <SelectValue placeholder={loadingGames ? "Loading games…" : "Select Game"} />
           </SelectTrigger>
           <SelectContent>
-            {games.map(g => {
-              const home = teams.find(t => t.id === g.home_team_id);
-              const away = teams.find(t => t.id === g.away_team_id);
-              return (
-                <SelectItem key={g.id} value={g.id}>
-                  {home?.name} vs {away?.name} – {format(new Date(g.game_date), "MMM d, yyyy")}
-                </SelectItem>
-              );
-            })}
+            {games.map(g => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.home_team?.name ?? "?"} vs {g.away_team?.name ?? "?"} — {g.scheduled_at ? format(new Date(g.scheduled_at), "MMM d, yyyy") : "—"}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
+      {/* Filters row 2: period + player + points toggle */}
+      {selectedGameId && (
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          <Select value={periodFilter} onValueChange={setPeriodFilter}>
+            <SelectTrigger className="h-8 w-32 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All periods</SelectItem>
+              {uniquePeriods.map(p => (
+                <SelectItem key={p} value={String(p)}>{periodLabel(p)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Input
+            placeholder="Search player…"
+            value={playerSearch}
+            onChange={e => setPlayerSearch(e.target.value)}
+            className="h-8 w-40 text-xs"
+          />
+
+          <button
+            onClick={() => { setFilterPoints(false); setFilterUndone(false); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!filterPoints && !filterUndone ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+          >
+            All Actions
+          </button>
+          <button
+            onClick={() => { setFilterPoints(true); setFilterUndone(false); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filterPoints ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+          >
+            Points Only (2PT / 3PT / FT)
+          </button>
+          <button
+            onClick={() => { setFilterUndone(true); setFilterPoints(false); }}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filterUndone ? "bg-rose-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+          >
+            Undone Only
+          </button>
+
+          <div className="ml-auto flex gap-1">
+            <Button
+              size="sm" variant={viewMode === "list" ? "default" : "outline"}
+              className="h-8 px-2 gap-1 text-xs"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="w-3.5 h-3.5" /> List
+            </Button>
+            <Button
+              size="sm" variant={viewMode === "timeline" ? "default" : "outline"}
+              className="h-8 px-2 gap-1 text-xs"
+              onClick={() => setViewMode("timeline")}
+            >
+              <LayoutList className="w-3.5 h-3.5" /> Timeline
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Game Header */}
       {selectedGame && (
-        <Card className="mb-6 border-slate-200">
+        <Card className="mb-5 border-slate-200">
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3 text-lg font-bold text-slate-900">
-                <span>{homeTeam?.name}</span>
-                <span className="text-slate-400">vs</span>
-                <span>{awayTeam?.name}</span>
+                <span>{homeName}</span>
+                <span className="text-2xl font-bold text-slate-700">
+                  {selectedGame.home_score ?? 0} – {selectedGame.away_score ?? 0}
+                </span>
+                <span>{awayName}</span>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge className="bg-slate-100 text-slate-700">
-                  {format(new Date(selectedGame.game_date), "MMM d, yyyy • h:mm a")}
+                  {selectedGame.scheduled_at ? format(new Date(selectedGame.scheduled_at), "MMM d, yyyy · h:mm a") : "—"}
                 </Badge>
                 <Badge className={
-                  selectedGame.status === "completed" ? "bg-green-100 text-green-800" :
-                  selectedGame.status === "in_progress" ? "bg-orange-100 text-orange-800" :
+                  selectedGame.status === "final" ? "bg-green-100 text-green-800" :
+                  selectedGame.status === "live" ? "bg-orange-100 text-orange-800" :
                   "bg-blue-100 text-blue-800"
                 }>
-                  {selectedGame.status.replace("_", " ")}
+                  {selectedGame.status?.replace("_", " ")}
                 </Badge>
-                <Badge className="bg-slate-100 text-slate-600">
-                  {gameLogs.length} actions
-                </Badge>
-                {gameLogs.length > 0 && (
+                <Badge className="bg-slate-100 text-slate-600">{logs.length} actions</Badge>
+                {logs.length > 0 && (
                   <>
-                    <Button size="sm" variant="outline" onClick={downloadCSV} className="h-7 text-xs gap-1">
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => downloadCSV(logs, selectedGameId)}>
                       <Download className="w-3 h-3" /> CSV
                     </Button>
-                    <Button size="sm" variant="outline" onClick={downloadExcel} className="h-7 text-xs gap-1">
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => downloadExcel(logs, selectedGameId)}>
                       <Download className="w-3 h-3" /> Excel
                     </Button>
                   </>
@@ -238,103 +461,50 @@ export default function GameLogPage() {
         </Card>
       )}
 
-      {/* Filter */}
-      {selectedGameId && !logsLoading && gameLogs.length > 0 && (
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            onClick={() => setFilterPoints(false)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${!filterPoints ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-          >
-            All Actions
-          </button>
-          <button
-            onClick={() => setFilterPoints(true)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filterPoints ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-          >
-            Points Only (2PT / 3PT / FT)
-          </button>
+      {/* Empty states */}
+      {!selectedLeagueId && (
+        <div className="text-center py-16 text-slate-400 text-sm">Select a league to get started</div>
+      )}
+      {selectedLeagueId && !selectedGameId && !loadingGames && (
+        <div className="text-center py-16 text-slate-400 text-sm">Select a game to view its log</div>
+      )}
+      {selectedGameId && loadingLogs && (
+        <div className="flex items-center justify-center py-16">
+          <div className="w-6 h-6 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
         </div>
       )}
-
-      {/* Log Entries */}
-      {!selectedLeagueId && (
-        <div className="text-center py-16 text-slate-400">Select a league to get started</div>
+      {selectedGameId && !loadingLogs && logs.length === 0 && (
+        <div className="text-center py-16 text-slate-400 text-sm">No log entries found for this game</div>
       )}
-      {selectedLeagueId && !selectedGameId && (
-        <div className="text-center py-16 text-slate-400">Select a game to view its log</div>
-      )}
-      {selectedGameId && logsLoading && (
-        <div className="text-center py-16 text-slate-400">Loading game log...</div>
-      )}
-      {selectedGameId && !logsLoading && gameLogs.length === 0 && (
-        <div className="text-center py-16 text-slate-400">No log entries found for this game</div>
+      {selectedGameId && !loadingLogs && logs.length > 0 && filteredLogs.length === 0 && (
+        <div className="text-center py-8 text-slate-400 text-sm">No actions match your filters</div>
       )}
 
-      {gameLogs.length > 0 && (
-        <Card className="border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base text-slate-700">Game Activity Log</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-100">
-              {gameLogs.filter(log => !filterPoints || POINTS_STAT_TYPES.includes(log.stat_type)).map((log, index) => {
-                const player = players.find(p => p.id === log.player_id);
-                const team = teams.find(t => t.id === log.team_id);
-                return (
-                  <div key={log.id} className="px-4 py-3 hover:bg-slate-50 transition-colors">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs text-slate-400 font-mono w-6 text-right flex-shrink-0">
-                          {index + 1}
-                        </span>
-                        <div
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                          style={{ backgroundColor: team?.color || "#f97316" }}
-                        >
-                          {player?.jersey_number ?? "?"}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-semibold text-slate-900 text-sm truncate">
-                              {player?.name || "Unknown Player"}
-                            </span>
-                            <span className="text-xs text-slate-400">({team?.name})</span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                            <Badge className={`text-xs px-1.5 py-0 ${getActionColor(log)}`}>
-                              {getActionLabel(log)}
-                            </Badge>
-                            <Badge className={`text-xs px-1.5 py-0 ${statTypeColors[log.stat_type] || "bg-slate-100 text-slate-700"}`}>
-                              {log.stat_label || log.stat_type}
-                            </Badge>
-                            <span className="text-xs text-slate-500">
-                              {log.old_value} → {log.new_value}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0 text-right">
-                        <span className="text-xs font-mono text-slate-600 bg-slate-100 rounded px-2 py-0.5">
-                          {getScoreAtTime(log)}
-                        </span>
-                        <div className="flex items-center gap-1 text-xs text-slate-400">
-                          <User className="w-3 h-3" />
-                          <span>{log.logged_by || "Unknown"}</span>
-                        </div>
-                        {log.created_date && (
-                          <div className="flex items-center gap-1 text-xs text-slate-400">
-                            <Clock className="w-3 h-3" />
-                            <span>{format(new Date(log.created_date), "HH:mm:ss")}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Log content */}
+      {filteredLogs.length > 0 && (
+        viewMode === "list" ? (
+          <Card className="border-slate-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm text-slate-600">
+                Game Activity Log
+                {filteredLogs.length !== logs.length && (
+                  <span className="ml-2 text-xs font-normal text-slate-400">
+                    (showing {filteredLogs.length} of {logs.length})
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-slate-100">
+                {filteredLogs.map((log, i) => (
+                  <LogRow key={log.id} log={log} index={i} homeTeamId={homeTeamId} homeName={homeName} awayName={awayName} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <TimelineView logs={filteredLogs} homeTeamId={homeTeamId} homeName={homeName} awayName={awayName} />
+        )
       )}
     </div>
   );

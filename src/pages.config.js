@@ -49,11 +49,7 @@
  */
 import AdminTools from './pages/AdminTools';
 import FixManualStats from './pages/FixManualStats';
-import RosterUserMatching from './pages/RosterUserMatching';
 import LeagueAwardSettings from './pages/LeagueAwardSettings';
-import DataBackup from './pages/DataBackup';
-import DeleteLeague from './pages/DeleteLeague';
-import Analytics from './pages/Analytics';
 import AwardLeaders from './pages/AwardLeaders';
 import CoachInsights from './pages/CoachInsights';
 import Coaches from './pages/Coaches';
@@ -61,34 +57,28 @@ import GameLog from './pages/GameLog';
 import Home from './pages/Home';
 import Landing from './pages/Landing';
 import LeagueIDs from './pages/LeagueIDs';
-import LeagueOwners from './pages/LeagueOwners';
 import LeagueSelection from './pages/LeagueSelection';
 import Leagues from './pages/Leagues';
 import LiveBoxScore from './pages/LiveBoxScore';
 import LiveGame from './pages/LiveGame';
 import PlayerProfile from './pages/PlayerProfile';
 import Players from './pages/Players';
-import RequestManagement from './pages/RequestManagement';
 import Schedule from './pages/Schedule';
 import Standings from './pages/Standings';
 import Statistics from './pages/Statistics';
 import Teams from './pages/Teams';
-import UserManagement from './pages/UserManagement';
-import UserRoles from './pages/UserRoles';
 import Viewers from './pages/Viewers';
 import Whiteboard from './pages/Whiteboard';
 import ApplicationReview from './pages/ApplicationReview';
 import RoleSelection from './pages/RoleSelection';
 import LeagueApplication from './pages/LeagueApplication';
 import PendingApproval from './pages/PendingApproval';
+import SimulateUser from './pages/SimulateUser';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "AdminTools": AdminTools,
-    "DataBackup": DataBackup,
-    "DeleteLeague": DeleteLeague,
-    "Analytics": Analytics,
     "AwardLeaders": AwardLeaders,
     "CoachInsights": CoachInsights,
     "Coaches": Coaches,
@@ -96,29 +86,25 @@ export const PAGES = {
     "Home": Home,
     "Landing": Landing,
     "LeagueIDs": LeagueIDs,
-    "LeagueOwners": LeagueOwners,
     "LeagueSelection": LeagueSelection,
     "Leagues": Leagues,
     "LiveBoxScore": LiveBoxScore,
     "LiveGame": LiveGame,
     "PlayerProfile": PlayerProfile,
     "Players": Players,
-    "RequestManagement": RequestManagement,
     "Schedule": Schedule,
     "Standings": Standings,
     "Statistics": Statistics,
     "Teams": Teams,
-    "UserManagement": UserManagement,
-    "UserRoles": UserRoles,
     "Viewers": Viewers,
     "Whiteboard": Whiteboard,
     "FixManualStats": FixManualStats,
-    "RosterUserMatching": RosterUserMatching,
     "LeagueAwardSettings": LeagueAwardSettings,
     "ApplicationReview": ApplicationReview,
     "RoleSelection": RoleSelection,
     "LeagueApplication": LeagueApplication,
     "PendingApproval": PendingApproval,
+    "SimulateUser": SimulateUser,
 }
 
 export const pagesConfig = {

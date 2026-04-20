@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Target, Users, Trophy, Shield, ArrowUpDown, AlertCircle, Lightbulb, Minus, Plus } from "lucide-react";
-import AITacticalBriefing from "../components/insights/AITacticalBriefing";
 
 // Leagues where turnovers are not tracked / should be excluded
 const LEAGUES_NO_TURNOVERS = ['698c39d164c376418918321d', '698b4d0c05fbeef938b93720'];
@@ -16,38 +16,73 @@ export default function CoachInsights() {
   const [selectedOpponent, setSelectedOpponent] = useState("");
   const [sortBy, setSortBy] = useState("impact");
 
-  const { data: currentUser } = useQuery({
-    queryKey: ['user'],
-    queryFn: () => base44.auth.me(),
-  });
+  const { currentUser: authUser, userProfile, userType, isAppAdmin } = useAuth();
+  const currentUser = userProfile;
 
   const { data: leagues = [] } = useQuery({
     queryKey: ['leagues'],
-    queryFn: () => base44.entities.League.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('leagues').select('*');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: teams = [] } = useQuery({
     queryKey: ['teams'],
-    queryFn: () => base44.entities.Team.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('teams').select('*');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: games = [] } = useQuery({
     queryKey: ['games'],
-    queryFn: () => base44.entities.Game.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('games').select('*');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: playerStats = [] } = useQuery({
     queryKey: ['playerStats'],
-    queryFn: () => base44.entities.PlayerStats.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('player_stats').select('*');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: players = [] } = useQuery({
     queryKey: ['players'],
-    queryFn: () => base44.entities.Player.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('players').select('*');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
-  const filteredLeagues = currentUser?.user_type !== 'app_admin' && currentUser?.assigned_league_ids?.length
-    ? leagues.filter(league => currentUser.assigned_league_ids.includes(league.id))
+  // Derive assigned_league_ids from user_league_memberships
+  const { data: myMemberships = [] } = useQuery({
+    queryKey: ['myMemberships', authUser?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_league_memberships')
+        .select('league_id')
+        .eq('user_id', authUser.id)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!authUser?.id,
+  });
+
+  const assignedLeagueIds = myMemberships.map(m => m.league_id);
+
+  const filteredLeagues = (!isAppAdmin && userType !== 'app_admin' && assignedLeagueIds.length)
+    ? leagues.filter(league => assignedLeagueIds.includes(league.id))
     : leagues;
 
   // Auto-select default league
@@ -433,7 +468,7 @@ export default function CoachInsights() {
   const selectedOpponentName = teams.find(t => t.id === selectedOpponent)?.name || "";
 
   // Early return for viewers — AFTER all hooks
-  if (currentUser && currentUser.user_type === 'viewer') {
+  if (userType === 'viewer') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
         <div className="text-center">
@@ -763,19 +798,6 @@ export default function CoachInsights() {
               </Card>
             )}
 
-            {/* AI Tactical Briefing */}
-            <AITacticalBriefing
-              selectedLeague={selectedLeague}
-              selectedTeam={selectedTeam}
-              selectedOpponent={selectedOpponent}
-              selectedTeamName={selectedTeamName}
-              selectedOpponentName={selectedOpponentName}
-              winLossComparison={winLossComparison}
-              opponentSnapshot={opponentSnapshot}
-              last3GamesTrend={last3GamesTrend}
-              currentUser={currentUser}
-              excludeTurnovers={excludeTurnovers}
-            />
 
             {/* 4. Player Impact Rankings */}
             <Card className="border-slate-200 shadow-lg">

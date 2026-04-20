@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Shield, Eye, LogOut, Trophy, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,18 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import SidebarMenuContent from "@/components/layout/SidebarMenuContent";
+import ImpersonationBanner from "@/components/layout/ImpersonationBanner";
+import DevicePreviewToggle, { DEVICE_WIDTHS } from "@/components/layout/DevicePreviewToggle";
 import { useAuth } from "@/lib/AuthContext";
+
+const BANNER_HEIGHT = 48;
 
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentUser, userProfile, userType, isAppAdmin, signOut } = useAuth();
+  const { currentUser, userProfile, userType, isAppAdmin, signOut, isImpersonating, realIsAppAdmin } = useAuth();
+
+  const [deviceMode, setDeviceMode] = useState("desktop");
 
   const isLiveGamePage = location.pathname.toLowerCase().includes("livegame");
 
@@ -45,8 +51,24 @@ export default function Layout({ children }) {
     );
   }
 
+  const deviceWidth = DEVICE_WIDTHS[deviceMode];
+
+  const wrappedChildren = deviceWidth ? (
+    <div className="flex justify-center w-full h-full overflow-auto bg-slate-200 p-4">
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-slate-300 overflow-auto flex-shrink-0"
+        style={{ width: `${deviceWidth}px`, minHeight: "100%" }}
+      >
+        {children}
+      </div>
+    </div>
+  ) : (
+    children
+  );
+
   return (
     <SidebarProvider defaultOpen={true}>
+      <ImpersonationBanner />
       <style>{`
         :root {
           --primary: 222.2 47.4% 11.2%;
@@ -55,7 +77,10 @@ export default function Layout({ children }) {
           --accent-foreground: 0 0% 100%;
         }
       `}</style>
-      <div className="min-h-screen flex w-full bg-gradient-to-br from-slate-50 to-slate-100">
+      <div
+        className="min-h-screen flex w-full bg-gradient-to-br from-slate-50 to-slate-100"
+        style={isImpersonating ? { paddingTop: `${BANNER_HEIGHT}px` } : undefined}
+      >
         <Sidebar className="border-r border-slate-200 bg-white/80 backdrop-blur-sm">
           <SidebarHeader className="border-b border-slate-200 p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -97,13 +122,13 @@ export default function Layout({ children }) {
           <SidebarMenuContent
             currentUser={currentUser}
             userType={userType}
-            isAppAdmin={isAppAdmin}
+            isAppAdmin={isAppAdmin || realIsAppAdmin}
             location={location}
             isViewerWithoutAdminAccess={isViewerWithoutAdminAccess}
           />
         </Sidebar>
 
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col min-w-0">
           <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-4 md:hidden sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <SidebarTrigger asChild>
@@ -121,10 +146,14 @@ export default function Layout({ children }) {
           </header>
 
           <div className="flex-1 overflow-auto">
-            {children}
+            {wrappedChildren}
           </div>
         </main>
       </div>
+
+      {realIsAppAdmin && (
+        <DevicePreviewToggle activeDevice={deviceMode} onChange={setDeviceMode} />
+      )}
     </SidebarProvider>
   );
 }

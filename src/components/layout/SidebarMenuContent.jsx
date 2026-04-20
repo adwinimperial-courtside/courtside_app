@@ -3,8 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Trophy, Users, Calendar, BarChart3, Medal, Target, Layout,
-  ScrollText, UserCog, LineChart, UserCircle, Trash2, HardDrive,
-  Link2, SlidersHorizontal, Newspaper, PlusCircle, ClipboardList,
+  ScrollText, UserCircle, SlidersHorizontal, Newspaper, PlusCircle,
+  ClipboardList, Wrench, UserSearch,
 } from "lucide-react";
 import {
   SidebarContent,
@@ -30,22 +30,16 @@ const navigationItems = [
 
 const leagueAdminItems = [
   { title: "Application Review", url: createPageUrl("ApplicationReview"), icon: ClipboardList },
+  { title: "Award Settings",     url: createPageUrl("LeagueAwardSettings"), icon: SlidersHorizontal },
   { title: "Game Log",           url: createPageUrl("GameLog"),           icon: ScrollText },
+  { title: "Admin Tools",        url: createPageUrl("AdminTools"),        icon: Wrench },
   { title: "League Users",       url: createPageUrl("LeagueUsers"),       icon: Users },
   { title: "Story Builder",      url: createPageUrl("StoryBuilder"),      icon: Newspaper },
 ];
 
+// OWNER section — visible to app_admins only.
 const ownerItems = [
-  { title: "Requests",              url: createPageUrl("RequestManagement"),   icon: ClipboardList },
-  { title: "User Management",       url: createPageUrl("UserManagement"),       icon: Users },
-  { title: "User Roles",            url: createPageUrl("UserRoles"),            icon: UserCog },
-  { title: "Analytics",             url: createPageUrl("Analytics"),            icon: LineChart },
-  { title: "Delete League",         url: createPageUrl("DeleteLeague"),         icon: Trash2 },
-  { title: "Data Backup",           url: createPageUrl("DataBackup"),           icon: HardDrive },
-  { title: "Roster User Matching",  url: createPageUrl("RosterUserMatching"),   icon: Link2 },
-  { title: "League Award Settings", url: createPageUrl("LeagueAwardSettings"),  icon: SlidersHorizontal },
-  { title: "All Players",           url: createPageUrl("AllPlayersView"),       icon: Users },
-  { title: "Season Recap",          url: "/RegularSeasonRecap",                 icon: Newspaper },
+  { title: "Simulate User", url: createPageUrl("SimulateUser"), icon: UserSearch },
 ];
 
 const playerNavItem = { title: "Player Profile", url: createPageUrl("PlayerProfile"), icon: UserCircle };
@@ -62,7 +56,7 @@ export default function SidebarMenuContent({ currentUser, userType, isAppAdmin, 
 
   const getVisibleNavigationItems = () => {
     if (!currentUser) return navigationItems;
-    const base = userType === "viewer"
+    const base = (userType === "viewer" && !isAppAdmin)
       ? navigationItems.filter(item => !["Leagues", "Teams", "Coach Insights", "Whiteboard"].includes(item.title))
       : navigationItems;
     const withRole = (userType === "player" || userType === "coach")

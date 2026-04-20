@@ -1,24 +1,12 @@
-import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import React from "react";
+import { useAuth } from "@/lib/AuthContext";
 import { Users, Key } from "lucide-react";
 import CoachesView from "../components/admin/CoachesView";
 
 export default function Coaches() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const { userType, isAppAdmin } = useAuth();
 
-  React.useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
-      }
-    };
-    fetchUser();
-  }, []);
-
-  if (currentUser && currentUser.user_type !== "app_admin") {
+  if (userType && !isAppAdmin && userType !== "app_admin") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
         <div className="max-w-2xl mx-auto">

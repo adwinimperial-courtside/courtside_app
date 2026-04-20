@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabaseClient";
 import { Camera, Upload, Trash2, Loader2, Flame, TrendingUp, TrendingDown } from "lucide-react";
 import { getRankMovement } from "@/components/utils/rankMovementTracker";
 import { getMilestoneProgress } from "./milestoneCalculator";
@@ -176,15 +176,24 @@ export default function PlayerDashboardCard({
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { alert("Photo must be less than 5MB"); return; }
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    await base44.auth.updateMe({ profile_photo_url: file_url });
-    setUploading(false);
-    onPhotoUpdate?.();
-    e.target.value = "";
+    try {
+      const ext = file.name.split('.').pop();
+      const filePath = `${currentUser.id}/${Date.now()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', currentUser.id);
+      onPhotoUpdate?.();
+    } catch (err) {
+      alert('Failed to upload photo: ' + (err.message || 'unknown error'));
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
   };
 
   const handleRemovePhoto = async () => {
-    await base44.auth.updateMe({ profile_photo_url: null });
+    await supabase.from('profiles').update({ avatar_url: null }).eq('id', currentUser.id);
     onPhotoUpdate?.();
   };
 

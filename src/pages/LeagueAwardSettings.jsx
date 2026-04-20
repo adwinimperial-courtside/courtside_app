@@ -1,435 +1,671 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Trophy, Shield, Star, Users, Save, RotateCcw, Info, CheckCircle } from "lucide-react";
-import { DEFAULT_AWARD_SETTINGS, resolveSettings } from "@/utils/awardDefaults";
-import { format } from "date-fns";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Trophy, Shield, Star, Users, Save, RotateCcw, Info,
+  ChevronDown, ChevronUp, SlidersHorizontal, CheckCircle, AlertCircle,
+} from "lucide-react";
 
-function NumField({ label, hint, value, onChange, min = 0, max = 20, step = 0.1 }) {
+// ─── Defaults matching DB column names ───────────────────────────────────────
+const DEFAULTS = {
+  mvp_points_weight: 1.0,
+  mvp_oreb_weight: 1.2,
+  mvp_dreb_weight: 1.0,
+  mvp_ast_weight: 1.5,
+  mvp_stl_weight: 2.5,
+  mvp_blk_weight: 2.0,
+  mvp_to_penalty: 2.0,
+  mvp_foul_penalty: 0.5,
+  mvp_tech_penalty: 3.0,
+  mvp_unsport_penalty: 4.0,
+  mvp_gis_contribution: 0.6,
+  mvp_games_played_contribution: 20,
+  mvp_team_win_contribution: 20,
+  mvp_season_tech_penalty: 3.0,
+  mvp_season_unsport_penalty: 5.0,
+  mvp_min_games_pct: 60,
+  dpoy_stl_weight: 3.0,
+  dpoy_blk_weight: 2.5,
+  dpoy_oreb_weight: 1.5,
+  dpoy_dreb_weight: 1.0,
+  dpoy_foul_penalty: 1.5,
+  dpoy_to_penalty: 2.0,
+  dpoy_tech_penalty: 3.0,
+  dpoy_unsport_penalty: 4.0,
+  dpoy_games_played_contribution: 10,
+  dpoy_season_tech_penalty: 2.0,
+  dpoy_season_unsport_penalty: 3.0,
+  dpoy_min_games_pct: 60,
+  pog_points_weight: 1.0,
+  pog_oreb_weight: 1.2,
+  pog_dreb_weight: 1.0,
+  pog_ast_weight: 1.5,
+  pog_stl_weight: 2.5,
+  pog_blk_weight: 2.0,
+  pog_to_penalty: 2.0,
+  pog_foul_penalty: 0.5,
+  pog_tech_penalty: 3.0,
+  pog_unsport_penalty: 4.0,
+  pog_winning_team_only: true,
+  mythical_source: "mvp_rankings",
+  mythical_count: 5,
+};
+
+// ─── Validation ──────────────────────────────────────────────────────────────
+function validateField(key, value) {
+  if (key === "pog_winning_team_only" || key === "mythical_source") return null;
+  if (key.endsWith("_pct") || key.endsWith("_contribution") || key === "mythical_count") {
+    const n = parseInt(value, 10);
+    if (isNaN(n)) return "Must be a whole number";
+    if (key === "mythical_count" && (n < 1 || n > 15)) return "Must be between 1 and 15";
+    if (key !== "mythical_count" && (n < 0 || n > 100)) return "Must be between 0 and 100";
+    return null;
+  }
+  if (key.includes("_penalty") || key.includes("season_")) {
+    const n = parseFloat(value);
+    if (isNaN(n) || n < 0 || n > 20) return "Penalty must be between 0 and 20";
+    return null;
+  }
+  if (key === "mvp_gis_contribution") {
+    const n = parseFloat(value);
+    if (isNaN(n) || n < 0 || n > 1) return "Must be between 0 and 1";
+    return null;
+  }
+  // weights
+  const n = parseFloat(value);
+  if (isNaN(n) || n < 0 || n > 10) return "Weight must be between 0 and 10";
+  return null;
+}
+
+// ─── NumField ─────────────────────────────────────────────────────────────────
+function NumField({ label, fieldKey, value, onChange, errors, step = 0.1, min = 0, max = 20, tooltip }) {
+  const error = errors[fieldKey];
+  const isZeroWeight = !error && !fieldKey.includes("_penalty") && !fieldKey.includes("season_") &&
+    !fieldKey.endsWith("_pct") && !fieldKey.endsWith("_contribution") && !fieldKey.includes("mythical") &&
+    fieldKey !== "mvp_gis_contribution" && parseFloat(value) === 0;
+
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-slate-700">{label}</label>
-      {hint && <p className="text-xs text-slate-400">{hint}</p>}
+      <div className="flex items-center gap-1">
+        <label className="text-xs font-medium text-slate-600">{label}</label>
+        {tooltip && (
+          <span className="group relative cursor-help">
+            <Info className="w-3 h-3 text-slate-400" />
+            <span className="invisible group-hover:visible absolute left-0 bottom-5 z-10 w-56 rounded-md bg-slate-800 text-white text-xs px-2 py-1.5 shadow-lg">
+              {tooltip}
+            </span>
+          </span>
+        )}
+      </div>
       <input
         type="number"
         step={step}
         min={min}
         max={max}
         value={value}
-        onChange={e => onChange(parseFloat(e.target.value) || 0)}
-        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+        onChange={e => onChange(fieldKey, e.target.value)}
+        className={`h-8 w-full rounded-md border px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-orange-400 ${
+          error ? "border-red-400 bg-red-50" : "border-slate-200 bg-white"
+        }`}
       />
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {isZeroWeight && !error && (
+        <p className="text-xs text-amber-600">This stat will not affect rankings</p>
+      )}
     </div>
   );
 }
 
-function SectionCard({ icon: Icon, iconColor, title, description, children, insight }) {
+function FieldGrid({ children }) {
+  return <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{children}</div>;
+}
+
+function SectionLabel({ children }) {
+  return <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-4 mb-2">{children}</p>;
+}
+
+function FormulaBox({ children }) {
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 font-mono leading-relaxed whitespace-pre-wrap">
+      {children}
+    </div>
+  );
+}
+
+function InfoBox({ children }) {
+  return (
+    <div className="flex gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 mt-4">
+      <Info className="w-4 h-4 shrink-0 mt-0.5" />
+      <span>{children}</span>
+    </div>
+  );
+}
+
+// ─── Award Cards ──────────────────────────────────────────────────────────────
+function AwardCard({ icon: Icon, iconColor, title, onReset, formula, insight, children }) {
+  const [formulaOpen, setFormulaOpen] = useState(false);
   return (
     <Card className="border-slate-200">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Icon className={`w-5 h-5 ${iconColor}`} />
-          {title}
-        </CardTitle>
-        <p className="text-sm text-slate-500">{description}</p>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Icon className={`w-5 h-5 ${iconColor}`} />
+            {title}
+          </CardTitle>
+          <Button variant="ghost" size="sm" onClick={onReset} className="text-xs text-slate-500 hover:text-slate-800 gap-1">
+            <RotateCcw className="w-3 h-3" /> Reset to Default
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-1">
+        <Collapsible open={formulaOpen} onOpenChange={setFormulaOpen}>
+          <CollapsibleTrigger className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium mb-2">
+            {formulaOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            View Formula
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <FormulaBox>{formula}</FormulaBox>
+          </CollapsibleContent>
+        </Collapsible>
         {children}
-        {insight && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-blue-700 flex gap-2">
-            <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>{insight}</span>
-          </div>
-        )}
+        {insight && <InfoBox>{insight}</InfoBox>}
       </CardContent>
     </Card>
   );
 }
 
-function FieldGrid({ children }) {
-  return <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">{children}</div>;
+// ─── Change History ───────────────────────────────────────────────────────────
+function ChangeHistory({ leagueId }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+
+  const load = useCallback(async () => {
+    if (!leagueId) return;
+    setLoading(true);
+    let q = supabase
+      .from("league_award_settings_audit")
+      .select("*, profiles!league_award_settings_audit_changed_by_profiles_fkey(display_name)")
+      .eq("league_id", leagueId)
+      .order("changed_at", { ascending: false })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (filter !== "all") q = q.eq("award_type", filter);
+    const { data, error } = await q;
+    if (error) console.error("[ChangeHistory] select error:", error);
+    setRows(prev => page === 0 ? (data || []) : [...prev, ...(data || [])]);
+    setLoading(false);
+  }, [leagueId, filter, page]);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+  useEffect(() => { setPage(0); setRows([]); }, [filter, leagueId]);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 w-full">
+        {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        Change History
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Select value={filter} onValueChange={v => { setFilter(v); setPage(0); }}>
+              <SelectTrigger className="w-44 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All awards</SelectItem>
+                <SelectItem value="mvp">MVP</SelectItem>
+                <SelectItem value="dpoy">DPOY</SelectItem>
+                <SelectItem value="pog">POG</SelectItem>
+                <SelectItem value="mythical_five">Mythical Five</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {loading && page === 0 ? (
+            <p className="text-sm text-slate-400 py-4 text-center">Loading…</p>
+          ) : rows.length === 0 ? (
+            <p className="text-sm text-slate-400 py-4 text-center">No changes recorded yet</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    {["Date", "Changed By", "Award", "Setting", "From", "To"].map(h => (
+                      <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows.map(r => (
+                    <tr key={r.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">
+                        {new Date(r.changed_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                      </td>
+                      <td className="px-3 py-2 text-slate-700">{r.profiles?.display_name ?? "—"}</td>
+                      <td className="px-3 py-2 text-slate-600 uppercase">{r.award_type}</td>
+                      <td className="px-3 py-2 text-slate-600 font-mono">{r.field_name}</td>
+                      <td className="px-3 py-2 text-red-600">{r.old_value ?? "—"}</td>
+                      <td className="px-3 py-2 text-green-700">{r.new_value ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {rows.length === (page + 1) * PAGE_SIZE && (
+            <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setPage(p => p + 1)}>
+              Load More
+            </Button>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LeagueAwardSettings() {
-  const queryClient = useQueryClient();
-  const [currentUser, setCurrentUser] = useState(null);
+  const { currentUser, userType, isAppAdmin } = useAuth();
+  const isAuthorized = isAppAdmin || userType === "league_admin";
+
+  const [leagues, setLeagues] = useState([]);
   const [selectedLeagueId, setSelectedLeagueId] = useState(null);
-  const [settings, setSettings] = useState(null);
-  const [savedSettingsId, setSavedSettingsId] = useState(null);
-  const [isDirty, setIsDirty] = useState(false);
+  const [settings, setSettings] = useState({ ...DEFAULTS });
+  const [savedSettings, setSavedSettings] = useState({ ...DEFAULTS });
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [resetPending, setResetPending] = useState(false);
+  const [statusMsg, setStatusMsg] = useState(null);
 
+  // Load accessible leagues
   useEffect(() => {
-    base44.auth.me().then(setCurrentUser).catch(() => {});
-  }, []);
+    if (!currentUser || !isAuthorized) return;
+    const loadLeagues = async () => {
+      if (isAppAdmin) {
+        const { data } = await supabase.from("leagues").select("id, name").eq("is_active", true).order("name");
+        if (data) setLeagues(data);
+      } else {
+        const { data } = await supabase
+          .from("user_league_memberships")
+          .select("leagues(id, name)")
+          .eq("user_id", currentUser.id)
+          .eq("role", "league_admin")
+          .eq("is_active", true);
+        if (data) setLeagues(data.map(m => m.leagues).filter(Boolean));
+      }
+    };
+    loadLeagues();
+  }, [currentUser, isAppAdmin, isAuthorized]);
 
-  const { data: leagues = [] } = useQuery({
-    queryKey: ["leagues"],
-    queryFn: () => base44.entities.League.list(),
-    staleTime: 60000,
-  });
+  // Auto-select first league
+  useEffect(() => {
+    if (!selectedLeagueId && leagues.length > 0) setSelectedLeagueId(leagues[0].id);
+  }, [leagues, selectedLeagueId]);
 
-  const { data: existingSettings = [] } = useQuery({
-    queryKey: ["awardSettings"],
-    queryFn: () => base44.entities.AwardSettings.list(),
-    staleTime: 0,
-  });
-
-  const selectedLeague = leagues.find(l => l.id === selectedLeagueId);
-
-  // Load settings when league changes
+  // Fetch settings for selected league
   useEffect(() => {
     if (!selectedLeagueId) return;
-    const existing = existingSettings.find(s => s.league_id === selectedLeagueId);
-    if (existing) {
-      setSavedSettingsId(existing.id);
-      setSettings(resolveSettings(existing));
-    } else {
-      setSavedSettingsId(null);
-      setSettings({ ...DEFAULT_AWARD_SETTINGS });
-    }
-    setIsDirty(false);
-    setSuccessMsg("");
-  }, [selectedLeagueId, existingSettings]);
+    const fetch = async () => {
+      const { data } = await supabase
+        .from("league_award_settings")
+        .select("*")
+        .eq("league_id", selectedLeagueId)
+        .single();
+      if (data) {
+        const merged = { ...DEFAULTS, ...data };
+        setSettings(merged);
+        setSavedSettings(merged);
+        setErrors({});
+      }
+    };
+    fetch();
+  }, [selectedLeagueId]);
 
-  const set = useCallback((key, val) => {
-    setSettings(prev => ({ ...prev, [key]: val }));
-    setIsDirty(true);
-    setSuccessMsg("");
-  }, []);
+  const handleChange = (key, raw) => {
+    const value = key === "pog_winning_team_only" ? raw : raw;
+    setSettings(prev => ({ ...prev, [key]: value }));
+    const err = validateField(key, value);
+    setErrors(prev => ({ ...prev, [key]: err || undefined }));
+  };
+
+  const handleToggle = (key) => {
+    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const resetSection = (prefix) => {
+    const patch = {};
+    Object.keys(DEFAULTS).forEach(k => {
+      if (k.startsWith(prefix)) patch[k] = DEFAULTS[k];
+    });
+    setSettings(prev => ({ ...prev, ...patch }));
+    setErrors(prev => {
+      const next = { ...prev };
+      Object.keys(patch).forEach(k => delete next[k]);
+      return next;
+    });
+  };
+
+  const resetAll = () => {
+    setSettings({ ...DEFAULTS });
+    setErrors({});
+  };
+
+  const hasErrors = Object.values(errors).some(Boolean);
+
+  const showMsg = (type, text) => {
+    setStatusMsg({ type, text });
+    setTimeout(() => setStatusMsg(null), 4000);
+  };
 
   const handleSave = async () => {
-    if (!selectedLeagueId || !settings) return;
+    if (hasErrors || !selectedLeagueId) return;
     setSaving(true);
     try {
-      const payload = {
-        ...settings,
-        league_id: selectedLeagueId,
-        league_name: selectedLeague?.name || "",
-        updated_by: currentUser?.email || "",
-        updated_at: new Date().toISOString(),
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from("league_award_settings")
+        .update({ ...settings, updated_by: currentUser.id, updated_at: now })
+        .eq("league_id", selectedLeagueId);
+
+      if (error) throw error;
+
+      // Build audit records for changed fields
+      const awardTypeFor = (key) => {
+        if (key.startsWith("mvp_")) return "mvp";
+        if (key.startsWith("dpoy_")) return "dpoy";
+        if (key.startsWith("pog_")) return "pog";
+        if (key.startsWith("mythical_")) return "mythical_five";
+        return "other";
       };
-      if (savedSettingsId) {
-        await base44.entities.AwardSettings.update(savedSettingsId, payload);
-      } else {
-        const created = await base44.entities.AwardSettings.create(payload);
-        setSavedSettingsId(created.id);
+
+      const auditRows = Object.keys(settings)
+        .filter(k => !["id", "league_id", "created_at", "updated_at", "updated_by"].includes(k))
+        .filter(k => String(settings[k]) !== String(savedSettings[k]))
+        .map(k => ({
+          league_id: selectedLeagueId,
+          changed_by: currentUser.id,
+          changed_at: now,
+          award_type: awardTypeFor(k),
+          field_name: k,
+          old_value: String(savedSettings[k]),
+          new_value: String(settings[k]),
+        }));
+
+      if (auditRows.length > 0) {
+        const { error: auditError } = await supabase
+          .from("league_award_settings_audit")
+          .insert(auditRows);
+        if (auditError) throw auditError;
       }
-      queryClient.invalidateQueries({ queryKey: ["awardSettings"] });
-      setIsDirty(false);
-      setSuccessMsg(`Award settings saved for ${selectedLeague?.name}.`);
+
+      setSavedSettings({ ...settings });
+      showMsg("success", "Settings saved. Rankings are being recalculated.");
+    } catch (err) {
+      showMsg("error", err.message || "Save failed. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleReset = () => {
-    if (!resetPending) { setResetPending(true); return; }
-    setSettings({ ...DEFAULT_AWARD_SETTINGS });
-    setIsDirty(true);
-    setResetPending(false);
-  };
-
-  const handleCancel = () => {
-    if (!selectedLeagueId) return;
-    const existing = existingSettings.find(s => s.league_id === selectedLeagueId);
-    setSettings(existing ? resolveSettings(existing) : { ...DEFAULT_AWARD_SETTINGS });
-    setIsDirty(false);
-    setResetPending(false);
-    setSuccessMsg("");
-  };
-
-  const savedRecord = existingSettings.find(s => s.league_id === selectedLeagueId);
-
-  if (currentUser && currentUser.user_type !== "app_admin") {
+  if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <Trophy className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500 font-medium">Access restricted to app administrators.</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-slate-500 text-sm">Access denied.</p>
       </div>
     );
   }
 
+  const s = settings;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl flex items-center justify-center shadow-lg">
-              <Trophy className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">League Award Settings</h1>
-              <p className="text-slate-500 text-sm mt-0.5">Adjust how awards are calculated for the selected league. These settings only affect this league.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* League Selector */}
-        <Card className="border-slate-200 mb-6">
-          <CardContent className="p-5">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex-1">
-                <label className="text-sm font-semibold text-slate-700 block mb-1">Select League</label>
-                <Select value={selectedLeagueId || ""} onValueChange={v => {
-                  if (isDirty && !window.confirm("You have unsaved changes. Switch league anyway?")) return;
-                  setSelectedLeagueId(v);
-                }}>
-                  <SelectTrigger className="w-full max-w-sm">
-                    <SelectValue placeholder="Choose a league..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leagues.map(l => (
-                      <SelectItem key={l.id} value={l.id}>{l.name} ({l.season})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {savedRecord && (
-                <div className="text-xs text-slate-400 flex-shrink-0">
-                  <p>Last saved by <span className="font-medium text-slate-600">{savedRecord.updated_by || "—"}</span></p>
-                  <p>{savedRecord.updated_at ? format(new Date(savedRecord.updated_at), "MMM d, yyyy HH:mm") : "—"}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {!selectedLeagueId && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
-            <Trophy className="w-10 h-10 mx-auto mb-3 text-slate-200" />
-            <p>Select a league above to view and edit its award settings.</p>
-          </div>
-        )}
-
-        {selectedLeagueId && settings && (
-          <>
-            {/* Summary card */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              {[
-                { label: "MVP Eligibility", value: `≥ ${settings.mvp_min_games_percent}% GP` },
-                { label: "DPOY Eligibility", value: `≥ ${settings.dpoy_min_games_percent}% GP` },
-                { label: "POG: Winning team only", value: settings.pog_winning_team_only ? "Yes" : "No" },
-                { label: "Mythical Five", value: `Top ${settings.mythical_five_count} MVP` },
-              ].map(item => (
-                <div key={item.label} className="bg-white rounded-xl border border-slate-200 p-3 text-center shadow-sm">
-                  <p className="text-xs text-slate-500 mb-1">{item.label}</p>
-                  <p className="text-sm font-bold text-slate-800">{item.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {successMsg && (
-              <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 mb-5 text-sm">
-                <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                {successMsg}
-              </div>
-            )}
-
-            <div className="space-y-6">
-              {/* MVP */}
-              <SectionCard
-                icon={Trophy}
-                iconColor="text-yellow-500"
-                title="MVP Settings"
-                description="Controls how the Most Valuable Player ranking is calculated."
-                insight="Higher weights increase a stat's influence on the MVP score. Penalty weights reduce the score. The minimum games played % sets who is eligible — raise it to be stricter."
-              >
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Statistic Weights</p>
-                  <FieldGrid>
-                    <NumField label="Points weight" value={settings.mvp_pts_weight} onChange={v => set("mvp_pts_weight", v)} hint="Impact of scoring" />
-                    <NumField label="Offensive rebound weight" value={settings.mvp_oreb_weight} onChange={v => set("mvp_oreb_weight", v)} />
-                    <NumField label="Defensive rebound weight" value={settings.mvp_dreb_weight} onChange={v => set("mvp_dreb_weight", v)} />
-                    <NumField label="Assist weight" value={settings.mvp_ast_weight} onChange={v => set("mvp_ast_weight", v)} hint="Higher = assists matter more" />
-                    <NumField label="Steal weight" value={settings.mvp_stl_weight} onChange={v => set("mvp_stl_weight", v)} />
-                    <NumField label="Block weight" value={settings.mvp_blk_weight} onChange={v => set("mvp_blk_weight", v)} />
-                  </FieldGrid>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-3">Penalties (reduce score)</p>
-                  <FieldGrid>
-                    <NumField label="Turnover penalty" value={settings.mvp_turnover_penalty} onChange={v => set("mvp_turnover_penalty", v)} hint="Per turnover" />
-                    <NumField label="Foul penalty" value={settings.mvp_foul_penalty} onChange={v => set("mvp_foul_penalty", v)} hint="Per personal foul" />
-                    <NumField label="Technical foul penalty" value={settings.mvp_tech_penalty} onChange={v => set("mvp_tech_penalty", v)} />
-                    <NumField label="Unsportsmanlike penalty" value={settings.mvp_unsportsmanlike_penalty} onChange={v => set("mvp_unsportsmanlike_penalty", v)} />
-                  </FieldGrid>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Final Score Contributions</p>
-                  <FieldGrid>
-                    <NumField label="Avg GIS contribution" value={settings.mvp_avg_gis_weight} onChange={v => set("mvp_avg_gis_weight", v)} min={0} max={5} step={0.05} hint="Weight of average game impact" />
-                    <NumField label="Games played % contribution" value={settings.mvp_gp_percent_weight} onChange={v => set("mvp_gp_percent_weight", v)} min={0} max={50} step={1} hint="Rewards availability" />
-                    <NumField label="Team win % contribution" value={settings.mvp_team_win_percent_weight} onChange={v => set("mvp_team_win_percent_weight", v)} min={0} max={50} step={1} hint="Rewards team success" />
-                    <NumField label="Season tech foul penalty" value={settings.mvp_tech_final_penalty} onChange={v => set("mvp_tech_final_penalty", v)} min={0} max={20} step={0.5} hint="Per technical over the season" />
-                    <NumField label="Season unsports. penalty" value={settings.mvp_unsp_final_penalty} onChange={v => set("mvp_unsp_final_penalty", v)} min={0} max={20} step={0.5} />
-                  </FieldGrid>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Eligibility</p>
-                  <div className="max-w-xs">
-                    <NumField
-                      label="Minimum games played %"
-                      hint="Players below this % of team games are excluded. E.g. 60 = must play in 60% of games."
-                      value={settings.mvp_min_games_percent}
-                      onChange={v => set("mvp_min_games_percent", v)}
-                      min={0} max={100} step={5}
-                    />
-                  </div>
-                </div>
-              </SectionCard>
-
-              {/* DPOY */}
-              <SectionCard
-                icon={Shield}
-                iconColor="text-blue-500"
-                title="Defensive Player of the Year (DPOY) Settings"
-                description="Controls how the best defender of the season is chosen. Scoring is not included — this is purely defense."
-                insight="Higher steal and block weights reward lockdown defenders. Raise the foul penalty to favor disciplined defenders."
-              >
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Defensive Weights</p>
-                  <FieldGrid>
-                    <NumField label="Steal weight" value={settings.dpoy_stl_weight} onChange={v => set("dpoy_stl_weight", v)} hint="Most valued defensive play" />
-                    <NumField label="Block weight" value={settings.dpoy_blk_weight} onChange={v => set("dpoy_blk_weight", v)} />
-                    <NumField label="Offensive rebound weight" value={settings.dpoy_oreb_weight} onChange={v => set("dpoy_oreb_weight", v)} />
-                    <NumField label="Defensive rebound weight" value={settings.dpoy_dreb_weight} onChange={v => set("dpoy_dreb_weight", v)} />
-                  </FieldGrid>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-3">Penalties</p>
-                  <FieldGrid>
-                    <NumField label="Foul penalty" value={settings.dpoy_foul_penalty} onChange={v => set("dpoy_foul_penalty", v)} hint="Higher = fouls hurt more" />
-                    <NumField label="Turnover penalty" value={settings.dpoy_turnover_penalty} onChange={v => set("dpoy_turnover_penalty", v)} />
-                    <NumField label="Technical foul penalty" value={settings.dpoy_tech_penalty} onChange={v => set("dpoy_tech_penalty", v)} />
-                    <NumField label="Unsportsmanlike penalty" value={settings.dpoy_unsportsmanlike_penalty} onChange={v => set("dpoy_unsportsmanlike_penalty", v)} />
-                  </FieldGrid>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Final Score &amp; Eligibility</p>
-                  <FieldGrid>
-                    <NumField label="Games played % contribution" value={settings.dpoy_gp_percent_weight} onChange={v => set("dpoy_gp_percent_weight", v)} min={0} max={50} step={1} />
-                    <NumField label="Season tech foul penalty" value={settings.dpoy_tech_final_penalty} onChange={v => set("dpoy_tech_final_penalty", v)} min={0} max={20} step={0.5} />
-                    <NumField label="Season unsports. penalty" value={settings.dpoy_unsp_final_penalty} onChange={v => set("dpoy_unsp_final_penalty", v)} min={0} max={20} step={0.5} />
-                    <NumField label="Minimum games played %" value={settings.dpoy_min_games_percent} onChange={v => set("dpoy_min_games_percent", v)} min={0} max={100} step={5} />
-                  </FieldGrid>
-                </div>
-              </SectionCard>
-
-              {/* POG */}
-              <SectionCard
-                icon={Star}
-                iconColor="text-orange-500"
-                title="Player of the Game (POG) Settings"
-                description="Controls how the best player of each individual game is selected."
-                insight="The POG is picked automatically after each completed game based on the highest score from the formulas below."
-              >
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Statistic Weights</p>
-                  <FieldGrid>
-                    <NumField label="Points weight" value={settings.pog_pts_weight} onChange={v => set("pog_pts_weight", v)} />
-                    <NumField label="Offensive rebound weight" value={settings.pog_oreb_weight} onChange={v => set("pog_oreb_weight", v)} />
-                    <NumField label="Defensive rebound weight" value={settings.pog_dreb_weight} onChange={v => set("pog_dreb_weight", v)} />
-                    <NumField label="Assist weight" value={settings.pog_ast_weight} onChange={v => set("pog_ast_weight", v)} />
-                    <NumField label="Steal weight" value={settings.pog_stl_weight} onChange={v => set("pog_stl_weight", v)} />
-                    <NumField label="Block weight" value={settings.pog_blk_weight} onChange={v => set("pog_blk_weight", v)} />
-                  </FieldGrid>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-3">Penalties</p>
-                  <FieldGrid>
-                    <NumField label="Turnover penalty" value={settings.pog_turnover_penalty} onChange={v => set("pog_turnover_penalty", v)} />
-                    <NumField label="Foul penalty" value={settings.pog_foul_penalty} onChange={v => set("pog_foul_penalty", v)} />
-                    <NumField label="Technical foul penalty" value={settings.pog_tech_penalty} onChange={v => set("pog_tech_penalty", v)} />
-                    <NumField label="Unsportsmanlike penalty" value={settings.pog_unsportsmanlike_penalty} onChange={v => set("pog_unsportsmanlike_penalty", v)} />
-                  </FieldGrid>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <input
-                    type="checkbox"
-                    id="pog_winning"
-                    checked={!!settings.pog_winning_team_only}
-                    onChange={e => set("pog_winning_team_only", e.target.checked)}
-                    className="w-4 h-4 accent-orange-500"
-                  />
-                  <label htmlFor="pog_winning" className="text-sm font-medium text-slate-700 cursor-pointer">
-                    Only choose Player of the Game from the winning team
-                  </label>
-                </div>
-              </SectionCard>
-
-              {/* Mythical Five */}
-              <SectionCard
-                icon={Users}
-                iconColor="text-purple-500"
-                title="Mythical Five Settings"
-                description="The Mythical Five are the top players selected at the end of the season."
-                insight="By default, the top players from the MVP rankings form the Mythical Five. The count sets how many players are included."
-              >
-                <FieldGrid>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium text-slate-700">Selection source</label>
-                    <p className="text-xs text-slate-400">How the Mythical Five are chosen</p>
-                    <select
-                      value={settings.mythical_five_source}
-                      onChange={e => set("mythical_five_source", e.target.value)}
-                      className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
-                    >
-                      <option value="mvp_rankings">Top MVP Rankings</option>
-                    </select>
-                  </div>
-                  <NumField
-                    label="Number of players"
-                    hint="How many players make the Mythical Five"
-                    value={settings.mythical_five_count}
-                    onChange={v => set("mythical_five_count", Math.round(v))}
-                    min={1} max={10} step={1}
-                  />
-                </FieldGrid>
-              </SectionCard>
-            </div>
-
-            {/* Action Bar */}
-            <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-200 mt-8 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center gap-3 justify-between">
-              <div className="flex items-center gap-2">
-                {isDirty && <Badge className="bg-orange-100 text-orange-700">Unsaved changes</Badge>}
-                {!isDirty && successMsg && <Badge className="bg-green-100 text-green-700">Saved</Badge>}
-              </div>
-              <div className="flex gap-3 flex-wrap">
-                <Button variant="outline" onClick={handleCancel} disabled={!isDirty}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleReset}
-                  className={resetPending ? "border-red-400 text-red-600 hover:bg-red-50" : ""}
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  {resetPending ? "Click again to confirm reset" : "Reset to Default"}
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={!isDirty || saving}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {saving ? "Saving..." : "Save Settings"}
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+    <div className="max-w-4xl mx-auto px-4 py-10 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <SlidersHorizontal className="w-6 h-6 text-orange-500" />
+        <h1 className="text-2xl font-bold text-slate-900">League Award Settings</h1>
       </div>
+
+      {/* Status message */}
+      {statusMsg && (
+        <div className={`flex items-start gap-2 rounded-lg px-4 py-3 text-sm border ${
+          statusMsg.type === "error"
+            ? "bg-red-50 border-red-200 text-red-700"
+            : "bg-green-50 border-green-200 text-green-700"
+        }`}>
+          {statusMsg.type === "error"
+            ? <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            : <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+          <span>{statusMsg.text}</span>
+        </div>
+      )}
+
+      {/* League selector */}
+      <div className="flex items-center gap-3">
+        <label className="text-sm font-medium text-slate-700 shrink-0">League</label>
+        <Select value={selectedLeagueId ?? ""} onValueChange={setSelectedLeagueId}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Select a league" />
+          </SelectTrigger>
+          <SelectContent>
+            {leagues.map(l => (
+              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* ── MVP ─────────────────────────────────────────────────────── */}
+      <AwardCard
+        icon={Trophy} iconColor="text-yellow-500" title="MVP Settings"
+        onReset={() => resetSection("mvp_")}
+        formula={`Per-Game GIS =
+  (PTS × points_weight) + (OREB × oreb_weight) + (DREB × dreb_weight)
+  + (AST × ast_weight) + (STL × stl_weight) + (BLK × blk_weight)
+  − (TO × to_penalty) − (PF × foul_penalty)
+  − (TECH × tech_penalty) − (UNSPORT × unsport_penalty)
+
+Season GIS Avg = sum(Per-Game GIS) / games_played
+
+MVP Score =
+  (Season GIS Avg × gis_contribution)
+  + (games_played_% × games_contribution / 100)
+  + (team_win_% × win_contribution / 100)
+  − (season_techs × season_tech_penalty)
+  − (season_unsports × season_unsport_penalty)
+
+Eligibility: Must play ≥ min_games_% of team's games`}
+        insight="MVP rewards consistent all-round performance across the season. Adjust weights to reflect how your league values different contributions."
+      >
+        <SectionLabel>Statistic Weights</SectionLabel>
+        <FieldGrid>
+          <NumField label="Points" fieldKey="mvp_points_weight" value={s.mvp_points_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Off Rebound" fieldKey="mvp_oreb_weight" value={s.mvp_oreb_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Def Rebound" fieldKey="mvp_dreb_weight" value={s.mvp_dreb_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Assists" fieldKey="mvp_ast_weight" value={s.mvp_ast_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Steals" fieldKey="mvp_stl_weight" value={s.mvp_stl_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Blocks" fieldKey="mvp_blk_weight" value={s.mvp_blk_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+        </FieldGrid>
+
+        <SectionLabel>Penalties (per game)</SectionLabel>
+        <FieldGrid>
+          <NumField label="Turnover" fieldKey="mvp_to_penalty" value={s.mvp_to_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Personal Foul" fieldKey="mvp_foul_penalty" value={s.mvp_foul_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Technical" fieldKey="mvp_tech_penalty" value={s.mvp_tech_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Unsportsmanlike" fieldKey="mvp_unsport_penalty" value={s.mvp_unsport_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+        </FieldGrid>
+
+        <SectionLabel>Final Score &amp; Eligibility</SectionLabel>
+        <FieldGrid>
+          <NumField
+            label="Avg GIS contribution"
+            fieldKey="mvp_gis_contribution"
+            value={s.mvp_gis_contribution}
+            onChange={handleChange}
+            errors={errors}
+            min={0} max={1} step={0.01}
+            tooltip="Game Impact Score (GIS) measures a player's overall contribution in a single game. It combines positive stats (points, rebounds, assists, steals, blocks) weighted by their importance, minus penalties for turnovers and fouls."
+          />
+          <NumField label="Games played %" fieldKey="mvp_games_played_contribution" value={s.mvp_games_played_contribution} onChange={handleChange} errors={errors} min={0} max={100} step={1} />
+          <NumField label="Team win %" fieldKey="mvp_team_win_contribution" value={s.mvp_team_win_contribution} onChange={handleChange} errors={errors} min={0} max={100} step={1} />
+          <NumField label="Season tech penalty" fieldKey="mvp_season_tech_penalty" value={s.mvp_season_tech_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Season unsport penalty" fieldKey="mvp_season_unsport_penalty" value={s.mvp_season_unsport_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Min games %" fieldKey="mvp_min_games_pct" value={s.mvp_min_games_pct} onChange={handleChange} errors={errors} min={0} max={100} step={1} />
+        </FieldGrid>
+      </AwardCard>
+
+      {/* ── DPOY ────────────────────────────────────────────────────── */}
+      <AwardCard
+        icon={Shield} iconColor="text-blue-500" title="DPOY Settings"
+        onReset={() => resetSection("dpoy_")}
+        formula={`Per-Game Defensive Score =
+  (STL × stl_weight) + (BLK × blk_weight)
+  + (OREB × oreb_weight) + (DREB × dreb_weight)
+  − (PF × foul_penalty) − (TO × to_penalty)
+  − (TECH × tech_penalty) − (UNSPORT × unsport_penalty)
+
+DPOY Score =
+  Season Avg Defensive Score
+  + (games_played_% × games_contribution / 100)
+  − (season_techs × season_tech_penalty)
+  − (season_unsports × season_unsport_penalty)
+
+Eligibility: Must play ≥ min_games_% of team's games`}
+        insight="DPOY focuses on defensive impact. Steals and blocks are the primary drivers; turnovers are penalised because they negate defensive effort."
+      >
+        <SectionLabel>Statistic Weights</SectionLabel>
+        <FieldGrid>
+          <NumField label="Steals" fieldKey="dpoy_stl_weight" value={s.dpoy_stl_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Blocks" fieldKey="dpoy_blk_weight" value={s.dpoy_blk_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Off Rebound" fieldKey="dpoy_oreb_weight" value={s.dpoy_oreb_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Def Rebound" fieldKey="dpoy_dreb_weight" value={s.dpoy_dreb_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+        </FieldGrid>
+
+        <SectionLabel>Penalties (per game)</SectionLabel>
+        <FieldGrid>
+          <NumField label="Personal Foul" fieldKey="dpoy_foul_penalty" value={s.dpoy_foul_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Turnover" fieldKey="dpoy_to_penalty" value={s.dpoy_to_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Technical" fieldKey="dpoy_tech_penalty" value={s.dpoy_tech_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Unsportsmanlike" fieldKey="dpoy_unsport_penalty" value={s.dpoy_unsport_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+        </FieldGrid>
+
+        <SectionLabel>Final Score &amp; Eligibility</SectionLabel>
+        <FieldGrid>
+          <NumField label="Games played %" fieldKey="dpoy_games_played_contribution" value={s.dpoy_games_played_contribution} onChange={handleChange} errors={errors} min={0} max={100} step={1} />
+          <NumField label="Season tech penalty" fieldKey="dpoy_season_tech_penalty" value={s.dpoy_season_tech_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Season unsport penalty" fieldKey="dpoy_season_unsport_penalty" value={s.dpoy_season_unsport_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Min games %" fieldKey="dpoy_min_games_pct" value={s.dpoy_min_games_pct} onChange={handleChange} errors={errors} min={0} max={100} step={1} />
+        </FieldGrid>
+      </AwardCard>
+
+      {/* ── POG ─────────────────────────────────────────────────────── */}
+      <AwardCard
+        icon={Star} iconColor="text-orange-500" title="Player of the Game Settings"
+        onReset={() => resetSection("pog_")}
+        formula={`Game Score =
+  (PTS × points_weight) + (OREB × oreb_weight) + (DREB × dreb_weight)
+  + (AST × ast_weight) + (STL × stl_weight) + (BLK × blk_weight)
+  − (TO × to_penalty) − (PF × foul_penalty)
+  − (TECH × tech_penalty) − (UNSPORT × unsport_penalty)
+
+Winner: Highest Game Score
+  (from winning team only if pog_winning_team_only is true)`}
+        insight="POG is awarded per game, not per season. Enable 'Winning team only' to require the winner to come from the victorious side."
+      >
+        <SectionLabel>Statistic Weights</SectionLabel>
+        <FieldGrid>
+          <NumField label="Points" fieldKey="pog_points_weight" value={s.pog_points_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Off Rebound" fieldKey="pog_oreb_weight" value={s.pog_oreb_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Def Rebound" fieldKey="pog_dreb_weight" value={s.pog_dreb_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Assists" fieldKey="pog_ast_weight" value={s.pog_ast_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Steals" fieldKey="pog_stl_weight" value={s.pog_stl_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+          <NumField label="Blocks" fieldKey="pog_blk_weight" value={s.pog_blk_weight} onChange={handleChange} errors={errors} min={0} max={10} />
+        </FieldGrid>
+
+        <SectionLabel>Penalties (per game)</SectionLabel>
+        <FieldGrid>
+          <NumField label="Turnover" fieldKey="pog_to_penalty" value={s.pog_to_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Personal Foul" fieldKey="pog_foul_penalty" value={s.pog_foul_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Technical" fieldKey="pog_tech_penalty" value={s.pog_tech_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+          <NumField label="Unsportsmanlike" fieldKey="pog_unsport_penalty" value={s.pog_unsport_penalty} onChange={handleChange} errors={errors} min={0} max={20} />
+        </FieldGrid>
+
+        <SectionLabel>Eligibility</SectionLabel>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={s.pog_winning_team_only}
+            onChange={() => handleToggle("pog_winning_team_only")}
+            className="accent-orange-500 w-4 h-4"
+          />
+          <span className="text-sm text-slate-700">Winning team only</span>
+        </label>
+      </AwardCard>
+
+      {/* ── Mythical Five ────────────────────────────────────────────── */}
+      <AwardCard
+        icon={Users} iconColor="text-purple-500" title="Mythical Five Settings"
+        onReset={() => resetSection("mythical_")}
+        formula={`Mythical Five selects the top N players by ranking source.
+
+  Source: mvp_rankings — uses the MVP season score rankings
+  Count: number of players selected (default 5)`}
+        insight="The Mythical Five is typically the top 5 players of the season. Increase the count for larger leagues."
+      >
+        <FieldGrid>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-600">Source</label>
+            <Select value={s.mythical_source} onValueChange={v => handleChange("mythical_source", v)}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mvp_rankings">MVP Rankings</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <NumField
+            label="Count"
+            fieldKey="mythical_count"
+            value={s.mythical_count}
+            onChange={handleChange}
+            errors={errors}
+            min={1} max={15} step={1}
+          />
+        </FieldGrid>
+      </AwardCard>
+
+      {/* ── Footer buttons ───────────────────────────────────────────── */}
+      <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setSettings({ ...savedSettings })}>
+            Cancel
+          </Button>
+          <Button variant="outline" onClick={resetAll} className="gap-1">
+            <RotateCcw className="w-4 h-4" /> Reset All to Default
+          </Button>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving || hasErrors || !selectedLeagueId}
+          className="bg-violet-600 hover:bg-violet-700 text-white gap-2"
+        >
+          <Save className="w-4 h-4" />
+          {saving ? "Saving…" : "Save Settings"}
+        </Button>
+      </div>
+
+      {/* ── Change History ────────────────────────────────────────────── */}
+      {selectedLeagueId && (
+        <div className="pt-4 border-t border-slate-200">
+          <ChangeHistory leagueId={selectedLeagueId} />
+        </div>
+      )}
     </div>
   );
 }

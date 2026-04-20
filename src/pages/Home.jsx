@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
+import { toast } from '@/components/ui/use-toast';
 
 export default function Home() {
   const { isAuthenticated, isLoadingAuth, currentUser } = useAuth();
@@ -21,6 +22,45 @@ export default function Home() {
     const route = async () => {
       setIsRouting(true);
       try {
+        // Process any pending invite from before login
+        const pendingToken = localStorage.getItem("pendingInviteToken");
+        if (pendingToken) {
+          const { data: invite } = await supabase
+            .from("league_invitations")
+            .select("*, league:leagues!league_id(id, name)")
+            .eq("token", pendingToken)
+            .eq("status", "pending")
+            .maybeSingle();
+
+          if (invite && new Date(invite.expires_at) >= new Date()) {
+            const { data: existing } = await supabase
+              .from("user_league_memberships")
+              .select("id")
+              .eq("user_id", currentUser.id)
+              .eq("league_id", invite.league_id)
+              .maybeSingle();
+
+            if (!existing) {
+              await supabase.from("user_league_memberships").insert({
+                user_id: currentUser.id,
+                league_id: invite.league_id,
+                role: invite.role,
+                is_active: true,
+              });
+            }
+
+            await supabase.from("league_invitations").update({
+              status: "accepted",
+              accepted_at: new Date().toISOString(),
+              accepted_by: currentUser.id,
+            }).eq("id", invite.id);
+
+            toast({ title: `You've joined ${invite.league?.name}!` });
+          }
+
+          localStorage.removeItem("pendingInviteToken");
+        }
+
         // Check for active memberships
         const { data: memberships, error: memError } = await supabase
           .from('user_league_memberships')

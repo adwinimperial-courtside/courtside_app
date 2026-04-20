@@ -278,10 +278,11 @@ export default function GameCard({ game, teams, leagueName, canManage, onStartGa
             {game.status === "postponed" && (
               <Pill className="bg-yellow-100 text-yellow-700">Postponed</Pill>
             )}
-            {game.entry_type && (
-              <Pill className="bg-cyan-100 text-cyan-700">
-                {ENTRY_TYPE_LABELS[game.entry_type] || game.entry_type}
-              </Pill>
+            {game.entry_type === "manual" && (
+              <Pill className="border border-blue-400 text-blue-700 bg-white">Manual Entry</Pill>
+            )}
+            {game.edited && (
+              <Pill className="border border-orange-400 text-orange-700 bg-white">Edited</Pill>
             )}
             {game.is_default_result && (
               <Pill className="bg-red-100 text-red-700">

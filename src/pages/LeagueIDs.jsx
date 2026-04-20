@@ -1,18 +1,20 @@
-import React from "react";
-import { base44 } from "@/api/base44Client";
+import React, { useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { useQuery } from "@tanstack/react-query";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Copy, Check } from "lucide-react";
-import { useState } from "react";
 
 export default function LeagueIDsPage() {
   const [copiedId, setCopiedId] = useState(null);
 
-  const { data: leagues, isLoading } = useQuery({
+  const { data: leagues = [], isLoading } = useQuery({
     queryKey: ['leagues'],
-    queryFn: () => base44.entities.League.list(),
-    initialData: [],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('leagues').select('*');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const handleCopyId = (id) => {

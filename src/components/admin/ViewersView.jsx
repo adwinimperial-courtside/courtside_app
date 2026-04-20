@@ -1,49 +1,69 @@
 import React, { useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabaseClient";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { ArrowUpDown } from "lucide-react";
 
 export default function ViewersView() {
-  const [sortConfig, setSortConfig] = useState({ key: 'created_date', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
   const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => base44.entities.User.list(),
+    queryKey: ["profiles-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("*");
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: leagues = [] } = useQuery({
     queryKey: ["leagues"],
-    queryFn: () => base44.entities.League.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("leagues").select("*");
+      if (error) throw error;
+      return data || [];
+    },
   });
 
-  const viewers = useMemo(() => {
-    return users.filter(user => user.user_type === 'viewer');
-  }, [users]);
+  const { data: memberships = [] } = useQuery({
+    queryKey: ["user_league_memberships"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_league_memberships")
+        .select("user_id, league_id, is_active");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const viewers = useMemo(() => users.filter(u => u.user_type === 'viewer'), [users]);
+
+  const leagueIdsByUser = useMemo(() => {
+    const map = new Map();
+    memberships.forEach(m => {
+      if (!m.is_active) return;
+      if (!map.has(m.user_id)) map.set(m.user_id, []);
+      map.get(m.user_id).push(m.league_id);
+    });
+    return map;
+  }, [memberships]);
 
   const sortedViewers = useMemo(() => {
     const sorted = [...viewers];
     sorted.sort((a, b) => {
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
-
-      if (sortConfig.key === 'created_date') {
+      if (sortConfig.key === 'created_at') {
         aVal = new Date(aVal).getTime();
         bVal = new Date(bVal).getTime();
-      } else if (sortConfig.key === 'full_name' || sortConfig.key === 'email') {
+      } else {
         aVal = (aVal || '').toLowerCase();
         bVal = (bVal || '').toLowerCase();
       }
-
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
@@ -58,14 +78,13 @@ export default function ViewersView() {
     }));
   };
 
-  const getLeagueNames = (leagueIds) => {
-    if (!leagueIds || leagueIds.length === 0) return 'None';
-    return leagueIds
-      .map(id => {
-        const league = leagues.find(l => l.id === id);
-        return league ? league.name : 'Unknown';
-      })
-      .join(', ');
+  const getLeagueNames = (userId) => {
+    const leagueIds = leagueIdsByUser.get(userId) || [];
+    if (leagueIds.length === 0) return 'None';
+    return leagueIds.map(id => {
+      const league = leagues.find(l => l.id === id);
+      return league ? league.name : 'Unknown';
+    }).join(', ');
   };
 
   return (
@@ -74,9 +93,7 @@ export default function ViewersView() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-xl">Viewers</CardTitle>
-            <p className="text-sm text-slate-600 mt-2">
-              Users with Viewer access
-            </p>
+            <p className="text-sm text-slate-600 mt-2">Users with Viewer access</p>
           </div>
           <Badge className="bg-blue-100 text-blue-800 text-lg px-3 py-1">
             {viewers.length} Total
@@ -89,30 +106,18 @@ export default function ViewersView() {
             <TableHeader>
               <TableRow className="bg-slate-50">
                 <TableHead>
-                  <button
-                    onClick={() => handleSort('full_name')}
-                    className="flex items-center gap-2 font-semibold hover:text-slate-900"
-                  >
-                    Name
-                    <ArrowUpDown className="w-4 h-4" />
+                  <button onClick={() => handleSort('full_name')} className="flex items-center gap-2 font-semibold hover:text-slate-900">
+                    Name <ArrowUpDown className="w-4 h-4" />
                   </button>
                 </TableHead>
                 <TableHead>
-                  <button
-                    onClick={() => handleSort('created_date')}
-                    className="flex items-center gap-2 font-semibold hover:text-slate-900"
-                  >
-                    Created On
-                    <ArrowUpDown className="w-4 h-4" />
+                  <button onClick={() => handleSort('created_at')} className="flex items-center gap-2 font-semibold hover:text-slate-900">
+                    Created On <ArrowUpDown className="w-4 h-4" />
                   </button>
                 </TableHead>
                 <TableHead>
-                  <button
-                    onClick={() => handleSort('email')}
-                    className="flex items-center gap-2 font-semibold hover:text-slate-900"
-                  >
-                    Email
-                    <ArrowUpDown className="w-4 h-4" />
+                  <button onClick={() => handleSort('email')} className="flex items-center gap-2 font-semibold hover:text-slate-900">
+                    Email <ArrowUpDown className="w-4 h-4" />
                   </button>
                 </TableHead>
                 <TableHead>Assigned Leagues</TableHead>
@@ -123,20 +128,14 @@ export default function ViewersView() {
                 sortedViewers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
-                    <TableCell className="text-slate-600">
-                      {new Date(user.created_date).toLocaleString()}
-                    </TableCell>
+                    <TableCell className="text-slate-600">{user.created_at ? new Date(user.created_at).toLocaleString() : '—'}</TableCell>
                     <TableCell className="text-slate-600">{user.email}</TableCell>
-                    <TableCell className="text-slate-600">
-                      {getLeagueNames(user.assigned_league_ids)}
-                    </TableCell>
+                    <TableCell className="text-slate-600">{getLeagueNames(user.id)}</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-slate-500">
-                    No viewers found
-                  </TableCell>
+                  <TableCell colSpan={4} className="text-center py-8 text-slate-500">No viewers found</TableCell>
                 </TableRow>
               )}
             </TableBody>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/lib/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,26 +9,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Wrench, CheckCircle, AlertTriangle, Loader2, Filter, Key } from "lucide-react";
 
 export default function FixManualStats() {
+  const { userType, isAppAdmin } = useAuth();
   const [selectedLeague, setSelectedLeague] = useState("");
   const [isFixing, setIsFixing] = useState(false);
   const [results, setResults] = useState(null);
 
-  const { data: currentUser } = useQuery({
-    queryKey: ['user'],
-    queryFn: () => base44.auth.me(),
-  });
-
   const { data: leagues = [] } = useQuery({
     queryKey: ['leagues'],
-    queryFn: () => base44.entities.League.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('leagues').select('*');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   const { data: teams = [] } = useQuery({
     queryKey: ['teams'],
-    queryFn: () => base44.entities.Team.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('teams').select('*');
+      if (error) throw error;
+      return data || [];
+    },
   });
 
-  if (currentUser && currentUser.user_type !== "app_admin") {
+  if (userType && !isAppAdmin && userType !== "app_admin") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
         <div className="max-w-2xl mx-auto bg-white rounded-xl border border-red-200 p-8 text-center">
@@ -45,9 +50,14 @@ export default function FixManualStats() {
     setResults(null);
 
     try {
-      // Get all manual or edited games for the selected league
-      const allGames = await base44.entities.Game.filter({ league_id: selectedLeague, status: 'completed' });
-      const targetGames = allGames.filter(g => g.entry_type === 'manual' || g.edited === true);
+      // Get all completed games for the league
+      const { data: allGames, error: gamesError } = await supabase
+        .from('games')
+        .select('*')
+        .eq('league_id', selectedLeague)
+        .eq('status', 'completed');
+      if (gamesError) throw gamesError;
+      const targetGames = (allGames || []).filter(g => g.entry_type === 'manual' || g.edited === true);
 
       let fixedGames = 0;
       let fixedStats = 0;
@@ -55,31 +65,35 @@ export default function FixManualStats() {
 
       for (const game of targetGames) {
         const isEditedDigital = game.edited && game.entry_type !== 'manual';
-        const stats = await base44.entities.PlayerStats.filter({ game_id: game.id });
+        const { data: stats, error: statsError } = await supabase
+          .from('player_stats')
+          .select('*')
+          .eq('game_id', game.id);
+        if (statsError) throw statsError;
 
         let homeScore = 0;
         let awayScore = 0;
         let statsUpdated = 0;
 
-        await Promise.all(stats.map(async (stat) => {
+        await Promise.all((stats || []).map(async (stat) => {
           let totalPoints;
 
           if (isEditedDigital) {
-            // Old edited digital games stored points_2 as floor((total - 3pt*3 - ft)/2)
-            // So true total = points_2*2 + 3pt*3 + ft
             totalPoints = ((stat.points_2 || 0) * 2) + ((stat.points_3 || 0) * 3) + (stat.free_throws || 0);
           } else {
-            // Manual games stored points_2 = total - 3pt*3 - ft, so already correct
             totalPoints = (stat.points_2 || 0) + ((stat.points_3 || 0) * 3) + (stat.free_throws || 0);
           }
 
-          // Store using lossless manual format: points_2 = total - 3pt*3 - ft
           const points3pts = (stat.points_3 || 0) * 3;
           const ft = stat.free_throws || 0;
           const newPoints2 = Math.max(0, totalPoints - points3pts - ft);
 
           if (newPoints2 !== (stat.points_2 || 0)) {
-            await base44.entities.PlayerStats.update(stat.id, { points_2: newPoints2 });
+            const { error: updErr } = await supabase
+              .from('player_stats')
+              .update({ points_2: newPoints2 })
+              .eq('id', stat.id);
+            if (updErr) throw updErr;
             statsUpdated++;
             fixedStats++;
           }
@@ -91,12 +105,15 @@ export default function FixManualStats() {
           }
         }));
 
-        // Update game scores and ensure entry_type is 'manual'
-        await base44.entities.Game.update(game.id, {
-          home_score: homeScore,
-          away_score: awayScore,
-          entry_type: 'manual',
-        });
+        const { error: gameUpdErr } = await supabase
+          .from('games')
+          .update({
+            home_score: homeScore,
+            away_score: awayScore,
+            entry_type: 'manual',
+          })
+          .eq('id', game.id);
+        if (gameUpdErr) throw gameUpdErr;
 
         fixedGames++;
         gameResults.push({

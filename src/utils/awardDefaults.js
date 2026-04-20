@@ -45,8 +45,54 @@ export const DEFAULT_AWARD_SETTINGS = {
   mythical_five_count: 5,
 };
 
-/** Merge saved settings over defaults — guarantees all keys are present */
+/** Map DB column names → component key names, then merge over defaults */
 export function resolveSettings(saved) {
-  if (!saved) return DEFAULT_AWARD_SETTINGS;
-  return { ...DEFAULT_AWARD_SETTINGS, ...saved };
+  const d = DEFAULT_AWARD_SETTINGS;
+  if (!saved) return d;
+  return {
+    mvp_pts_weight:               saved.mvp_points_weight              ?? d.mvp_pts_weight,
+    mvp_oreb_weight:              saved.mvp_oreb_weight                 ?? d.mvp_oreb_weight,
+    mvp_dreb_weight:              saved.mvp_dreb_weight                 ?? d.mvp_dreb_weight,
+    mvp_ast_weight:               saved.mvp_ast_weight                  ?? d.mvp_ast_weight,
+    mvp_stl_weight:               saved.mvp_stl_weight                  ?? d.mvp_stl_weight,
+    mvp_blk_weight:               saved.mvp_blk_weight                  ?? d.mvp_blk_weight,
+    mvp_turnover_penalty:         saved.mvp_to_penalty                  ?? d.mvp_turnover_penalty,
+    mvp_foul_penalty:             saved.mvp_foul_penalty                ?? d.mvp_foul_penalty,
+    mvp_tech_penalty:             saved.mvp_tech_penalty                ?? d.mvp_tech_penalty,
+    mvp_unsportsmanlike_penalty:  saved.mvp_unsport_penalty             ?? d.mvp_unsportsmanlike_penalty,
+    mvp_avg_gis_weight:           saved.mvp_gis_contribution            ?? d.mvp_avg_gis_weight,
+    mvp_gp_percent_weight:        saved.mvp_games_played_contribution   ?? d.mvp_gp_percent_weight,
+    mvp_team_win_percent_weight:  saved.mvp_team_win_contribution       ?? d.mvp_team_win_percent_weight,
+    mvp_min_games_percent:        saved.mvp_min_games_pct               ?? d.mvp_min_games_percent,
+    mvp_tech_final_penalty:       saved.mvp_season_tech_penalty         ?? d.mvp_tech_final_penalty,
+    mvp_unsp_final_penalty:       saved.mvp_season_unsport_penalty      ?? d.mvp_unsp_final_penalty,
+
+    dpoy_stl_weight:              saved.dpoy_stl_weight                 ?? d.dpoy_stl_weight,
+    dpoy_blk_weight:              saved.dpoy_blk_weight                 ?? d.dpoy_blk_weight,
+    dpoy_oreb_weight:             saved.dpoy_oreb_weight                ?? d.dpoy_oreb_weight,
+    dpoy_dreb_weight:             saved.dpoy_dreb_weight                ?? d.dpoy_dreb_weight,
+    dpoy_foul_penalty:            saved.dpoy_foul_penalty               ?? d.dpoy_foul_penalty,
+    dpoy_turnover_penalty:        saved.dpoy_to_penalty                 ?? d.dpoy_turnover_penalty,
+    dpoy_tech_penalty:            saved.dpoy_tech_penalty               ?? d.dpoy_tech_penalty,
+    dpoy_unsportsmanlike_penalty: saved.dpoy_unsport_penalty            ?? d.dpoy_unsportsmanlike_penalty,
+    dpoy_gp_percent_weight:       saved.dpoy_games_played_contribution  ?? d.dpoy_gp_percent_weight,
+    dpoy_min_games_percent:       saved.dpoy_min_games_pct              ?? d.dpoy_min_games_percent,
+    dpoy_tech_final_penalty:      saved.dpoy_season_tech_penalty        ?? d.dpoy_tech_final_penalty,
+    dpoy_unsp_final_penalty:      saved.dpoy_season_unsport_penalty     ?? d.dpoy_unsp_final_penalty,
+
+    pog_pts_weight:               saved.pog_points_weight               ?? d.pog_pts_weight,
+    pog_oreb_weight:              saved.pog_oreb_weight                  ?? d.pog_oreb_weight,
+    pog_dreb_weight:              saved.pog_dreb_weight                  ?? d.pog_dreb_weight,
+    pog_ast_weight:               saved.pog_ast_weight                   ?? d.pog_ast_weight,
+    pog_stl_weight:               saved.pog_stl_weight                   ?? d.pog_stl_weight,
+    pog_blk_weight:               saved.pog_blk_weight                   ?? d.pog_blk_weight,
+    pog_turnover_penalty:         saved.pog_to_penalty                   ?? d.pog_turnover_penalty,
+    pog_foul_penalty:             saved.pog_foul_penalty                 ?? d.pog_foul_penalty,
+    pog_tech_penalty:             saved.pog_tech_penalty                 ?? d.pog_tech_penalty,
+    pog_unsportsmanlike_penalty:  saved.pog_unsport_penalty              ?? d.pog_unsportsmanlike_penalty,
+    pog_winning_team_only:        saved.pog_winning_team_only            ?? d.pog_winning_team_only,
+
+    mythical_five_source:         saved.mythical_source                  ?? d.mythical_five_source,
+    mythical_five_count:          saved.mythical_count                   ?? d.mythical_five_count,
+  };
 }

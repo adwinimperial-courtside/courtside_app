@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/lib/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
@@ -13,34 +14,61 @@ export default function PlayerProfile() {
   const [selectedLeagueId, setSelectedLeagueId] = useState(null);
   const queryClient = useQueryClient();
 
-  const { data: currentUser, isLoading: userLoading } = useQuery({
-    queryKey: ['currentUserProfile'],
-    queryFn: () => base44.auth.me(),
-  });
+  const { currentUser: authUser, userProfile, userType, isLoadingAuth } = useAuth();
+  const currentUser = userProfile ? { ...userProfile, id: authUser?.id } : null;
+  const userLoading = isLoadingAuth;
 
   const { data: identities = [] } = useQuery({
-    queryKey: ['myLeagueIdentities', currentUser?.id],
-    queryFn: () => base44.entities.UserLeagueIdentity.filter({ user_id: currentUser.id }),
-    enabled: !!currentUser?.id,
+    queryKey: ['myLeagueIdentities', authUser?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_league_identity')
+        .select('*')
+        .eq('user_id', authUser.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!authUser?.id,
   });
 
   const { data: allLeagues = [] } = useQuery({
     queryKey: ['leagues'],
-    queryFn: () => base44.entities.League.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('leagues').select('*');
+      if (error) throw error;
+      return data || [];
+    },
     enabled: !!currentUser,
   });
 
+  // Derive assigned_league_ids from user_league_memberships
+  const { data: myMemberships = [] } = useQuery({
+    queryKey: ['myMemberships', authUser?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_league_memberships')
+        .select('league_id')
+        .eq('user_id', authUser.id)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!authUser?.id,
+  });
+
+  const assignedLeagueIds = useMemo(() => myMemberships.map(m => m.league_id), [myMemberships]);
+
   const userLeagues = useMemo(() => {
-    if (!allLeagues.length || !currentUser?.assigned_league_ids?.length) return [];
-    return allLeagues.filter(l => currentUser.assigned_league_ids.includes(l.id));
-  }, [allLeagues, currentUser]);
+    if (!allLeagues.length || !assignedLeagueIds.length) return [];
+    return allLeagues.filter(l => assignedLeagueIds.includes(l.id));
+  }, [allLeagues, assignedLeagueIds]);
 
   // For coaches, select the first league they have an identity in
   const coachIdentityLeagueId = useMemo(() => {
-    if (currentUser?.user_type !== 'coach') return null;
+    if (userType !== 'coach') return null;
     const coachIdentity = identities.find(i => i.matched_player_id);
     return coachIdentity?.league_id || null;
-  }, [identities, currentUser?.user_type]);
+  }, [identities, userType]);
 
   useEffect(() => {
     if (userLeagues.length > 0 && !selectedLeagueId) {
@@ -60,25 +88,41 @@ export default function PlayerProfile() {
 
   const { data: allTeams = [] } = useQuery({
     queryKey: ['allTeams'],
-    queryFn: () => base44.entities.Team.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('teams').select('*');
+      if (error) throw error;
+      return data || [];
+    },
     enabled: !!selectedLeagueId,
   });
 
   const { data: teamPlayers = [] } = useQuery({
     queryKey: ['teamPlayers', teamId],
-    queryFn: () => base44.entities.Player.filter({ team_id: teamId }),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('players').select('*').eq('team_id', teamId);
+      if (error) throw error;
+      return data || [];
+    },
     enabled: !!teamId,
   });
 
   const { data: leagueGames = [] } = useQuery({
     queryKey: ['leagueGames', selectedLeagueId],
-    queryFn: () => base44.entities.Game.filter({ league_id: selectedLeagueId }),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('games').select('*').eq('league_id', selectedLeagueId);
+      if (error) throw error;
+      return data || [];
+    },
     enabled: !!selectedLeagueId,
   });
 
   const { data: allLeagueStats = [] } = useQuery({
     queryKey: ['allLeagueStats', selectedLeagueId],
-    queryFn: () => base44.entities.PlayerStats.list(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('player_stats').select('*');
+      if (error) throw error;
+      return data || [];
+    },
     enabled: !!selectedLeagueId,
   });
 
@@ -137,7 +181,7 @@ export default function PlayerProfile() {
     );
   }
 
-  if (currentUser && currentUser.user_type !== 'player' && currentUser.user_type !== 'coach') {
+  if (currentUser && userType !== 'player' && userType !== 'coach') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-500 text-lg">This page is only accessible to players and coaches.</p>
@@ -146,7 +190,7 @@ export default function PlayerProfile() {
   }
 
   // Coaches need a matched player to view this page
-  if (currentUser?.user_type === 'coach' && !matchedPlayerId) {
+  if (userType === 'coach' && !matchedPlayerId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-500 text-lg">This page requires a matched player identity.</p>
