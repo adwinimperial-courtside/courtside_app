@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Trophy, RefreshCw, Undo2, Activity, AlertTriangle, Clock } from "lucide-react";
+import { ArrowLeft, Trophy, RefreshCw, Undo2, Activity, AlertTriangle, Clock, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabaseClient";
@@ -12,6 +12,7 @@ import { totalPoints } from "@/lib/playerStats";
 import ScoreHeader from "./ScoreHeader";
 import EndOfPeriodModal from "./EndOfPeriodModal";
 import EmergencyLineupRepair from "./EmergencyLineupRepair";
+import BenchDrawer from "./BenchDrawer";
 import { findPlayerOfGame } from "../utils/pogCalculator";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -110,6 +111,41 @@ export default function LiveStatTracker({
   const [repairMode,          setRepairMode]          = useState(null);
   const [currentUser,         setCurrentUser]         = useState(null);
   const [statError,           setStatError]           = useState(null);
+
+  // ─── Sub flow — armed-OUT cards (new arm-then-swap flow) ────────────────────
+  // armedOutIds holds the IDs of on-court players the scorekeeper has tapped
+  // SUB on. BenchDrawer reads it; handleQuickSwap consumes it.
+  const [armedOutIds, setArmedOutIds] = useState(() => new Set());
+  const toggleArmedOut = (playerId) => {
+    // Block arming while the lineup is locked (repair mode) or during final
+    // review — same safety the old "Make Substitution" button enforced.
+    if (repairMode || isInFinalReview) return;
+
+    // Foul-out lock: if the player has actually fouled out, they cannot be
+    // un-armed by re-tapping SUB — they MUST be replaced. (Arming is still
+    // fine, in case Phase 6 auto-arm hasn't fired yet.)
+    const pStats = existingStats.find(s => s.player_id === playerId);
+    const personalFoulLimit = getFoulLimits().personalFoulLimit;
+    const hasFouledOut = pStats && (pStats.fouls || 0) >= personalFoulLimit;
+    if (hasFouledOut && armedOutIds.has(playerId)) {
+      setStatError('Fouled-out player must be replaced — tap a bench player');
+      return;
+    }
+
+    setArmedOutIds(prev => {
+      const next = new Set(prev);
+      if (next.has(playerId)) next.delete(playerId);
+      else next.add(playerId);
+      return next;
+    });
+  };
+  // pulsePlayerId triggers a 250ms green ring on a card just swapped IN.
+  const [pulsePlayerId, setPulsePlayerId] = useState(null);
+
+  // foulOutNotice = {playerId, playerName, teamId} | null. Set when a player
+  // commits the Nth personal foul (Phase 6). Drives the top banner; cleared
+  // automatically when the user picks a replacement, or by the × button.
+  const [foulOutNotice, setFoulOutNotice] = useState(null);
 
   const lastValidLineupsRef   = useRef({});
   const isSubmittingSubRef    = useRef(false);
@@ -516,15 +552,53 @@ export default function LiveStatTracker({
       });
 
       // 6 — Ejection check
+      // TODO: consolidate `foul_limit` (game_rules) vs `personalFoulLimit` (rules object) naming across codebase
       const rules = getGameRules();
       let ejectionLog = null;
 
       if (statType.key === 'fouls' && newValue >= (rules.foul_limit ?? 5)) {
-        ejectionLog = {
-          reason: `${rules.foul_limit ?? 5} fouls — fouled out`,
-          label:  `FOUL OUT — ${selectedPlayer.name} has ${newValue} fouls`,
-          color:  'bg-red-700',
-        };
+        // PHASE 6: Personal foul-out → auto-arm + banner (no ejection modal).
+        // The fouled-out player stays on court visually until the scorekeeper
+        // taps a bench replacement; handleQuickSwap then commits the OFF write.
+        const fouledPlayer = selectedPlayer;
+
+        // Audit log — written immediately so the foul-out is captured even if
+        // the user dismisses the banner without picking a replacement.
+        await supabase.from('game_logs').insert({
+          game_id:        gameId,
+          league_id:      leagueId,
+          player_id:      fouledPlayer.id,
+          team_id:        fouledPlayer.team_id,
+          stat_type:      'ejection',
+          stat_label:     `FOUL OUT — ${fouledPlayer.name} has ${newValue} fouls`,
+          stat_points:    0,
+          stat_color:     'bg-red-700',
+          old_home_score: currentHomeScore,
+          old_away_score: currentAwayScore,
+          clock_time:     Math.round(clockTime),
+          period:         currentPeriod,
+          logged_by:      currentUser?.email || '',
+          device_name:    getDeviceName(),
+        });
+
+        setSelectedPlayer(null);
+        // 500ms delay so the foul registers visually first (per Phase 6 spec:
+        // "Auto-arm happens AFTER the foul is recorded ... order matters for
+        // dispute resolution")
+        setTimeout(() => {
+          setArmedOutIds(prev => {
+            const next = new Set(prev);
+            next.add(fouledPlayer.id);
+            return next;
+          });
+          setFoulOutNotice({
+            playerId:   fouledPlayer.id,
+            playerName: fouledPlayer.name,
+            teamId:     fouledPlayer.team_id,
+          });
+        }, 500);
+        // Skip the rest of the ejection block (no modal, no deactivation).
+        // ejectionLog stays null so the if(ejectionLog) below doesn't fire.
       } else if (statType.key === 'technical_fouls' && newValue >= (rules.technicalFoulLimit ?? 2)) {
         ejectionLog = {
           reason: `${newValue} technical fouls — ejected`,
@@ -912,6 +986,184 @@ export default function LiveStatTracker({
     }
   };
 
+  // ─── Quick swap (new arm-then-swap flow) ──────────────────────────────────
+  // Single-pair sub: one OUT (currently on-court, in armedOutIds) + one IN
+  // (bench player). Mirrors the data shape of handleConfirmSubstitution but
+  // scoped to one swap, and — per Phase 1 invariant — does NOT mutate
+  // is_starter (starter status is set at game start and never changes).
+  const handleQuickSwap = async (teamId, outPlayer, inPlayerId) => {
+    if (isSubmittingSubRef.current) return;
+    // Edge case: user armed cards then entered final review / repair mode
+    // before tapping bench. Block the swap and surface a toast.
+    if (repairMode || isInFinalReview) {
+      setStatError(isInFinalReview
+        ? 'Substitutions are locked during final review'
+        : 'Lineup is locked — fix repair issues first');
+      return;
+    }
+    isSubmittingSubRef.current = true;
+
+    const team = teamId === game.home_team_id ? homeTeam : awayTeam;
+    const teamActives = teamId === game.home_team_id ? homeActivePlayers : awayActivePlayers;
+
+    // 5-on-5 hard guard
+    if (!teamActives.find(p => p.id === outPlayer.id)) {
+      setStatError('Sub failed: OUT player is no longer on court');
+      isSubmittingSubRef.current = false;
+      return;
+    }
+    if (teamActives.find(p => p.id === inPlayerId)) {
+      setStatError('Sub failed: IN player is already on court');
+      isSubmittingSubRef.current = false;
+      return;
+    }
+
+    const currentTimeLeft = computeTimeLeft(game);
+
+    // Optimistic cache update (is_active only — never is_starter)
+    const snapshot = queryClient.getQueryData(['player_stats', gameId]);
+    queryClient.setQueryData(['player_stats', gameId], prev =>
+      (prev || []).map(s => {
+        if (s.player_id === outPlayer.id) return { ...s, is_active: false };
+        if (s.player_id === inPlayerId)   return { ...s, is_active: true  };
+        return s;
+      })
+    );
+
+    // Disarm immediately so the drawer recomputes "N slots waiting"
+    setArmedOutIds(prev => {
+      const next = new Set(prev);
+      next.delete(outPlayer.id);
+      return next;
+    });
+
+    // Trigger green-pulse on the incoming player's new on-court card
+    setPulsePlayerId(inPlayerId);
+    setTimeout(() => setPulsePlayerId(prev => (prev === inPlayerId ? null : prev)), 300);
+
+    try {
+      const { data: freshStats, error: fetchErr } = await supabase
+        .from('player_stats')
+        .select('*')
+        .eq('game_id', gameId);
+      if (fetchErr) throw fetchErr;
+
+      // Accrue OUT minutes if clock was running
+      if (game.game_mode === 'timed' && game.clock_running) {
+        const cs = playerClockStateRef.current[outPlayer.id];
+        if (cs && cs.period === game.clock_period) {
+          playerMinutesRef.current[outPlayer.id] =
+            (playerMinutesRef.current[outPlayer.id] || 0) + (cs.timeLeft - currentTimeLeft);
+        }
+      }
+      playerClockStateRef.current[outPlayer.id] = null;
+
+      // Write OUT (is_active only — preserves is_starter invariant)
+      const outStat = freshStats.find(s => s.player_id === outPlayer.id);
+      if (outStat) {
+        const totalMin = Math.round(((playerMinutesRef.current[outPlayer.id] || 0) / 60) * 100) / 100;
+        const { error: outErr } = await supabase
+          .from('player_stats')
+          .update({ is_active: false, minutes_played: totalMin })
+          .eq('id', outStat.id);
+        if (outErr) throw outErr;
+      }
+      if (selectedPlayer?.id === outPlayer.id) setSelectedPlayer(null);
+
+      // Write IN — update existing row OR insert fresh (first-time bench sub)
+      const inStat = freshStats.find(s => s.player_id === inPlayerId);
+      if (inStat) {
+        const { error: inErr } = await supabase
+          .from('player_stats')
+          .update({ is_active: true })
+          .eq('id', inStat.id);
+        if (inErr) throw inErr;
+      } else {
+        const { error: insertErr } = await supabase.from('player_stats').insert({
+          game_id:        gameId,
+          league_id:      leagueId,
+          player_id:      inPlayerId,
+          team_id:        teamId,
+          is_starter:     false,  // starter status is set at tip-off, not by mid-game subs
+          is_active:      true,
+          minutes_played: 0,
+        });
+        if (insertErr) throw insertErr;
+      }
+      playerClockStateRef.current[inPlayerId] = { timeLeft: currentTimeLeft, period: game.clock_period };
+      if (!playerMinutesRef.current[inPlayerId]) playerMinutesRef.current[inPlayerId] = 0;
+
+      // Activity log — same payload shape as handleConfirmSubstitution
+      const inName  = players.find(p => p.id === inPlayerId)?.name || 'Unknown';
+      const logLabel = `${team?.name}: OUT — ${outPlayer.name} | IN — ${inName}`;
+      const logData  = JSON.stringify({
+        display: logLabel,
+        out_ids: [outPlayer.id],
+        in_ids:  [inPlayerId],
+        team_id: teamId,
+      });
+      const homeScore = calcTeamScore(game.home_team_id, existingStats);
+      const awayScore = calcTeamScore(game.away_team_id, existingStats);
+
+      const { error: logErr } = await supabase.from('game_logs').insert({
+        game_id:        gameId,
+        league_id:      leagueId,
+        player_id:      outPlayer.id,
+        team_id:        teamId,
+        stat_type:      'substitution',
+        stat_label:     logData,
+        stat_points:    0,
+        stat_color:     teamId === game.home_team_id ? 'bg-blue-600' : 'bg-red-600',
+        old_home_score: homeScore,
+        old_away_score: awayScore,
+        clock_time:     Math.round(currentTimeLeft),
+        period:         currentPeriod,
+        logged_by:      currentUser?.email || '',
+        device_name:    getDeviceName(),
+      });
+      if (logErr) throw logErr;
+
+      // Sync cache with server truth. CRITICAL: cancel any in-flight refetches
+      // FIRST — Realtime CDC fires for our OUT update before our IN write
+      // commits, kicking off a refetch that would return a 4-active snapshot.
+      // If that stale refetch lands after our setQueryData, it'd overwrite the
+      // good state and trip checkAndTriggerRepair (Emergency Lineup Repair).
+      await queryClient.cancelQueries({ queryKey: ['player_stats', gameId] });
+      await queryClient.cancelQueries({ queryKey: ['game_logs', gameId] });
+
+      const { data: postStats } = await supabase.from('player_stats').select('*').eq('game_id', gameId);
+      queryClient.setQueryData(['player_stats', gameId], postStats || []);
+      // No invalidateQueries here — we just wrote the freshest data. Real CDC
+      // events from later changes (other clients, late stat entries) will
+      // refetch naturally via the existing channel subscription.
+
+      // Refresh the "last valid lineup" anchor used by EmergencyLineupRepair,
+      // but DO NOT call checkAndTriggerRepair: the arm-then-swap flow is
+      // 1-for-1 by construction (guard at top enforces 5-on-5), so the repair
+      // check is both redundant and prone to the optimistic-update race where
+      // a late refetch would briefly show a 4-active snapshot.
+      if (postStats) updateValidSnapshots(postStats);
+
+      // Phase 6: if this swap replaced a fouled-out player, clear the notice
+      if (foulOutNotice?.playerId === outPlayer.id) setFoulOutNotice(null);
+    } catch (err) {
+      // Rollback optimistic update + re-arm the OUT card so the user can retry
+      if (snapshot !== undefined) {
+        queryClient.setQueryData(['player_stats', gameId], snapshot);
+      }
+      setArmedOutIds(prev => {
+        const next = new Set(prev);
+        next.add(outPlayer.id);
+        return next;
+      });
+      setPulsePlayerId(null);
+      setStatError(`Substitution failed: ${err.message || 'unknown error'}`);
+      console.error('[LiveStatTracker:handleQuickSwap]', err);
+    } finally {
+      isSubmittingSubRef.current = false;
+    }
+  };
+
   // ─── End Game ─────────────────────────────────────────────────────────────
 
   const finalizeMinutes = async () => {
@@ -984,14 +1236,34 @@ export default function LiveStatTracker({
   // Activity feed: most-recent-first, hide undone entries
   const visibleLogs = gameLogs.filter(l => !l.undone);
 
+  // Armed-OUT counts per team (drives BenchDrawer visibility + "N slots waiting")
+  const homeArmedCount = homeActivePlayers.filter(p => armedOutIds.has(p.id)).length;
+  const awayArmedCount = awayActivePlayers.filter(p => armedOutIds.has(p.id)).length;
+
+  // Bench tap → fill the FIRST armed slot for that team (top-to-bottom = jersey order).
+  // Remaining armed cards stay armed; drawer stays visible until all are filled.
+  const handleBenchPick = (teamId, inPlayerId) => {
+    const teamActives = teamId === game?.home_team_id ? homeActivePlayers : awayActivePlayers;
+    const firstArmed  = teamActives.find(p => armedOutIds.has(p.id));
+    if (!firstArmed) {
+      // Drawer should be hidden when no card is armed; defensive guard only.
+      console.warn('[handleBenchPick] bench tap with no armed card — ignoring');
+      return;
+    }
+    handleQuickSwap(teamId, firstArmed, inPlayerId);
+  };
+
   // ─── Sub-components ───────────────────────────────────────────────────────
 
-  const PlayerButton = ({ player, teamColor, onSubClick, isDesktop }) => {
-    const pStats     = existingStats.find(s => s.player_id === player.id);
-    const totalPts   = totalPoints(pStats);
-    const isSelected = selectedPlayer?.id === player.id;
+  const PlayerButton = ({ player, teamColor, isArmed, isPulsing, onToggleArm, isDesktop }) => {
+    const pStats           = existingStats.find(s => s.player_id === player.id);
+    const totalPts         = totalPoints(pStats);
+    const isSelected       = selectedPlayer?.id === player.id;
+    // TODO: consolidate `foul_limit` (game_rules) vs `personalFoulLimit` (rules object) naming across codebase
+    const foulOutThreshold = getFoulLimits().personalFoulLimit;
+    const oneFoulFromOut   = (pStats?.fouls || 0) >= foulOutThreshold - 1;
 
-    const style = isDesktop
+    const baseStyle = isDesktop
       ? isSelected
         ? { backgroundColor: `${teamColor}0E`, borderColor: teamColor, borderWidth: '3px', boxShadow: `0 4px 12px ${teamColor}30`, transition: 'all 0.15s ease' }
         : pStats?.fouls >= 4
@@ -1003,12 +1275,19 @@ export default function LiveStatTracker({
           ? { backgroundColor: '#fff7ed', borderColor: '#e2e8f0' }
           : { borderColor: '#e2e8f0' };
 
+    // Armed visual overrides base — red border + light red tint
+    const style = isArmed
+      ? { ...baseStyle, backgroundColor: '#fef2f2', borderColor: '#ef4444', borderWidth: '2px' }
+      : baseStyle;
+
+    const barNeg = isDesktop ? '-mx-2 -mb-2' : '-mx-1.5 -mb-1.5';
+
     return (
       <div className="relative">
         <motion.button
           whileTap={{ scale: isDesktop ? 0.98 : 0.92 }}
           onClick={() => setSelectedPlayer(player)}
-          className={`w-full rounded-xl border-2 ${isDesktop ? 'p-2 hover:shadow-md' : 'p-1.5'} ${!isDesktop && (isSelected ? 'ring-2 ring-offset-1 hover:bg-slate-100' : 'hover:bg-slate-100')}`}
+          className={`w-full rounded-xl border-2 overflow-hidden ${isDesktop ? 'p-2 hover:shadow-md' : 'p-1.5'} ${!isDesktop && (isSelected ? 'ring-2 ring-offset-1 hover:bg-slate-100' : 'hover:bg-slate-100')}`}
           style={style}
         >
           <div className="flex flex-col items-center gap-0.5">
@@ -1021,25 +1300,78 @@ export default function LiveStatTracker({
                 <p className="text-xs font-bold text-slate-900 text-center leading-none">
                   {totalPts} <span className="text-[9px] font-normal text-slate-500">PTS</span>
                 </p>
-                <div className="flex justify-around mt-0.5">
+                <div className="flex items-center justify-center gap-1 mt-0.5">
                   {isDesktop && (
                     <>
                       <span className="text-[9px] text-slate-500">{(pStats.offensive_rebounds||0)+(pStats.defensive_rebounds||0)}R</span>
+                      <span className="text-[9px] text-slate-300">·</span>
                       <span className="text-[9px] text-slate-500">{pStats.assists||0}A</span>
+                      <span className="text-[9px] text-slate-300">·</span>
                     </>
                   )}
-                  <span className={`text-[9px] font-semibold ${(pStats.fouls||0) >= 4 ? 'text-red-600' : 'text-slate-500'}`}>{pStats.fouls||0}F</span>
+                  <span className={`text-[9px] ${oneFoulFromOut ? 'text-red-600 font-medium' : 'text-slate-500'}`}>{pStats.fouls||0}F</span>
+                  <span className="text-[9px] text-slate-300">·</span>
                   <span className="text-[9px] text-slate-500">{pStats.technical_fouls||0}T</span>
                 </div>
               </div>
             )}
           </div>
+
+          {/* Armed-OUT action bar — informational only; bench tap commits the swap */}
+          {isArmed && (
+            <div
+              className={`mt-1.5 ${barNeg} rounded-b-[10px] py-1 px-2 text-center text-[10px] font-semibold text-white`}
+              style={{ backgroundColor: '#ef4444' }}
+            >
+              Pick from bench ↓
+            </div>
+          )}
         </motion.button>
+
+        {/* Green-pulse ring on a just-swapped-in player (~250ms) */}
+        {isPulsing && (
+          <motion.div
+            key={`pulse-${player.id}`}
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="absolute inset-0 rounded-xl pointer-events-none ring-4 ring-green-400"
+          />
+        )}
+
+        {/* SUB pill — bold, high-contrast, easy to hit.
+            Positioned INSIDE the card boundary so it survives scroll-clipping
+            when the team-panel grid overflows. */}
         <button
-          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full p-0 shadow-lg flex items-center justify-center transition-colors bg-slate-200 hover:bg-slate-300"
-          onClick={(e) => { e.stopPropagation(); onSubClick(player); }}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleArm(player.id); }}
+          className="absolute top-1 right-1 rounded-full transition-all hover:scale-105 active:scale-95"
+          style={isArmed
+            ? {
+                backgroundColor: '#dc2626',
+                color: '#fff',
+                border: '2px solid #fff',
+                padding: '4px 11px',
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                lineHeight: 1,
+                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.5), 0 0 0 1px #dc2626',
+              }
+            : {
+                backgroundColor: '#fff',
+                color: '#475569',
+                border: '1.5px solid #94a3b8',
+                padding: '4px 11px',
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                lineHeight: 1,
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.15)',
+              }
+          }
         >
-          <RefreshCw className="w-2.5 h-2.5 text-slate-600" />
+          SUB
         </button>
       </div>
     );
@@ -1066,20 +1398,16 @@ export default function LiveStatTracker({
           <h2 className={`text-sm font-bold ${labelColor} truncate`}>{team?.name}</h2>
           <span className="ml-auto text-slate-500 text-xs whitespace-nowrap">{teamPlayers.length}/5</span>
         </div>
-        <div className="grid grid-cols-5 gap-1 min-[900px]:grid-cols-1 min-[900px]:flex-1 min-[900px]:min-h-0 min-[900px]:gap-0.5 min-[900px]:content-start">
+        <div className="grid grid-cols-5 gap-1 min-[900px]:grid-cols-1 min-[900px]:flex-1 min-[900px]:min-h-0 min-[900px]:gap-0.5 min-[900px]:content-start min-[900px]:overflow-y-auto">
           {teamPlayers.map(player => (
             <div key={player.id}>
               <PlayerButton
                 player={player}
                 teamColor={team?.color}
                 isDesktop={side !== undefined}
-                onSubClick={(p) => {
-                  resetSubDialog();
-                  if (p.team_id === game?.home_team_id) setHomePlayersOut([p]);
-                  else setAwayPlayersOut([p]);
-                  setSubStep('select_in');
-                  setShowSubDialog(true);
-                }}
+                isArmed={armedOutIds.has(player.id)}
+                isPulsing={pulsePlayerId === player.id}
+                onToggleArm={toggleArmedOut}
               />
             </div>
           ))}
@@ -1088,10 +1416,10 @@ export default function LiveStatTracker({
     );
   };
 
-  const StatButtons = ({ large, showSub = true }) => {
+  const StatButtons = ({ large }) => {
     const btnH = large ? 'h-[4.5rem]' : 'h-14';
     return (
-      <div className={`bg-gradient-to-r from-indigo-100/50 to-purple-100/50 backdrop-blur border-2 border-indigo-300/50 rounded-2xl flex flex-col ${large && !showSub ? 'p-2' : 'p-3 h-full'}`}>
+      <div className={`bg-gradient-to-r from-indigo-100/50 to-purple-100/50 backdrop-blur border-2 border-indigo-300/50 rounded-2xl flex flex-col ${large ? 'p-2' : 'p-3 h-full'}`}>
         {/* Selected player header */}
         <div className={`flex items-center justify-center gap-3 ${large ? 'mb-1.5' : 'mb-3'}`}>
           {selectedPlayer ? (
@@ -1177,15 +1505,6 @@ export default function LiveStatTracker({
           })}
         </div>
 
-        {showSub && (
-          <Button
-            onClick={() => { resetSubDialog(); setShowSubDialog(true); }}
-            className={`w-full ${large ? 'h-12' : 'h-10'} bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold text-sm shadow-lg mt-auto`}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Make Substitution
-          </Button>
-        )}
       </div>
     );
   };
@@ -1281,6 +1600,7 @@ export default function LiveStatTracker({
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-[900px]:h-screen min-[900px]:overflow-hidden">
 
+
       {/* ── MOBILE LAYOUT (< 900px) ── */}
       <div className="min-[900px]:hidden max-w-[1400px] mx-auto px-3 py-3 pb-10">
         <div className="flex items-center justify-between mb-3">
@@ -1306,8 +1626,24 @@ export default function LiveStatTracker({
 
         <div className="mt-3 space-y-3">
           <TeamPanel team={homeTeam} activePlayers={homeActivePlayers} />
-          <StatButtons large={false} showSub />
+          {homeArmedCount > 0 && (
+            <BenchDrawer
+              benchPlayers={homeBenchPlayers.filter(p => !isDisqualified(p.id))}
+              armedCount={homeArmedCount}
+              existingStats={existingStats}
+              onPickBenchPlayer={(inId) => handleBenchPick(game.home_team_id, inId)}
+            />
+          )}
+          <StatButtons large={false} />
           <TeamPanel team={awayTeam} activePlayers={awayActivePlayers} />
+          {awayArmedCount > 0 && (
+            <BenchDrawer
+              benchPlayers={awayBenchPlayers.filter(p => !isDisqualified(p.id))}
+              armedCount={awayArmedCount}
+              existingStats={existingStats}
+              onPickBenchPlayer={(inId) => handleBenchPick(game.away_team_id, inId)}
+            />
+          )}
           <div className="bg-white/60 backdrop-blur border border-slate-200 rounded-2xl p-3" style={{ minHeight: '200px' }}>
             <ActivityLog compact={false} />
           </div>
@@ -1340,33 +1676,45 @@ export default function LiveStatTracker({
         </div>
 
         <div className="flex gap-3 flex-1 min-h-0">
-          <div className="w-[25%] flex-shrink-0 min-h-0">
-            <TeamPanel team={homeTeam} activePlayers={homeActivePlayers} side="home" />
+          <div className="w-[25%] flex-shrink-0 min-h-0 flex flex-col gap-2">
+            <div className="flex-1 min-h-0">
+              <TeamPanel team={homeTeam} activePlayers={homeActivePlayers} side="home" />
+            </div>
+            {homeArmedCount > 0 && (
+              <div className="flex-shrink-0">
+                <BenchDrawer
+                  benchPlayers={homeBenchPlayers.filter(p => !isDisqualified(p.id))}
+                  armedCount={homeArmedCount}
+                  existingStats={existingStats}
+                  onPickBenchPlayer={(inId) => handleBenchPick(game.home_team_id, inId)}
+                />
+              </div>
+            )}
           </div>
 
-          <div className="w-[50%] flex-shrink-0 flex flex-col min-h-0">
+          <div className="w-[50%] flex-shrink-0 flex flex-col min-h-0 gap-2">
             <div className="flex-shrink-0">
-              <StatButtons large={true} showSub={false} />
-            </div>
-            <div className="flex-shrink-0 mt-1.5 mb-2">
-              <Button
-                onClick={() => { if (repairMode || isInFinalReview) return; resetSubDialog(); setShowSubDialog(true); }}
-                disabled={!!repairMode || isInFinalReview}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold text-sm shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ height: '36px' }}
-                title={isInFinalReview ? 'Substitutions are locked during final review' : undefined}
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                {isInFinalReview ? 'Substitutions Locked (Review Mode)' : 'Make Substitution'}
-              </Button>
+              <StatButtons large={true} />
             </div>
             <div className="flex-1 min-h-0 bg-white/50 backdrop-blur border border-slate-200 rounded-xl overflow-hidden">
               <ActivityLog compact={true} />
             </div>
           </div>
 
-          <div className="w-[25%] flex-shrink-0 min-h-0">
-            <TeamPanel team={awayTeam} activePlayers={awayActivePlayers} side="away" />
+          <div className="w-[25%] flex-shrink-0 min-h-0 flex flex-col gap-2">
+            <div className="flex-1 min-h-0">
+              <TeamPanel team={awayTeam} activePlayers={awayActivePlayers} side="away" />
+            </div>
+            {awayArmedCount > 0 && (
+              <div className="flex-shrink-0">
+                <BenchDrawer
+                  benchPlayers={awayBenchPlayers.filter(p => !isDisqualified(p.id))}
+                  armedCount={awayArmedCount}
+                  existingStats={existingStats}
+                  onPickBenchPlayer={(inId) => handleBenchPick(game.away_team_id, inId)}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1432,6 +1780,59 @@ export default function LiveStatTracker({
         onEndGame={handleEndGameFromModal}
         onCancel={() => setShowEndOfPeriod(false)}
       />
+
+      {/* ── Foul-out modal (Phase 6) — centered, must be acknowledged ── */}
+      <Dialog open={!!foulOutNotice} onOpenChange={(open) => { if (!open) setFoulOutNotice(null); }}>
+        <DialogContent className="bg-white border-red-300 w-[95vw] max-w-md p-0 overflow-hidden">
+          {/* Red header strip with pulsing icon */}
+          <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 pt-6 pb-5 text-white text-center relative">
+            <motion.div
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+              className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/15 backdrop-blur mb-3"
+            >
+              <AlertTriangle className="w-10 h-10 text-yellow-200" />
+            </motion.div>
+            <DialogTitle className="text-2xl font-extrabold uppercase tracking-wide leading-tight">
+              Fouled Out
+            </DialogTitle>
+          </div>
+
+          {/* Body */}
+          {foulOutNotice && (() => {
+            const isHome = foulOutNotice.teamId === game?.home_team_id;
+            const fouledPlayerObj = players.find(p => p.id === foulOutNotice.playerId);
+            const jersey = fouledPlayerObj?.jersey_number ?? '?';
+            const teamName = (isHome ? homeTeam?.name : awayTeam?.name) || (isHome ? 'Home' : 'Away');
+            return (
+              <div className="px-6 py-5 text-center">
+                {/* Jersey + player */}
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-full bg-slate-800 text-white font-bold text-lg flex items-center justify-center shadow-md">
+                    {jersey}
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-slate-900 text-lg leading-tight">{foulOutNotice.playerName}</p>
+                    <p className="text-slate-500 text-sm leading-tight">{teamName}</p>
+                  </div>
+                </div>
+
+                <p className="text-slate-700 text-sm mb-5">
+                  This player has reached the personal foul limit and must be substituted before play continues.
+                </p>
+
+                <Button
+                  type="button"
+                  onClick={() => setFoulOutNotice(null)}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold h-11 shadow-md"
+                >
+                  Got it — pick a replacement
+                </Button>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Exit Confirmation ── */}
       <Dialog open={showExitDialog} onOpenChange={setShowExitDialog}>
