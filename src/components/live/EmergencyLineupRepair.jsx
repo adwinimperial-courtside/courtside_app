@@ -184,7 +184,7 @@ export default function EmergencyLineupRepair({ repairData, existingStats, playe
 
   // ─── Foul eligibility ────────────────────────────────────────────────────
   const limits = {
-    personalFoulLimit:        game.game_rules?.personalFoulLimit        ?? 5,
+    foulLimit:                game.game_rules?.foul_limit               ?? 5,
     technicalFoulLimit:       game.game_rules?.technicalFoulLimit       ?? 2,
     unsportsmanlikeFoulLimit: game.game_rules?.unsportsmanlikeFoulLimit ?? 2,
   };
@@ -193,7 +193,7 @@ export default function EmergencyLineupRepair({ repairData, existingStats, playe
     const s = existingStats.find(st => st.player_id === playerId);
     if (!s) return true;
     return (
-      (s.fouls || 0)                 < limits.personalFoulLimit &&
+      (s.fouls || 0)                 < limits.foulLimit &&
       (s.technical_fouls || 0)       < limits.technicalFoulLimit &&
       (s.unsportsmanlike_fouls || 0) < limits.unsportsmanlikeFoulLimit
     );
