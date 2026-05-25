@@ -10,6 +10,7 @@ import {
   Plus, Calendar, ChevronLeft, ChevronRight, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/AuthContext";
 import { useIsNarrowLayout } from "@/lib/DevicePreviewContext";
@@ -339,6 +340,10 @@ export default function SchedulePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule-games"] });
       setShowCreateDialog(false);
+      toast({ title: "Game scheduled" });
+    },
+    onError: (err) => {
+      toast({ title: "Failed to schedule game", description: err.message, variant: "destructive" });
     },
   });
 

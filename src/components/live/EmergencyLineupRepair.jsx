@@ -251,10 +251,10 @@ export default function EmergencyLineupRepair({ repairData, existingStats, playe
         // Update is_starter for rows whose status changed
         for (const stat of teamStats) {
           const shouldBeActive = activeSet.has(stat.player_id);
-          if (stat.is_starter !== shouldBeActive) {
+          if (stat.is_starter !== shouldBeActive || stat.is_active !== shouldBeActive) {
             const { error } = await supabase
               .from('player_stats')
-              .update({ is_starter: shouldBeActive })
+              .update({ is_starter: shouldBeActive, is_active: shouldBeActive })
               .eq('id', stat.id);
             if (error) throw error;
           }
@@ -270,6 +270,7 @@ export default function EmergencyLineupRepair({ repairData, existingStats, playe
             player_id:  playerId,
             team_id:    teamId,
             is_starter: true,
+            is_active:  true,
             minutes_played: 0,
           }));
 
