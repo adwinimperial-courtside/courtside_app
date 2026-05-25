@@ -88,12 +88,12 @@ export default function ViewersView() {
   };
 
   return (
-    <Card className="border-slate-200 shadow-lg">
-      <CardHeader className="border-b border-slate-200 bg-white">
+    <Card className="border-[var(--ct-border)] ">
+      <CardHeader className="border-b border-[var(--ct-border)] bg-[var(--ct-bg-card)]">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-xl">Viewers</CardTitle>
-            <p className="text-sm text-slate-600 mt-2">Users with Viewer access</p>
+            <p className="text-sm text-[var(--ct-text-secondary)] mt-2">Users with Viewer access</p>
           </div>
           <Badge className="bg-blue-100 text-blue-800 text-lg px-3 py-1">
             {viewers.length} Total
@@ -101,22 +101,22 @@ export default function ViewersView() {
         </div>
       </CardHeader>
       <CardContent className="pt-6">
-        <div className="rounded-lg border border-slate-200 overflow-hidden">
+        <div className="rounded-lg border border-[var(--ct-border)] overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-slate-50">
+              <TableRow className="bg-[var(--ct-bg-page)]">
                 <TableHead>
-                  <button onClick={() => handleSort('full_name')} className="flex items-center gap-2 font-semibold hover:text-slate-900">
+                  <button onClick={() => handleSort('full_name')} className="flex items-center gap-2 font-semibold hover:text-[var(--ct-text-primary)]">
                     Name <ArrowUpDown className="w-4 h-4" />
                   </button>
                 </TableHead>
                 <TableHead>
-                  <button onClick={() => handleSort('created_at')} className="flex items-center gap-2 font-semibold hover:text-slate-900">
+                  <button onClick={() => handleSort('created_at')} className="flex items-center gap-2 font-semibold hover:text-[var(--ct-text-primary)]">
                     Created On <ArrowUpDown className="w-4 h-4" />
                   </button>
                 </TableHead>
                 <TableHead>
-                  <button onClick={() => handleSort('email')} className="flex items-center gap-2 font-semibold hover:text-slate-900">
+                  <button onClick={() => handleSort('email')} className="flex items-center gap-2 font-semibold hover:text-[var(--ct-text-primary)]">
                     Email <ArrowUpDown className="w-4 h-4" />
                   </button>
                 </TableHead>
@@ -128,14 +128,14 @@ export default function ViewersView() {
                 sortedViewers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
-                    <TableCell className="text-slate-600">{user.created_at ? new Date(user.created_at).toLocaleString() : '—'}</TableCell>
-                    <TableCell className="text-slate-600">{user.email}</TableCell>
-                    <TableCell className="text-slate-600">{getLeagueNames(user.id)}</TableCell>
+                    <TableCell className="text-[var(--ct-text-secondary)]">{user.created_at ? new Date(user.created_at).toLocaleString() : '—'}</TableCell>
+                    <TableCell className="text-[var(--ct-text-secondary)]">{user.email}</TableCell>
+                    <TableCell className="text-[var(--ct-text-secondary)]">{getLeagueNames(user.id)}</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-slate-500">No viewers found</TableCell>
+                  <TableCell colSpan={4} className="text-center py-8 text-[var(--ct-text-secondary)]">No viewers found</TableCell>
                 </TableRow>
               )}
             </TableBody>

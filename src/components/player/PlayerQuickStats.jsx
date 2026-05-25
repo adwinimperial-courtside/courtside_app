@@ -3,10 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 
 function StatCard({ label, value }) {
   return (
-    <Card className="border-slate-200 shadow-sm">
+    <Card className="border-[var(--ct-border)] ">
       <CardContent className="p-3 md:p-4 text-center">
-        <p className="text-xl md:text-2xl font-bold text-slate-900">{value}</p>
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">{label}</p>
+        <p className="text-xl md:text-2xl font-bold text-[var(--ct-text-primary)]">{value}</p>
+        <p className="text-xs font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider mt-1">{label}</p>
       </CardContent>
     </Card>
   );
@@ -32,7 +32,7 @@ export default function PlayerQuickStats({ stats }) {
 
   return (
     <div>
-      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Season Stats</h3>
+      <h3 className="text-xs font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider mb-3">Season Stats</h3>
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         <StatCard label="PTS" value={computed.ppg} />
         <StatCard label="REB" value={computed.rpg} />

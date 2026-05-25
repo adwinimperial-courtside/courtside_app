@@ -55,27 +55,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-orange-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-card)] via-blue-50 to-orange-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
 
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-11 h-11 rounded-xl overflow-hidden shadow-md">
+          <div className="w-11 h-11 rounded-xl overflow-hidden ">
             <img
               src="/images/courtside-logo.png"
               alt="Courtside by AI"
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="text-2xl font-bold text-slate-900">Courtside by AI</span>
+          <span className="text-2xl font-bold text-[var(--ct-text-primary)]">Courtside by AI</span>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">
+        <div className="bg-[var(--ct-bg-card)] rounded-2xl border border-[var(--ct-border)] p-8">
+          <h1 className="text-2xl font-bold text-[var(--ct-text-primary)] mb-1">
             {mode === "signin" ? "Welcome back" : "Create an account"}
           </h1>
-          <p className="text-sm text-slate-500 mb-6">
+          <p className="text-sm text-[var(--ct-text-secondary)] mb-6">
             {mode === "signin"
               ? "Sign in to your account to continue"
               : "Enter your details below to get started"}
@@ -101,7 +101,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "register" && (
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--ct-text-muted)]" />
                 <Input
                   type="text"
                   placeholder="Full name"
@@ -114,7 +114,7 @@ export default function LoginPage() {
             )}
 
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--ct-text-muted)]" />
               <Input
                 type="email"
                 placeholder="Email address"
@@ -127,7 +127,7 @@ export default function LoginPage() {
 
             {mode === "register" && (
               <div className="relative">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--ct-text-muted)]" />
                 <Input
                   type="text"
                   placeholder="Country"
@@ -139,7 +139,7 @@ export default function LoginPage() {
             )}
 
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--ct-text-muted)]" />
               <Input
                 type="password"
                 placeholder="Password"
@@ -162,7 +162,7 @@ export default function LoginPage() {
           </form>
 
           {/* Toggle */}
-          <p className="text-sm text-center text-slate-500 mt-6">
+          <p className="text-sm text-center text-[var(--ct-text-secondary)] mt-6">
             {mode === "signin" ? (
               <>
                 Don't have an account?{" "}

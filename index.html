@@ -2,6 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // No-flash theme init — runs before any stylesheet / bundle loads.
+      // Reads localStorage "courtside-theme" and sets data-theme="light" on
+      // the root element when appropriate. Dark Court is the default (no attr).
+      (function () {
+        try {
+          var t = localStorage.getItem('courtside-theme');
+          if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        } catch (e) { /* localStorage unavailable — fall through to default */ }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="https://base44.com/logo_v2.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Base44 APP</title>

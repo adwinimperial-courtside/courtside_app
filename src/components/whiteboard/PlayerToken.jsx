@@ -27,7 +27,7 @@ export default function PlayerToken({
 
   const isOffense = token.id.startsWith("o");
   const num = parseInt(token.id.slice(1), 10);
-  const color = isOffense ? "#3B82F6" : "#EF4444";
+  const color = isOffense ? "var(--ct-accent)" : "var(--ct-danger)";
   const label = POSITIONS[num - 1] || "";
   const hasBall = ballAttachedTo === token.id;
 
@@ -83,7 +83,7 @@ export default function PlayerToken({
       <circle cx={token.x} cy={token.y} r={R} fill={color} stroke="white" strokeWidth={2} />
       {hasBall && (
         <circle cx={token.x} cy={token.y} r={R + 4} fill="none"
-                stroke="#F59E0B" strokeWidth={2} strokeDasharray="5 3" />
+                stroke="var(--ct-accent-gold)" strokeWidth={2} strokeDasharray="5 3" />
       )}
       <text x={token.x} y={token.y + 1} textAnchor="middle" dominantBaseline="middle"
             fill="white" fontSize={14} fontWeight="700"

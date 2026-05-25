@@ -12,8 +12,8 @@ const TOOLS = [
 
 const COLORS = [
   { hex: "#000000", label: "Black" },
-  { hex: "#22C55E", label: "Green" },
-  { hex: "#EF4444", label: "Red" },
+  { hex: "var(--ct-success)", label: "Green" },
+  { hex: "var(--ct-danger)", label: "Red" },
   { hex: "#FFFFFF", label: "White" },
 ];
 
@@ -26,14 +26,14 @@ export default function DrawingToolbar({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* Tools */}
-      <div className="flex items-center gap-1 rounded-lg border border-slate-200 p-1 bg-white">
+      <div className="flex items-center gap-1 rounded-lg border border-[var(--ct-border)] p-1 bg-[var(--ct-bg-card)]">
         {TOOLS.map(({ id, icon: Icon, label }) => (
           <button
             key={id}
             onClick={() => onToolChange(id)}
             title={label}
             className={`w-9 h-9 rounded-md flex items-center justify-center transition-colors ${
-              activeTool === id ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"
+              activeTool === id ? "bg-orange-500 text-white" : "text-[var(--ct-text-secondary)] hover:bg-[var(--ct-bg-elevated)]"
             }`}
           >
             <Icon className="w-4 h-4" />
@@ -41,7 +41,7 @@ export default function DrawingToolbar({
         ))}
       </div>
 
-      <div className="w-px h-6 bg-slate-200" />
+      <div className="w-px h-6 bg-[var(--ct-bg-elevated)]" />
 
       {/* Colors */}
       <div className="flex items-center gap-1">
@@ -51,20 +51,20 @@ export default function DrawingToolbar({
             onClick={() => onColorChange(hex)}
             title={label}
             className={`w-7 h-7 rounded-full border-2 transition-all ${
-              drawColor === hex ? "ring-2 ring-offset-1 ring-orange-500 border-white" : "border-slate-300"
+              drawColor === hex ? "ring-2 ring-offset-1 ring-orange-500 border-white" : "border-[var(--ct-border)]"
             }`}
             style={{ background: hex }}
           />
         ))}
       </div>
 
-      <div className="w-px h-6 bg-slate-200" />
+      <div className="w-px h-6 bg-[var(--ct-bg-elevated)]" />
 
       {/* Dashed toggle */}
       <button
         onClick={() => onDashedChange(!drawDashed)}
         className={`h-9 px-3 rounded-md text-xs font-medium transition-colors ${
-          drawDashed ? "bg-orange-500 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+          drawDashed ? "bg-orange-500 text-white" : "bg-[var(--ct-bg-card)] border border-[var(--ct-border)] text-[var(--ct-text-secondary)] hover:bg-[var(--ct-bg-elevated)]"
         }`}
         title="Toggle dashed lines"
       >
@@ -78,7 +78,7 @@ export default function DrawingToolbar({
         variant="ghost"
         size="sm"
         onClick={onClearDrawings}
-        className="h-9 text-slate-600 hover:text-red-600"
+        className="h-9 text-[var(--ct-text-secondary)] hover:text-red-600"
         title="Clear all drawings"
       >
         <Trash2 className="w-4 h-4 mr-1" />

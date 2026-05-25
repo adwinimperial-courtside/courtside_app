@@ -16,6 +16,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 
 const navigationItems = [
   { title: "Leagues",       url: createPageUrl("Leagues"),      icon: Trophy },
@@ -82,17 +83,23 @@ export default function SidebarMenuContent({ currentUser, userType, isAppAdmin, 
   const visibleAdminItems = getVisibleAdminItems();
   const visibleOwnerItems = getVisibleOwnerItems();
 
-  const menuItemClass = (url) =>
-    `hover:bg-orange-50 hover:text-orange-600 transition-all duration-200 rounded-lg mb-1 ${
-      location.pathname === url ? "bg-orange-50 text-orange-600 font-semibold" : ""
-    }`;
+  const isActive = (url) => location.pathname === url;
 
   const renderItems = (items) =>
     items.map((item) => (
       <SidebarMenuItem key={item.title}>
-        <SidebarMenuButton asChild className={menuItemClass(item.url)}>
-          <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5" onClick={handleNavigationClick}>
-            <item.icon className="w-5 h-5" />
+        <SidebarMenuButton asChild>
+          <Link
+            to={item.url}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition-all duration-200"
+            style={{
+              color: isActive(item.url) ? "var(--ct-accent)" : "var(--ct-text-secondary)",
+              background: isActive(item.url) ? "var(--ct-bg-elevated)" : "transparent",
+              fontWeight: isActive(item.url) ? 600 : 400,
+            }}
+            onClick={handleNavigationClick}
+          >
+            <item.icon className="w-5 h-5" strokeWidth={isActive(item.url) ? 2.5 : 2} />
             <span>{item.title}</span>
           </Link>
         </SidebarMenuButton>
@@ -102,7 +109,7 @@ export default function SidebarMenuContent({ currentUser, userType, isAppAdmin, 
   return (
     <SidebarContent className="p-3">
       <SidebarGroup>
-        <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
+        <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider px-3 py-2" style={{ color: "var(--ct-text-muted)" }}>
           Navigation
         </SidebarGroupLabel>
         <SidebarGroupContent>
@@ -112,7 +119,7 @@ export default function SidebarMenuContent({ currentUser, userType, isAppAdmin, 
 
       {visibleAdminItems.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
+          <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider px-3 py-2" style={{ color: "var(--ct-text-muted)" }}>
             Admin
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -123,7 +130,7 @@ export default function SidebarMenuContent({ currentUser, userType, isAppAdmin, 
 
       {visibleOwnerItems.length > 0 && (
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-3 py-2">
+          <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider px-3 py-2" style={{ color: "var(--ct-text-muted)" }}>
             Owner
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -131,6 +138,20 @@ export default function SidebarMenuContent({ currentUser, userType, isAppAdmin, 
           </SidebarGroupContent>
         </SidebarGroup>
       )}
+
+      {/* Theme toggle — at the bottom, above the logout button in SidebarHeader */}
+      <div
+        className="mt-auto px-3 py-3 flex items-center justify-between"
+        style={{ borderTop: "1px solid var(--ct-border)" }}
+      >
+        <span
+          className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: "var(--ct-text-muted)" }}
+        >
+          Theme
+        </span>
+        <ThemeToggle />
+      </div>
     </SidebarContent>
   );
 }

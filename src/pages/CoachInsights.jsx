@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Target, Users, Trophy, Shield, ArrowUpDown, AlertCircle, Lightbulb, Minus, Plus } from "lucide-react";
+import { totalPoints } from "@/lib/playerStats";
 
 // Leagues where turnovers are not tracked / should be excluded
 const LEAGUES_NO_TURNOVERS = ['698c39d164c376418918321d', '698b4d0c05fbeef938b93720'];
@@ -208,7 +209,7 @@ export default function CoachInsights() {
 
       if (gamesPlayed === 0) return null;
 
-      const totalPts = pStats.reduce((sum, s) => sum + ((s.points_2 || 0) * 2) + ((s.points_3 || 0) * 3) + (s.free_throws || 0), 0);
+      const totalPts = pStats.reduce((sum, s) => sum + totalPoints(s), 0);
       const defensiveScore = pStats.reduce((sum, s) => sum + (s.steals || 0) + (s.blocks || 0), 0);
 
       return {
@@ -243,7 +244,7 @@ export default function CoachInsights() {
 
       if (gamesPlayed === 0) return null;
 
-      const totalPts = pStats.reduce((sum, s) => sum + ((s.points_2 || 0) * 2) + ((s.points_3 || 0) * 3) + (s.free_throws || 0), 0);
+      const totalPts = pStats.reduce((sum, s) => sum + totalPoints(s), 0);
       const totalReb = pStats.reduce((sum, s) => sum + (s.offensive_rebounds || 0) + (s.defensive_rebounds || 0), 0);
       const totalAst = pStats.reduce((sum, s) => sum + (s.assists || 0), 0);
       const totalStl = pStats.reduce((sum, s) => sum + (s.steals || 0), 0);
@@ -470,33 +471,33 @@ export default function CoachInsights() {
   // Early return for viewers — AFTER all hooks
   if (userType === 'viewer') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] flex items-center justify-center p-6">
         <div className="text-center">
-          <Target className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-700 mb-2">Access Restricted</h2>
-          <p className="text-slate-500">Coach Insights is not available for viewers.</p>
+          <Target className="w-16 h-16 text-[var(--ct-text-muted)] mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-[var(--ct-text-primary)] mb-2">Access Restricted</h2>
+          <p className="text-[var(--ct-text-secondary)]">Coach Insights is not available for viewers.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center ">
             <Target className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Coach Insights</h1>
-            <p className="text-slate-600">Tactical game preparation and team analysis</p>
+            <h1 className="text-3xl font-bold text-[var(--ct-text-primary)]">Coach Insights</h1>
+            <p className="text-[var(--ct-text-secondary)]">Tactical game preparation and team analysis</p>
           </div>
         </div>
 
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 block">League</label>
+            <label className="text-sm font-medium text-[var(--ct-text-primary)] mb-2 block">League</label>
             <Select value={selectedLeague} onValueChange={setSelectedLeague}>
               <SelectTrigger>
                 <SelectValue placeholder="Select league" />
@@ -510,7 +511,7 @@ export default function CoachInsights() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 block">Your Team</label>
+            <label className="text-sm font-medium text-[var(--ct-text-primary)] mb-2 block">Your Team</label>
             <Select value={selectedTeam} onValueChange={setSelectedTeam}>
               <SelectTrigger>
                 <SelectValue placeholder="Select your team" />
@@ -525,17 +526,17 @@ export default function CoachInsights() {
         </div>
 
         {!selectedTeam ? (
-          <Card className="border-slate-200 shadow-lg">
+          <Card className="border-[var(--ct-border)] ">
             <CardContent className="py-12 text-center">
-              <Target className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <p className="text-slate-600">Select a league and team to view coach insights</p>
+              <Target className="w-16 h-16 text-[var(--ct-text-muted)] mx-auto mb-4" />
+              <p className="text-[var(--ct-text-secondary)]">Select a league and team to view coach insights</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
             {/* Key Insight */}
             {keyInsight && (
-              <Card className="border-2 border-blue-300 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+              <Card className="border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50">
                 <CardHeader className="border-b border-blue-200">
                   <CardTitle className="flex items-center gap-2 text-blue-900">
                     <Lightbulb className="w-6 h-6 text-blue-600" />
@@ -548,10 +549,10 @@ export default function CoachInsights() {
                       <AlertCircle className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-lg font-semibold text-slate-900 mb-2">{keyInsight.message}</p>
+                      <p className="text-lg font-semibold text-[var(--ct-text-primary)] mb-2">{keyInsight.message}</p>
                       <div className="flex items-center gap-2">
                         <Badge className="bg-blue-100 text-blue-800">{keyInsight.metric}</Badge>
-                        <span className="text-sm text-slate-600">Difference: {keyInsight.maxDiff}</span>
+                        <span className="text-sm text-[var(--ct-text-secondary)]">Difference: {keyInsight.maxDiff}</span>
                       </div>
                     </div>
                   </div>
@@ -561,8 +562,8 @@ export default function CoachInsights() {
 
             {/* 1. Win vs Loss Comparison */}
             {winLossComparison && (
-              <Card className="border-slate-200 shadow-lg">
-                <CardHeader className="border-b border-slate-200 bg-gradient-to-r from-green-50 to-red-50">
+              <Card className="border-[var(--ct-border)] ">
+                <CardHeader className="border-b border-[var(--ct-border)] bg-gradient-to-r from-green-50 to-red-50">
                   <CardTitle className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-blue-600" />
                     Win vs Loss Comparison
@@ -578,21 +579,21 @@ export default function CoachInsights() {
                       </h3>
                       <div className="space-y-3">
                         <div className={`flex justify-between ${largestGapStat === 'points' ? 'bg-green-100 -mx-2 px-2 py-1 rounded-lg' : ''}`}>
-                          <span className={`${largestGapStat === 'points' ? 'font-bold text-green-900' : 'text-slate-700'}`}>Avg Points:</span>
+                          <span className={`${largestGapStat === 'points' ? 'font-bold text-green-900' : 'text-[var(--ct-text-primary)]'}`}>Avg Points:</span>
                           <span className={`font-bold ${largestGapStat === 'points' ? 'text-green-900 text-lg' : 'text-green-700'} flex items-center gap-1`}>
                             {largestGapStat === 'points' && <TrendingUp className="w-4 h-4" />}
                             {winLossComparison.wins.stats.points}
                           </span>
                         </div>
                         <div className={`flex justify-between ${largestGapStat === 'assists' ? 'bg-green-100 -mx-2 px-2 py-1 rounded-lg' : ''}`}>
-                          <span className={`${largestGapStat === 'assists' ? 'font-bold text-green-900' : 'text-slate-700'}`}>Avg Assists:</span>
+                          <span className={`${largestGapStat === 'assists' ? 'font-bold text-green-900' : 'text-[var(--ct-text-primary)]'}`}>Avg Assists:</span>
                           <span className={`font-bold ${largestGapStat === 'assists' ? 'text-green-900 text-lg' : 'text-green-700'} flex items-center gap-1`}>
                             {largestGapStat === 'assists' && <TrendingUp className="w-4 h-4" />}
                             {winLossComparison.wins.stats.assists}
                           </span>
                         </div>
                         <div className={`flex justify-between ${largestGapStat === 'reboundMargin' ? 'bg-green-100 -mx-2 px-2 py-1 rounded-lg' : ''}`}>
-                          <span className={`${largestGapStat === 'reboundMargin' ? 'font-bold text-green-900' : 'text-slate-700'}`}>Rebound Margin:</span>
+                          <span className={`${largestGapStat === 'reboundMargin' ? 'font-bold text-green-900' : 'text-[var(--ct-text-primary)]'}`}>Rebound Margin:</span>
                           <span className={`font-bold ${largestGapStat === 'reboundMargin' ? 'text-green-900 text-lg' : 'text-green-700'} flex items-center gap-1`}>
                             {largestGapStat === 'reboundMargin' && <TrendingUp className="w-4 h-4" />}
                             {winLossComparison.wins.stats.reboundMargin > 0 ? '+' : ''}{winLossComparison.wins.stats.reboundMargin}
@@ -600,7 +601,7 @@ export default function CoachInsights() {
                         </div>
                         {!excludeTurnovers && (
                           <div className={`flex justify-between ${largestGapStat === 'turnovers' ? 'bg-green-100 -mx-2 px-2 py-1 rounded-lg' : ''}`}>
-                            <span className={`${largestGapStat === 'turnovers' ? 'font-bold text-green-900' : 'text-slate-700'}`}>Avg Turnovers:</span>
+                            <span className={`${largestGapStat === 'turnovers' ? 'font-bold text-green-900' : 'text-[var(--ct-text-primary)]'}`}>Avg Turnovers:</span>
                             <span className={`font-bold ${largestGapStat === 'turnovers' ? 'text-green-900 text-lg' : 'text-green-700'} flex items-center gap-1`}>
                               {largestGapStat === 'turnovers' && <TrendingDown className="w-4 h-4" />}
                               {winLossComparison.wins.stats.turnovers}
@@ -617,21 +618,21 @@ export default function CoachInsights() {
                       </h3>
                       <div className="space-y-3">
                         <div className={`flex justify-between ${largestGapStat === 'points' ? 'bg-red-100 -mx-2 px-2 py-1 rounded-lg' : ''}`}>
-                          <span className={`${largestGapStat === 'points' ? 'font-bold text-red-900' : 'text-slate-700'}`}>Avg Points:</span>
+                          <span className={`${largestGapStat === 'points' ? 'font-bold text-red-900' : 'text-[var(--ct-text-primary)]'}`}>Avg Points:</span>
                           <span className={`font-bold ${largestGapStat === 'points' ? 'text-red-900 text-lg' : 'text-red-700'} flex items-center gap-1`}>
                             {largestGapStat === 'points' && <TrendingDown className="w-4 h-4" />}
                             {winLossComparison.losses.stats.points}
                           </span>
                         </div>
                         <div className={`flex justify-between ${largestGapStat === 'assists' ? 'bg-red-100 -mx-2 px-2 py-1 rounded-lg' : ''}`}>
-                          <span className={`${largestGapStat === 'assists' ? 'font-bold text-red-900' : 'text-slate-700'}`}>Avg Assists:</span>
+                          <span className={`${largestGapStat === 'assists' ? 'font-bold text-red-900' : 'text-[var(--ct-text-primary)]'}`}>Avg Assists:</span>
                           <span className={`font-bold ${largestGapStat === 'assists' ? 'text-red-900 text-lg' : 'text-red-700'} flex items-center gap-1`}>
                             {largestGapStat === 'assists' && <TrendingDown className="w-4 h-4" />}
                             {winLossComparison.losses.stats.assists}
                           </span>
                         </div>
                         <div className={`flex justify-between ${largestGapStat === 'reboundMargin' ? 'bg-red-100 -mx-2 px-2 py-1 rounded-lg' : ''}`}>
-                          <span className={`${largestGapStat === 'reboundMargin' ? 'font-bold text-red-900' : 'text-slate-700'}`}>Rebound Margin:</span>
+                          <span className={`${largestGapStat === 'reboundMargin' ? 'font-bold text-red-900' : 'text-[var(--ct-text-primary)]'}`}>Rebound Margin:</span>
                           <span className={`font-bold ${largestGapStat === 'reboundMargin' ? 'text-red-900 text-lg' : 'text-red-700'} flex items-center gap-1`}>
                             {largestGapStat === 'reboundMargin' && <TrendingDown className="w-4 h-4" />}
                             {winLossComparison.losses.stats.reboundMargin > 0 ? '+' : ''}{winLossComparison.losses.stats.reboundMargin}
@@ -639,7 +640,7 @@ export default function CoachInsights() {
                         </div>
                         {!excludeTurnovers && (
                           <div className={`flex justify-between ${largestGapStat === 'turnovers' ? 'bg-red-100 -mx-2 px-2 py-1 rounded-lg' : ''}`}>
-                            <span className={`${largestGapStat === 'turnovers' ? 'font-bold text-red-900' : 'text-slate-700'}`}>Avg Turnovers:</span>
+                            <span className={`${largestGapStat === 'turnovers' ? 'font-bold text-red-900' : 'text-[var(--ct-text-primary)]'}`}>Avg Turnovers:</span>
                             <span className={`font-bold ${largestGapStat === 'turnovers' ? 'text-red-900 text-lg' : 'text-red-700'} flex items-center gap-1`}>
                               {largestGapStat === 'turnovers' && <TrendingUp className="w-4 h-4" />}
                               {winLossComparison.losses.stats.turnovers}
@@ -655,7 +656,7 @@ export default function CoachInsights() {
 
             {/* Win Identity Snapshot */}
             {winLossComparison && winLossComparison.wins.count > 0 && (
-              <Card className="border-slate-200 shadow-lg bg-gradient-to-br from-emerald-50 to-green-50">
+              <Card className="border-[var(--ct-border)] bg-gradient-to-br from-emerald-50 to-green-50">
                 <CardHeader className="border-b border-green-200">
                   <CardTitle className="flex items-center gap-2 text-green-900">
                     <Trophy className="w-5 h-5 text-green-600" />
@@ -664,24 +665,24 @@ export default function CoachInsights() {
                 </CardHeader>
                 <CardContent className="pt-6">
                   <div className={`grid grid-cols-2 ${excludeTurnovers ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4`}>
-                    <div className="bg-white rounded-lg p-4 border-2 border-green-200 text-center">
+                    <div className="bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-green-200 text-center">
                       <div className="text-3xl font-bold text-green-700">{winLossComparison.wins.stats.points}</div>
-                      <div className="text-sm text-slate-600 mt-1">Points</div>
+                      <div className="text-sm text-[var(--ct-text-secondary)] mt-1">Points</div>
                     </div>
-                    <div className="bg-white rounded-lg p-4 border-2 border-green-200 text-center">
+                    <div className="bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-green-200 text-center">
                       <div className="text-3xl font-bold text-green-700">{winLossComparison.wins.stats.assists}</div>
-                      <div className="text-sm text-slate-600 mt-1">Assists</div>
+                      <div className="text-sm text-[var(--ct-text-secondary)] mt-1">Assists</div>
                     </div>
-                    <div className="bg-white rounded-lg p-4 border-2 border-green-200 text-center">
+                    <div className="bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-green-200 text-center">
                       <div className="text-3xl font-bold text-green-700">
                         {winLossComparison.wins.stats.reboundMargin > 0 ? '+' : ''}{winLossComparison.wins.stats.reboundMargin}
                       </div>
-                      <div className="text-sm text-slate-600 mt-1">Rebound Margin</div>
+                      <div className="text-sm text-[var(--ct-text-secondary)] mt-1">Rebound Margin</div>
                     </div>
                     {!excludeTurnovers && (
-                      <div className="bg-white rounded-lg p-4 border-2 border-green-200 text-center">
+                      <div className="bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-green-200 text-center">
                         <div className="text-3xl font-bold text-green-700">{winLossComparison.wins.stats.turnovers}</div>
-                        <div className="text-sm text-slate-600 mt-1">Turnovers</div>
+                        <div className="text-sm text-[var(--ct-text-secondary)] mt-1">Turnovers</div>
                       </div>
                     )}
                   </div>
@@ -691,7 +692,7 @@ export default function CoachInsights() {
 
             {/* 2. Rebounding Differential */}
             {reboundDifferential && (
-              <Card className="border-slate-200 shadow-lg">
+              <Card className="border-[var(--ct-border)] ">
                 <CardHeader className={`border-b ${reboundDifferential.isPositive ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
                   <CardTitle className="flex items-center gap-2">
                     {reboundDifferential.isPositive ? <TrendingUp className="w-5 h-5 text-green-600" /> : <TrendingDown className="w-5 h-5 text-red-600" />}
@@ -703,7 +704,7 @@ export default function CoachInsights() {
                     <div className={`text-6xl font-bold mb-2 ${reboundDifferential.isPositive ? 'text-green-600' : 'text-red-600'}`}>
                       {reboundDifferential.margin > 0 ? '+' : ''}{reboundDifferential.margin}
                     </div>
-                    <p className="text-slate-600">Average Rebound Margin per Game</p>
+                    <p className="text-[var(--ct-text-secondary)]">Average Rebound Margin per Game</p>
                     <Badge className={`mt-4 ${reboundDifferential.isPositive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {reboundDifferential.isPositive ? 'Winning the boards' : 'Losing the boards'}
                     </Badge>
@@ -713,8 +714,8 @@ export default function CoachInsights() {
             )}
 
             {/* 3. Opponent Snapshot */}
-            <Card className="border-slate-200 shadow-lg">
-              <CardHeader className="border-b border-slate-200 bg-orange-50">
+            <Card className="border-[var(--ct-border)] ">
+              <CardHeader className="border-b border-[var(--ct-border)] bg-orange-50">
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-orange-600" />
                   Opponent Snapshot
@@ -722,7 +723,7 @@ export default function CoachInsights() {
               </CardHeader>
               <CardContent className="pt-6">
                 <div className="mb-4">
-                  <label className="text-sm font-medium text-slate-700 mb-2 block">Select Opponent</label>
+                  <label className="text-sm font-medium text-[var(--ct-text-primary)] mb-2 block">Select Opponent</label>
                   <Select value={selectedOpponent} onValueChange={setSelectedOpponent}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose upcoming opponent" />
@@ -737,46 +738,46 @@ export default function CoachInsights() {
 
                 {opponentSnapshot ? (
                   <div className={`grid grid-cols-2 ${excludeTurnovers ? 'md:grid-cols-4' : 'md:grid-cols-5'} gap-4`}>
-                    <div className="bg-slate-50 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-slate-900">{opponentSnapshot.avgPoints}</div>
-                      <div className="text-xs text-slate-600 mt-1">Avg Points</div>
+                    <div className="bg-[var(--ct-bg-page)] rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-[var(--ct-text-primary)]">{opponentSnapshot.avgPoints}</div>
+                      <div className="text-xs text-[var(--ct-text-secondary)] mt-1">Avg Points</div>
                     </div>
-                    <div className="bg-slate-50 rounded-lg p-4 text-center">
-                      <div className="text-2xl font-bold text-slate-900">{opponentSnapshot.avgRebounds}</div>
-                      <div className="text-xs text-slate-600 mt-1">Avg Rebounds</div>
+                    <div className="bg-[var(--ct-bg-page)] rounded-lg p-4 text-center">
+                      <div className="text-2xl font-bold text-[var(--ct-text-primary)]">{opponentSnapshot.avgRebounds}</div>
+                      <div className="text-xs text-[var(--ct-text-secondary)] mt-1">Avg Rebounds</div>
                     </div>
                     {!excludeTurnovers && (
-                      <div className="bg-slate-50 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-slate-900">{opponentSnapshot.avgTurnovers}</div>
-                        <div className="text-xs text-slate-600 mt-1">Avg Turnovers</div>
+                      <div className="bg-[var(--ct-bg-page)] rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-[var(--ct-text-primary)]">{opponentSnapshot.avgTurnovers}</div>
+                        <div className="text-xs text-[var(--ct-text-secondary)] mt-1">Avg Turnovers</div>
                       </div>
                     )}
                     <div className="bg-amber-50 rounded-lg p-4 text-center border-2 border-amber-200">
                       <div className="text-lg font-bold text-amber-900">{opponentSnapshot.topScorer?.name || 'N/A'}</div>
-                      <div className="text-xs text-slate-600 mt-1">Top Scorer</div>
+                      <div className="text-xs text-[var(--ct-text-secondary)] mt-1">Top Scorer</div>
                       {opponentSnapshot.topScorer && (
                         <Badge className="mt-1 bg-amber-100 text-amber-800">{opponentSnapshot.topScorer.ppg} PPG</Badge>
                       )}
                     </div>
                     <div className="bg-blue-50 rounded-lg p-4 text-center border-2 border-blue-200">
                       <div className="text-lg font-bold text-blue-900">{opponentSnapshot.topDefender?.name || 'N/A'}</div>
-                      <div className="text-xs text-slate-600 mt-1">Top Defender</div>
+                      <div className="text-xs text-[var(--ct-text-secondary)] mt-1">Top Defender</div>
                       {opponentSnapshot.topDefender && (
                         <Badge className="mt-1 bg-blue-100 text-blue-800">{opponentSnapshot.topDefender.defensiveScore} STL+BLK</Badge>
                       )}
                     </div>
                   </div>
                 ) : selectedOpponent ? (
-                  <p className="text-center text-slate-500 py-8">No data available for this opponent</p>
+                  <p className="text-center text-[var(--ct-text-secondary)] py-8">No data available for this opponent</p>
                 ) : (
-                  <p className="text-center text-slate-500 py-8">Select an opponent to view their stats</p>
+                  <p className="text-center text-[var(--ct-text-secondary)] py-8">Select an opponent to view their stats</p>
                 )}
               </CardContent>
             </Card>
 
             {/* Suggested Game Focus */}
             {selectedOpponent && suggestedFocus.length > 0 && (
-              <Card className="border-2 border-orange-300 shadow-lg bg-gradient-to-r from-orange-50 to-amber-50">
+              <Card className="border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-amber-50">
                 <CardHeader className="border-b border-orange-200">
                   <CardTitle className="flex items-center gap-2 text-orange-900">
                     <Target className="w-5 h-5 text-orange-600" />
@@ -786,11 +787,11 @@ export default function CoachInsights() {
                 <CardContent className="pt-6">
                   <div className="space-y-3">
                     {suggestedFocus.map((suggestion, idx) => (
-                      <div key={idx} className="flex items-start gap-3 bg-white rounded-lg p-4 border-2 border-orange-200">
+                      <div key={idx} className="flex items-start gap-3 bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-orange-200">
                         <div className="w-6 h-6 bg-orange-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                           <span className="text-white text-xs font-bold">{idx + 1}</span>
                         </div>
-                        <p className="text-slate-900 font-medium">{suggestion}</p>
+                        <p className="text-[var(--ct-text-primary)] font-medium">{suggestion}</p>
                       </div>
                     ))}
                   </div>
@@ -800,8 +801,8 @@ export default function CoachInsights() {
 
 
             {/* 4. Player Impact Rankings */}
-            <Card className="border-slate-200 shadow-lg">
-              <CardHeader className="border-b border-slate-200 bg-purple-50">
+            <Card className="border-[var(--ct-border)] ">
+              <CardHeader className="border-b border-[var(--ct-border)] bg-purple-50">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-purple-600" />
@@ -824,13 +825,13 @@ export default function CoachInsights() {
                 {sortedPlayers.length > 0 ? (
                   <div className="space-y-2">
                     {sortedPlayers.slice(0, 10).map((player, idx) => (
-                      <div key={player.id} className="flex items-center gap-4 bg-slate-50 rounded-lg p-4 hover:bg-slate-100 transition-colors">
+                      <div key={player.id} className="flex items-center gap-4 bg-[var(--ct-bg-page)] rounded-lg p-4 hover:bg-[var(--ct-bg-elevated)] transition-colors">
                         <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
                           {idx + 1}
                         </div>
                         <div className="flex-1">
-                          <div className="font-bold text-slate-900">#{player.jerseyNumber} {player.name}</div>
-                          <div className="text-sm text-slate-600">
+                          <div className="font-bold text-[var(--ct-text-primary)]">#{player.jerseyNumber} {player.name}</div>
+                          <div className="text-sm text-[var(--ct-text-secondary)]">
                             {sortBy === 'defensive' ? (
                               <>{player.spg} STL · {player.bpg} BLK · {player.fpg} FOULS</>
                             ) : (
@@ -856,15 +857,15 @@ export default function CoachInsights() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 py-8">No player data available</p>
+                  <p className="text-center text-[var(--ct-text-secondary)] py-8">No player data available</p>
                 )}
               </CardContent>
             </Card>
 
             {/* 5. Last 3 Games Trend */}
             {last3GamesTrend && (
-              <Card className="border-slate-200 shadow-lg">
-                <CardHeader className="border-b border-slate-200 bg-blue-50">
+              <Card className="border-[var(--ct-border)] ">
+                <CardHeader className="border-b border-[var(--ct-border)] bg-blue-50">
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-blue-600" />
                     Last {last3GamesTrend.gamesCount} Games Trend
@@ -872,14 +873,14 @@ export default function CoachInsights() {
                 </CardHeader>
                 <CardContent className="pt-6">
                   <div className={`grid grid-cols-2 ${excludeTurnovers ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4`}>
-                    <div className="bg-white rounded-lg p-4 border-2 border-slate-200 text-center">
+                    <div className="bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-[var(--ct-border)] text-center">
                       <div className="flex items-center justify-center gap-2 mb-2">
                         {last3GamesTrend.momentum.points === 'up' && <TrendingUp className="w-5 h-5 text-green-600" />}
                         {last3GamesTrend.momentum.points === 'down' && <TrendingDown className="w-5 h-5 text-red-600" />}
-                        {last3GamesTrend.momentum.points === 'stable' && <Minus className="w-5 h-5 text-slate-400" />}
-                        <div className="text-3xl font-bold text-slate-900">{last3GamesTrend.points}</div>
+                        {last3GamesTrend.momentum.points === 'stable' && <Minus className="w-5 h-5 text-[var(--ct-text-muted)]" />}
+                        <div className="text-3xl font-bold text-[var(--ct-text-primary)]">{last3GamesTrend.points}</div>
                       </div>
-                      <div className="text-sm text-slate-600">Avg Points</div>
+                      <div className="text-sm text-[var(--ct-text-secondary)]">Avg Points</div>
                       {last3GamesTrend.momentum.points === 'up' && (
                         <Badge className="mt-2 bg-green-100 text-green-800 text-xs">Trending Up</Badge>
                       )}
@@ -887,20 +888,20 @@ export default function CoachInsights() {
                         <Badge className="mt-2 bg-red-100 text-red-800 text-xs">Trending Down</Badge>
                       )}
                     </div>
-                    <div className="bg-white rounded-lg p-4 border-2 border-slate-200 text-center">
-                      <div className="text-3xl font-bold text-slate-900">{last3GamesTrend.assists}</div>
-                      <div className="text-sm text-slate-600 mt-1">Avg Assists</div>
+                    <div className="bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-[var(--ct-border)] text-center">
+                      <div className="text-3xl font-bold text-[var(--ct-text-primary)]">{last3GamesTrend.assists}</div>
+                      <div className="text-sm text-[var(--ct-text-secondary)] mt-1">Avg Assists</div>
                     </div>
-                    <div className="bg-white rounded-lg p-4 border-2 border-slate-200 text-center">
+                    <div className="bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-[var(--ct-border)] text-center">
                       <div className="flex items-center justify-center gap-2 mb-2">
                         {last3GamesTrend.momentum.rebounds === 'up' && <TrendingUp className="w-5 h-5 text-green-600" />}
                         {last3GamesTrend.momentum.rebounds === 'down' && <TrendingDown className="w-5 h-5 text-red-600" />}
-                        {last3GamesTrend.momentum.rebounds === 'stable' && <Minus className="w-5 h-5 text-slate-400" />}
+                        {last3GamesTrend.momentum.rebounds === 'stable' && <Minus className="w-5 h-5 text-[var(--ct-text-muted)]" />}
                         <div className={`text-3xl font-bold ${last3GamesTrend.reboundMargin > 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {last3GamesTrend.reboundMargin > 0 ? '+' : ''}{last3GamesTrend.reboundMargin}
                         </div>
                       </div>
-                      <div className="text-sm text-slate-600">Rebound Margin</div>
+                      <div className="text-sm text-[var(--ct-text-secondary)]">Rebound Margin</div>
                       {last3GamesTrend.momentum.rebounds === 'up' && (
                         <Badge className="mt-2 bg-green-100 text-green-800 text-xs">Trending Up</Badge>
                       )}
@@ -909,14 +910,14 @@ export default function CoachInsights() {
                       )}
                     </div>
                     {!excludeTurnovers && (
-                      <div className="bg-white rounded-lg p-4 border-2 border-slate-200 text-center">
+                      <div className="bg-[var(--ct-bg-card)] rounded-lg p-4 border-2 border-[var(--ct-border)] text-center">
                         <div className="flex items-center justify-center gap-2 mb-2">
                           {last3GamesTrend.momentum.turnovers === 'up' && <TrendingUp className="w-5 h-5 text-red-600" />}
                           {last3GamesTrend.momentum.turnovers === 'down' && <TrendingDown className="w-5 h-5 text-green-600" />}
-                          {last3GamesTrend.momentum.turnovers === 'stable' && <Minus className="w-5 h-5 text-slate-400" />}
-                          <div className="text-3xl font-bold text-slate-900">{last3GamesTrend.turnovers}</div>
+                          {last3GamesTrend.momentum.turnovers === 'stable' && <Minus className="w-5 h-5 text-[var(--ct-text-muted)]" />}
+                          <div className="text-3xl font-bold text-[var(--ct-text-primary)]">{last3GamesTrend.turnovers}</div>
                         </div>
-                        <div className="text-sm text-slate-600">Avg Turnovers</div>
+                        <div className="text-sm text-[var(--ct-text-secondary)]">Avg Turnovers</div>
                         {last3GamesTrend.momentum.turnovers === 'up' && (
                           <Badge className="mt-2 bg-red-100 text-red-800 text-xs">Risk - Trending Up</Badge>
                         )}

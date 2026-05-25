@@ -70,7 +70,7 @@ export default function DefaultWinnerDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="w-[95vw] max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-slate-900">
+          <DialogTitle className="flex items-center gap-2 text-[var(--ct-text-primary)]">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
             {t("schedule.markDefaultWinner", "Mark Default Winner")}
           </DialogTitle>
@@ -78,7 +78,7 @@ export default function DefaultWinnerDialog({
 
         <div className="space-y-5 py-2">
           {/* Matchup */}
-          <div className="flex items-center justify-center gap-3 py-3 bg-slate-50 rounded-xl">
+          <div className="flex items-center justify-center gap-3 py-3 bg-[var(--ct-bg-page)] rounded-xl">
             <div className="flex items-center gap-2">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
@@ -86,9 +86,9 @@ export default function DefaultWinnerDialog({
               >
                 {homeTeam.name?.[0]}
               </div>
-              <span className="font-semibold text-slate-800 text-sm">{homeTeam.name}</span>
+              <span className="font-semibold text-[var(--ct-text-primary)] text-sm">{homeTeam.name}</span>
             </div>
-            <span className="text-slate-400 font-bold text-xs">vs</span>
+            <span className="text-[var(--ct-text-muted)] font-bold text-xs">vs</span>
             <div className="flex items-center gap-2">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
@@ -96,13 +96,13 @@ export default function DefaultWinnerDialog({
               >
                 {awayTeam.name?.[0]}
               </div>
-              <span className="font-semibold text-slate-800 text-sm">{awayTeam.name}</span>
+              <span className="font-semibold text-[var(--ct-text-primary)] text-sm">{awayTeam.name}</span>
             </div>
           </div>
 
           {/* Winner selection */}
           <div>
-            <p className="text-sm font-semibold text-slate-700 mb-2">
+            <p className="text-sm font-semibold text-[var(--ct-text-primary)] mb-2">
               {t("schedule.selectDefaultWinner", "Select the team that won by default:")}
             </p>
             <div className="space-y-2">
@@ -113,7 +113,7 @@ export default function DefaultWinnerDialog({
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
                     selectedWinnerTeamId === team.id
                       ? "border-amber-500 bg-amber-50"
-                      : "border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/40"
+                      : "border-[var(--ct-border)] bg-[var(--ct-bg-card)] hover:border-amber-300 hover:bg-amber-50/40"
                   }`}
                 >
                   <div
@@ -122,7 +122,7 @@ export default function DefaultWinnerDialog({
                   >
                     {team.name?.[0]}
                   </div>
-                  <span className="font-semibold text-slate-800">{team.name}</span>
+                  <span className="font-semibold text-[var(--ct-text-primary)]">{team.name}</span>
                   {selectedWinnerTeamId === team.id && (
                     <div className="ml-auto w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">
                       ✓
@@ -135,13 +135,13 @@ export default function DefaultWinnerDialog({
 
           {/* Reason */}
           <div>
-            <p className="text-sm font-semibold text-slate-700 mb-2">
+            <p className="text-sm font-semibold text-[var(--ct-text-primary)] mb-2">
               {t("schedule.reason", "Reason (optional):")}
             </p>
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="w-full h-9 rounded-md border border-[var(--ct-border)] bg-[var(--ct-bg-card)] px-3 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400"
             >
               <option value="">{t("schedule.selectReason", "Select a reason...")}</option>
               {REASONS.map((r) => (

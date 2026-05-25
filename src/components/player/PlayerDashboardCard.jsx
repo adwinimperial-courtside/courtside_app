@@ -2,6 +2,7 @@ import React, { useRef, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Camera, Upload, Trash2, Loader2, Flame, TrendingUp, TrendingDown } from "lucide-react";
 import { getRankMovement } from "@/components/utils/rankMovementTracker";
+import { totalPoints } from "@/lib/playerStats";
 import { getMilestoneProgress } from "./milestoneCalculator";
 import {
   DropdownMenu,
@@ -32,7 +33,7 @@ function computeStats(stats) {
   if (gp === 0) return { gp: 0, ppg: null, rpg: null, apg: null };
   
   const totals = participatedStats.reduce((acc, s) => ({
-    points: acc.points + ((s.points_2 || 0) * 2) + ((s.points_3 || 0) * 3) + (s.free_throws || 0),
+    points: acc.points + totalPoints(s),
     rebounds: acc.rebounds + (s.offensive_rebounds || 0) + (s.defensive_rebounds || 0),
     assists: acc.assists + (s.assists || 0)
   }), { points: 0, rebounds: 0, assists: 0 });
@@ -54,7 +55,7 @@ function getCategoryRank(myPlayerId, allStats, categoryKey) {
     if (!playerStats[s.player_id]) playerStats[s.player_id] = { total: 0, gp: 0 };
     let catValue = 0;
     if (categoryKey === 'points') {
-      catValue = (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0);
+      catValue = totalPoints(s);
     } else if (categoryKey === 'rebounds') {
       catValue = (s.offensive_rebounds || 0) + (s.defensive_rebounds || 0);
     } else if (categoryKey === 'assists') {
@@ -140,7 +141,7 @@ function getHotStreak(stats, games) {
   for (const game of sorted) {
     const s = stats.find(st => st.game_id === game.id);
     if (!s) break;
-    const pts = (s.points_2||0)*2 + (s.points_3||0)*3 + (s.free_throws||0);
+    const pts = totalPoints(s);
     if (pts >= 15) streak++;
     else break;
   }
@@ -205,7 +206,7 @@ export default function PlayerDashboardCard({
   ];
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden pt-6 pb-6 px-6 relative z-20 mb-8">
+    <div className="bg-[var(--ct-bg-card)] rounded-2xl border border-[var(--ct-border)] overflow-hidden pt-6 pb-6 px-6 relative z-20 mb-8">
 
       {/* ── 1. Ranking + Milestone Progress ── */}
       <div className="pb-6">
@@ -228,32 +229,32 @@ export default function PlayerDashboardCard({
               )}
             </span>
           ) : (
-            <span className="text-xs text-slate-400 font-medium">Season Progress</span>
+            <span className="text-xs text-[var(--ct-text-muted)] font-medium">Season Progress</span>
           )}
         </div>
         {milestone && (
           <>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{milestone.name}</p>
+              <p className="text-xs font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider">{milestone.name}</p>
               <span className="text-xs font-bold text-indigo-600">{Math.round(milestone.progress)}%</span>
             </div>
-            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-2">
+            <div className="w-full h-3 bg-[var(--ct-bg-elevated)] rounded-full overflow-hidden mb-2">
               <div
                 className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(milestone.progress, 100)}%` }}
               />
             </div>
-            <p className="text-sm font-bold text-slate-800">{milestone.current} / {milestone.target} {milestone.unit}</p>
+            <p className="text-sm font-bold text-[var(--ct-text-primary)]">{milestone.current} / {milestone.target} {milestone.unit}</p>
           </>
         )}
       </div>
 
       {/* ── 2. Player Identity ── */}
-      <div className="flex items-start gap-6 pb-8 border-b border-slate-100">
+      <div className="flex items-start gap-6 pb-8 border-b border-[var(--ct-border)]">
         {/* Avatar */}
         {readOnly ? (
           <div className="relative flex-shrink-0">
-            <div className="w-24 h-24 rounded-full overflow-hidden bg-indigo-100 border-4 border-indigo-200 flex items-center justify-center shadow-md">
+            <div className="w-24 h-24 rounded-full overflow-hidden bg-indigo-100 border-4 border-indigo-200 flex items-center justify-center ">
               {photoUrl ? (
                 <img src={photoUrl} alt={displayName} className="w-full h-full object-cover" />
               ) : (
@@ -265,7 +266,7 @@ export default function PlayerDashboardCard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="relative flex-shrink-0 group cursor-pointer">
-                <div className="w-24 h-24 rounded-full overflow-hidden bg-indigo-100 border-4 border-indigo-200 flex items-center justify-center shadow-md">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-indigo-100 border-4 border-indigo-200 flex items-center justify-center ">
                   {uploading ? (
                     <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
                   ) : photoUrl ? (
@@ -296,14 +297,14 @@ export default function PlayerDashboardCard({
         {/* Name / team / position */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-2">
-            <h2 className="text-3xl font-bold text-slate-900 leading-tight">{displayName}</h2>
+            <h2 className="text-3xl font-bold text-[var(--ct-text-primary)] leading-tight">{displayName}</h2>
             {hotStreak >= 3 && (
               <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">
                 <Flame className="w-4 h-4" /> Hot
               </span>
             )}
           </div>
-          <p className="text-base text-slate-600 font-semibold leading-snug">
+          <p className="text-base text-[var(--ct-text-secondary)] font-semibold leading-snug">
             {[
               team?.name || leagueName,
               playerRecord?.position,
@@ -311,19 +312,19 @@ export default function PlayerDashboardCard({
             ].filter(Boolean).join(" • ")}
           </p>
           {handle && (
-            <p className="text-sm text-slate-500 font-medium mt-2">@{handle}</p>
+            <p className="text-sm text-[var(--ct-text-secondary)] font-medium mt-2">@{handle}</p>
           )}
         </div>
       </div>
 
       {/* ── 3. Stat Tiles ── */}
       <div className="pt-6">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Season Stats</p>
+        <p className="text-xs font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider mb-4">Season Stats</p>
         <div className="grid grid-cols-4 gap-3">
           {statTiles.map(({ label, value }) => (
-            <div key={label} className="bg-slate-50 rounded-xl py-4 px-2 text-center border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-2xl font-bold text-slate-900 leading-none">{value ?? "—"}</p>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-2">{label}</p>
+            <div key={label} className="bg-[var(--ct-bg-page)] rounded-xl py-4 px-2 text-center border border-[var(--ct-border)] hover:shadow-md transition-shadow">
+              <p className="text-2xl font-bold text-[var(--ct-text-primary)] leading-none">{value ?? "—"}</p>
+              <p className="text-xs text-[var(--ct-text-secondary)] font-bold uppercase tracking-wider mt-2">{label}</p>
             </div>
           ))}
         </div>

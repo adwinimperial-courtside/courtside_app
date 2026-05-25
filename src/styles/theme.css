@@ -1,0 +1,136 @@
+/* Courtside Themes — Dark Court (default) + Warm Sand (html[data-theme="light"])
+ *
+ * Usage in app code (both work):
+ *   Tailwind arbitrary: class="bg-[var(--ct-bg-card)]"
+ *   Inline style:       style={{ background: "var(--ct-bg-card)" }}
+ *
+ * Opacity variants (for role badges etc. that used `bg-[#HEX]/20`):
+ *   class="bg-[rgb(var(--ct-danger-rgb)/0.2)]"
+ *   — the `*-rgb` vars hold space-separated R G B triplets so Tailwind's
+ *   arbitrary-value syntax can combine them with an alpha channel.
+ */
+
+:root {
+  /* ── Dark Court (default) ─────────────────────────────────────────────── */
+  --ct-bg-page:        #0F0F1A;
+  --ct-bg-card:        #1A1A2E;
+  --ct-bg-elevated:    #2A2A42;
+  --ct-bg-input:       #2A2A42;
+  --ct-accent:         #3B82F6;
+  --ct-accent-gold:    #F59E0B;
+  --ct-text-primary:   #F0F0F5;
+  --ct-text-secondary: #A0A0B8;
+  --ct-text-muted:     #6B6B80;
+  --ct-border:         #2A2A42;
+  --ct-success:        #22C55E;
+  --ct-danger:         #EF4444;
+
+  /* RGB triplets for opacity variants (`rgb(var(--ct-x-rgb) / 0.2)`) */
+  --ct-accent-rgb:          59 130 246;
+  --ct-accent-gold-rgb:     245 158 11;
+  --ct-success-rgb:         34 197 94;
+  --ct-danger-rgb:          239 68 68;
+  --ct-text-secondary-rgb:  160 160 184;
+
+  /* ── Legacy aliases — keep so existing `var(--color-*)` refs keep working ── */
+  --color-bg-page:       var(--ct-bg-page);
+  --color-bg-card:       var(--ct-bg-card);
+  --color-bg-card-hover: var(--ct-bg-elevated);
+  --color-bg-elevated:   var(--ct-bg-elevated);
+  --color-accent:        var(--ct-accent);
+  --color-accent-gold:   var(--ct-accent-gold);
+  --color-text-primary:  var(--ct-text-primary);
+  --color-text-secondary:var(--ct-text-secondary);
+  --color-text-muted:    var(--ct-text-muted);
+  --color-border:        var(--ct-border);
+  --color-success:       var(--ct-success);
+  --color-danger:        var(--ct-danger);
+}
+
+/* ── Warm Sand (Claude-inspired light theme) ────────────────────────────── */
+html[data-theme="light"] {
+  --ct-bg-page:        #F4F3EE;
+  --ct-bg-card:        #FFFFFF;
+  --ct-bg-elevated:    #EDE9E3;
+  --ct-bg-input:       #FFFFFF;
+  --ct-accent:         #C15F3C;
+  --ct-accent-gold:    #B8860B;
+  --ct-text-primary:   #1A1410;
+  --ct-text-secondary: #6B5D4D;
+  --ct-text-muted:     #B1ADA1;
+  --ct-border:         #E8E0D6;
+  --ct-success:        #22C55E;
+  --ct-danger:         #DC2626;
+
+  --ct-accent-rgb:          193 95 60;
+  --ct-accent-gold-rgb:     184 134 11;
+  --ct-success-rgb:         34 197 94;
+  --ct-danger-rgb:          220 38 38;
+  --ct-text-secondary-rgb:  107 93 77;
+}
+
+/* LiveGame / LiveStatTracker — stays on its own light theme regardless of
+ * which app theme is active. Applied via `className="live-game-isolate ..."`
+ * around the LiveGame content by Layout.jsx. */
+.live-game-isolate {
+  --background:           0 0% 100%;
+  --foreground:           0 0% 3.9%;
+  --card:                 0 0% 100%;
+  --card-foreground:      0 0% 3.9%;
+  --popover:              0 0% 100%;
+  --popover-foreground:   0 0% 3.9%;
+  --primary:              0 0% 9%;
+  --primary-foreground:   0 0% 98%;
+  --secondary:            0 0% 96.1%;
+  --secondary-foreground: 0 0% 9%;
+  --muted:                0 0% 96.1%;
+  --muted-foreground:     0 0% 45.1%;
+  --accent:               0 0% 96.1%;
+  --accent-foreground:    0 0% 9%;
+  --destructive:          0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border:               0 0% 89.8%;
+  --input:                0 0% 89.8%;
+  --ring:                 0 0% 3.9%;
+  --sidebar-background:   0 0% 98%;
+  --sidebar-foreground:   240 5.3% 26.1%;
+  --sidebar-primary:      240 5.9% 10%;
+  --sidebar-accent:       240 4.8% 95.9%;
+  --sidebar-border:       220 13% 91%;
+  /* Override the --ct-* tokens too so child components that consume them
+   * reset back to neutral inside the LiveGame wrapper. */
+  --ct-bg-page:        #ffffff;
+  --ct-bg-card:        #ffffff;
+  --ct-bg-elevated:    #f1f5f9;
+  --ct-bg-input:       #ffffff;
+  --ct-text-primary:   #1e293b;
+  --ct-text-secondary: #475569;
+  --ct-text-muted:     #94a3b8;
+  --ct-border:         #e2e8f0;
+  --color-bg-page:        #ffffff;
+  --color-bg-card:        #ffffff;
+  --color-text-primary:   #1e293b;
+  color: hsl(0, 0%, 3.9%);
+}
+
+/* Scrollbar — adapts to active theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ct-bg-card);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ct-bg-elevated);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ct-accent);
+}
+
+/* Text selection */
+::selection {
+  background: rgb(var(--ct-accent-rgb) / 0.35);
+  color: var(--ct-text-primary);
+}

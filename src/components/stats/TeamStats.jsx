@@ -67,7 +67,7 @@ export default function TeamStats({ teams, games, stats, leagues }) {
   };
 
   return (
-    <Card className="border-slate-200">
+    <Card className="border-[var(--ct-border)]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="w-5 h-5 text-purple-600" />
@@ -76,38 +76,38 @@ export default function TeamStats({ teams, games, stats, leagues }) {
       </CardHeader>
       <CardContent>
         {teamStatistics.length === 0 ? (
-          <p className="text-slate-500 text-center py-8">No team stats yet</p>
+          <p className="text-[var(--ct-text-secondary)] text-center py-8">No team stats yet</p>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Team</TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("gamesPlayed")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("gamesPlayed")}>
                     <div className="flex items-center justify-center gap-1">GP <SortIcon field="gamesPlayed" /></div>
                   </TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("ppg")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("ppg")}>
                     <div className="flex items-center justify-center gap-1">PTS <SortIcon field="ppg" /></div>
                   </TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("rpg")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("rpg")}>
                     <div className="flex items-center justify-center gap-1">REB <SortIcon field="rpg" /></div>
                   </TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("apg")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("apg")}>
                     <div className="flex items-center justify-center gap-1">AST <SortIcon field="apg" /></div>
                   </TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("orebpg")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("orebpg")}>
                     <div className="flex items-center justify-center gap-1">OREB <SortIcon field="orebpg" /></div>
                   </TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("drebpg")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("drebpg")}>
                     <div className="flex items-center justify-center gap-1">DREB <SortIcon field="drebpg" /></div>
                   </TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("stlpg")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("stlpg")}>
                     <div className="flex items-center justify-center gap-1">STL <SortIcon field="stlpg" /></div>
                   </TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("blkpg")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("blkpg")}>
                     <div className="flex items-center justify-center gap-1">BLK <SortIcon field="blkpg" /></div>
                   </TableHead>
-                  <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort("topg")}>
+                  <TableHead className="text-center cursor-pointer hover:bg-[var(--ct-bg-elevated)]" onClick={() => handleSort("topg")}>
                     <div className="flex items-center justify-center gap-1">TO <SortIcon field="topg" /></div>
                   </TableHead>
                 </TableRow>

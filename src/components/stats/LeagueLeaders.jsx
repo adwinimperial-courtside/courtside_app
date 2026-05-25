@@ -76,7 +76,7 @@ export default function LeagueLeaders({ players, teams, stats, games = [] }) {
           .slice(0, 5);
 
         return (
-          <Card key={category.key} className="border-slate-200">
+          <Card key={category.key} className="border-[var(--ct-border)]">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <span className="text-2xl">{category.icon}</span>
@@ -85,16 +85,16 @@ export default function LeagueLeaders({ players, teams, stats, games = [] }) {
             </CardHeader>
             <CardContent>
               {leaders.length === 0 ? (
-                <p className="text-slate-500 text-sm text-center py-4">No data yet</p>
+                <p className="text-[var(--ct-text-secondary)] text-sm text-center py-4">No data yet</p>
               ) : (
                 <div className="space-y-3">
                   {leaders.map((player, index) => (
                     <div key={player.id} className="flex items-center gap-3">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                         index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                        index === 1 ? 'bg-slate-300 text-slate-700' :
+                        index === 1 ? 'bg-[var(--ct-bg-elevated)] text-[var(--ct-text-primary)]' :
                         index === 2 ? 'bg-orange-300 text-orange-900' :
-                        'bg-slate-100 text-slate-600'
+                        'bg-[var(--ct-bg-elevated)] text-[var(--ct-text-secondary)]'
                       }`}>
                         {index + 1}
                       </div>
@@ -106,7 +106,7 @@ export default function LeagueLeaders({ players, teams, stats, games = [] }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{player.name}</p>
-                        <p className="text-xs text-slate-500">{player.team?.name}</p>
+                        <p className="text-xs text-[var(--ct-text-secondary)]">{player.team?.name}</p>
                       </div>
                       <p className="font-bold text-purple-600">{player[category.key].toFixed(1)}</p>
                     </div>

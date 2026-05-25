@@ -108,7 +108,7 @@ export default function TeamStandings({ teams, games, leagues }) {
   const teamStandings = sortedStandings;
 
   return (
-    <Card className="border-slate-200 w-full overflow-hidden">
+    <Card className="border-[var(--ct-border)] w-full overflow-hidden">
       <CardHeader className="py-3 px-4">
         <CardTitle className="flex items-center gap-2 text-base">
           <Trophy className="w-4 h-4 text-purple-600" />
@@ -117,14 +117,14 @@ export default function TeamStandings({ teams, games, leagues }) {
       </CardHeader>
       <CardContent className="px-3 pb-3 pt-0">
         {teamStandings.length === 0 ? (
-          <p className="text-slate-500 text-center py-8">No teams yet</p>
+          <p className="text-[var(--ct-text-secondary)] text-center py-8">No teams yet</p>
         ) : (
           <>
             {/* Mobile: table layout */}
             <div className="block sm:hidden">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
+                  <tr className="border-b border-[var(--ct-border)] text-[var(--ct-text-secondary)]">
                     <th className="text-left pb-2 pl-1 font-semibold">#</th>
                     <th className="text-left pb-2 font-semibold">Team</th>
                     <th className="text-center pb-2 font-semibold">W</th>
@@ -134,17 +134,17 @@ export default function TeamStandings({ teams, games, leagues }) {
                 </thead>
                 <tbody>
                   {teamStandings.map((team, index) => (
-                    <tr key={team.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pl-1 text-slate-400 font-bold">{index + 1}</td>
+                    <tr key={team.id} className="border-b border-[var(--ct-border)] last:border-0">
+                      <td className="py-2 pl-1 text-[var(--ct-text-muted)] font-bold">{index + 1}</td>
                       <td className="py-2">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <TeamLogo team={team} size="sm" />
-                          <span className="font-semibold text-slate-900 truncate max-w-[100px]">{team.name}</span>
+                          <span className="font-semibold text-[var(--ct-text-primary)] truncate max-w-[100px]">{team.name}</span>
                         </div>
                       </td>
                       <td className="py-2 text-center font-bold text-green-600">{team.wins}</td>
                       <td className="py-2 text-center font-bold text-red-500">{team.losses}</td>
-                      <td className={`py-2 text-center font-bold ${team.pointsDiff > 0 ? 'text-green-600' : team.pointsDiff < 0 ? 'text-red-500' : 'text-slate-500'}`}>
+                      <td className={`py-2 text-center font-bold ${team.pointsDiff > 0 ? 'text-green-600' : team.pointsDiff < 0 ? 'text-red-500' : 'text-[var(--ct-text-secondary)]'}`}>
                         {team.pointsDiff > 0 ? '+' : ''}{team.pointsDiff}
                       </td>
                     </tr>
@@ -179,11 +179,11 @@ export default function TeamStandings({ teams, games, leagues }) {
                             <span className="font-medium truncate">{team.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell text-slate-600 text-sm">{league?.name}</TableCell>
+                        <TableCell className="hidden md:table-cell text-[var(--ct-text-secondary)] text-sm">{league?.name}</TableCell>
                         <TableCell className="text-center font-semibold text-green-600">{team.wins}</TableCell>
                         <TableCell className="text-center font-semibold text-red-600">{team.losses}</TableCell>
                         <TableCell className="text-center font-semibold">{team.winPct}%</TableCell>
-                        <TableCell className={`text-center font-semibold ${team.pointsDiff > 0 ? 'text-green-600' : team.pointsDiff < 0 ? 'text-red-600' : 'text-slate-600'}`}>
+                        <TableCell className={`text-center font-semibold ${team.pointsDiff > 0 ? 'text-green-600' : team.pointsDiff < 0 ? 'text-red-600' : 'text-[var(--ct-text-secondary)]'}`}>
                           {team.pointsDiff > 0 ? '+' : ''}{team.pointsDiff}
                         </TableCell>
                       </TableRow>

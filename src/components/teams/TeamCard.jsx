@@ -12,23 +12,23 @@ export default function TeamCard({ team, league, onClick }) {
       transition={{ duration: 0.3 }}
       onClick={onClick}
     >
-      <Card className="group hover:shadow-xl transition-all duration-300 border-slate-200 bg-white overflow-hidden cursor-pointer">
+      <Card className="group hover:shadow-xl transition-all duration-300 border-[var(--ct-border)] bg-[var(--ct-bg-card)] overflow-hidden cursor-pointer">
         {/* Team colour bar */}
         <div className="h-2" style={{ backgroundColor: team.color || "#f97316" }} />
 
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <CardTitle className="text-xl font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
+              <CardTitle className="text-xl font-bold text-[var(--ct-text-primary)] mb-2 group-hover:text-blue-600 transition-colors">
                 {team.name}
               </CardTitle>
               {team.short_name && (
-                <Badge variant="secondary" className="bg-slate-100 text-slate-600 mr-2">
+                <Badge variant="secondary" className="bg-[var(--ct-bg-elevated)] text-[var(--ct-text-secondary)] mr-2">
                   {team.short_name}
                 </Badge>
               )}
               {league && (
-                <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                <Badge variant="secondary" className="bg-[var(--ct-bg-elevated)] text-[var(--ct-text-primary)]">
                   {league.name}
                 </Badge>
               )}
@@ -59,7 +59,7 @@ export default function TeamCard({ team, league, onClick }) {
         </CardHeader>
 
         <CardContent>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
+          <div className="flex items-center gap-2 text-sm text-[var(--ct-text-secondary)]">
             <Users className="w-4 h-4" />
             <span>View roster</span>
           </div>

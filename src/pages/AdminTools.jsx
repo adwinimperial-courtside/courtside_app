@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { calculatePOGScore, findPlayerOfGame } from "@/components/utils/pogCalculator";
 import { resolveSettings } from "@/utils/awardDefaults";
+import { totalPoints } from "@/lib/playerStats";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -144,7 +145,7 @@ function StatRow({ row, onChange, hasError, errorMsg }) {
 
   const baseCls = "h-7 w-14 text-center text-xs px-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
   const inputCls = `${baseCls}${hasError ? " border-red-400 bg-red-50" : ""}`;
-  const disabledCls = `${baseCls} bg-slate-100 text-slate-400 cursor-not-allowed`;
+  const disabledCls = `${baseCls} bg-[var(--ct-bg-elevated)] text-[var(--ct-text-muted)] cursor-not-allowed`;
 
   const rowBg = hasError && !row.dnp
     ? "border-l-4 border-red-500 bg-red-50"
@@ -155,7 +156,7 @@ function StatRow({ row, onChange, hasError, errorMsg }) {
   return (
     <>
       <tr className={rowBg}>
-        <td className="py-1 px-2 text-xs text-slate-500 text-center">{row.jersey_number || "—"}</td>
+        <td className="py-1 px-2 text-xs text-[var(--ct-text-secondary)] text-center">{row.jersey_number || "—"}</td>
         <td className="py-1 px-2 text-sm font-medium whitespace-nowrap">{row.name}</td>
         <td className="py-1 px-1 text-center">
           <input
@@ -233,13 +234,13 @@ function StatsTable({ teamName, rows, onChange, teamColor = "slate", errors = []
     <div className="mb-6">
       <div className="flex items-center justify-between mb-2">
         <h4 className={`text-sm font-semibold text-${teamColor}-700`}>{teamName}</h4>
-        <Button variant="ghost" size="sm" onClick={clearAll} className="h-6 text-xs text-slate-500 px-2">
+        <Button variant="ghost" size="sm" onClick={clearAll} className="h-6 text-xs text-[var(--ct-text-secondary)] px-2">
           <RotateCcw className="w-3 h-3 mr-1" /> Clear All
         </Button>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm border border-slate-200 rounded">
-          <thead className="bg-slate-50 text-xs text-slate-600">
+        <table className="w-full text-sm border border-[var(--ct-border)] rounded">
+          <thead className="bg-[var(--ct-bg-page)] text-xs text-[var(--ct-text-secondary)]">
             <tr>
               <th className="py-1 px-2 text-center">#</th>
               <th className="py-1 px-2 text-left">Player</th>
@@ -258,7 +259,7 @@ function StatsTable({ teamName, rows, onChange, teamColor = "slate", errors = []
               <th className="py-1 px-1 text-center">UNSPO</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-[var(--ct-border)]">
             {rows.map((row, i) => (
               <StatRow
                 key={row.player_id}
@@ -275,7 +276,7 @@ function StatsTable({ teamName, rows, onChange, teamColor = "slate", errors = []
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-500 mt-1">
+      <p className="text-xs text-[var(--ct-text-secondary)] mt-1">
         {teamName} — Total: <b>{totals.pts}</b> PTS | <b>{totals.reb}</b> REB | <b>{totals.ast}</b> AST | <b>{totals.stl}</b> STL | <b>{totals.blk}</b> BLK
       </p>
     </div>
@@ -345,9 +346,9 @@ function PreSaveModal({ open, onClose, onSave, homeTeam, awayTeam, homeRows, awa
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="bg-slate-50 rounded-lg p-4 text-center">
-            <p className="text-sm text-slate-500 mb-1">Final Score</p>
-            <p className="text-2xl font-bold text-slate-900">
+          <div className="bg-[var(--ct-bg-page)] rounded-lg p-4 text-center">
+            <p className="text-sm text-[var(--ct-text-secondary)] mb-1">Final Score</p>
+            <p className="text-2xl font-bold text-[var(--ct-text-primary)]">
               {homeTeam?.name} <span className="text-orange-600">{homeScore}</span>
               {" — "}
               <span className="text-orange-600">{awayScore}</span> {awayTeam?.name}
@@ -355,16 +356,16 @@ function PreSaveModal({ open, onClose, onSave, homeTeam, awayTeam, homeRows, awa
           </div>
 
           <div>
-            <p className="text-sm font-medium text-slate-700 mb-1">Player of the Game</p>
+            <p className="text-sm font-medium text-[var(--ct-text-primary)] mb-1">Player of the Game</p>
             <div className="flex items-center gap-2 bg-amber-50 rounded-lg p-3 mb-2">
               <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
               <div>
                 <p className="text-sm font-semibold">{computedPog?.name ?? "—"}</p>
-                <p className="text-xs text-slate-500">Calculated GIS: {pogScore}</p>
+                <p className="text-xs text-[var(--ct-text-secondary)]">Calculated GIS: {pogScore}</p>
               </div>
             </div>
             <div>
-              <Label className="text-xs text-slate-500">Override POG (optional)</Label>
+              <Label className="text-xs text-[var(--ct-text-secondary)]">Override POG (optional)</Label>
               <Select value={pogOverride ?? "__auto__"} onValueChange={v => setPogOverride(v === "__auto__" ? null : v)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Use calculated POG" />
@@ -378,7 +379,7 @@ function PreSaveModal({ open, onClose, onSave, homeTeam, awayTeam, homeRows, awa
               </Select>
             </div>
             {effectivePog && pogOverride && (
-              <p className="text-xs text-slate-500 mt-1">Saving with: {effectivePog.name}</p>
+              <p className="text-xs text-[var(--ct-text-secondary)] mt-1">Saving with: {effectivePog.name}</p>
             )}
           </div>
         </div>
@@ -570,7 +571,7 @@ export default function AdminTools() {
             name: p.name,
             jersey_number: p.jersey_number || "",
             dnp: false,
-            pts: s.points || ((s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0)),
+            pts: totalPoints(s),
             three_pt: s.points_3 || 0,
             ft: s.free_throws || 0,
             ast: s.assists || 0,
@@ -748,12 +749,12 @@ export default function AdminTools() {
   // ── Access check ─────────────────────────────────────────────────────────────
   if (!canAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-xl border border-red-200 p-8 text-center">
+          <div className="bg-[var(--ct-bg-card)] rounded-xl border border-red-200 p-8 text-center">
             <Settings className="w-12 h-12 text-red-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
-            <p className="text-slate-600">You don't have permission to access this page.</p>
+            <h1 className="text-2xl font-bold text-[var(--ct-text-primary)] mb-2">Access Denied</h1>
+            <p className="text-[var(--ct-text-secondary)]">You don't have permission to access this page.</p>
           </div>
         </div>
       </div>
@@ -762,22 +763,22 @@ export default function AdminTools() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-[var(--ct-text-primary)] flex items-center gap-3">
             <Settings className="w-8 h-8 text-orange-600" />
             Admin Tools
           </h1>
-          <p className="text-slate-600 mt-1">Manage and maintain league data</p>
+          <p className="text-[var(--ct-text-secondary)] mt-1">Manage and maintain league data</p>
         </div>
 
         <div className="grid gap-6">
 
           {/* ── Manual Game Entry ─────────────────────────────────────────── */}
-          <Card className="border-slate-200 shadow-lg">
+          <Card className="border-[var(--ct-border)] ">
             <CardHeader
-              className="border-b border-slate-200 bg-white cursor-pointer select-none"
+              className="border-b border-[var(--ct-border)] bg-[var(--ct-bg-card)] cursor-pointer select-none"
               onClick={() => { setShowManual(v => !v); if (showManual) resetManual(); }}
             >
               <div className="flex items-center justify-between">
@@ -786,9 +787,9 @@ export default function AdminTools() {
                     <Plus className="w-5 h-5 text-orange-600" />
                     Manual Game Entry
                   </CardTitle>
-                  <p className="text-sm text-slate-500 mt-1">Add a completed game with full statistics</p>
+                  <p className="text-sm text-[var(--ct-text-secondary)] mt-1">Add a completed game with full statistics</p>
                 </div>
-                {showManual ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                {showManual ? <ChevronUp className="w-5 h-5 text-[var(--ct-text-muted)]" /> : <ChevronDown className="w-5 h-5 text-[var(--ct-text-muted)]" />}
               </div>
             </CardHeader>
 
@@ -834,7 +835,7 @@ export default function AdminTools() {
                       </div>
                     </div>
                     <div>
-                      <Label>Venue <span className="text-slate-400">(optional)</span></Label>
+                      <Label>Venue <span className="text-[var(--ct-text-muted)]">(optional)</span></Label>
                       <Input value={manualVenue} onChange={e => setManualVenue(e.target.value)} placeholder="Arena / gym name" className="mt-1" />
                     </div>
                     <div className="flex gap-2 pt-2">
@@ -851,9 +852,9 @@ export default function AdminTools() {
                 ) : (
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="text-sm text-slate-600">
+                      <div className="text-sm text-[var(--ct-text-secondary)]">
                         <span className="font-semibold">{manualHomeTeam?.name} vs {manualAwayTeam?.name}</span>
-                        {manualDate && <span className="ml-2 text-slate-400">— {format(new Date(manualDate), "MMM d, yyyy")}</span>}
+                        {manualDate && <span className="ml-2 text-[var(--ct-text-muted)]">— {format(new Date(manualDate), "MMM d, yyyy")}</span>}
                       </div>
                       <Button variant="outline" size="sm" onClick={() => setManualStep(1)}>Edit Details</Button>
                     </div>
@@ -891,9 +892,9 @@ export default function AdminTools() {
           </Card>
 
           {/* ── Edit Game ─────────────────────────────────────────────────── */}
-          <Card className="border-slate-200 shadow-lg">
+          <Card className="border-[var(--ct-border)] ">
             <CardHeader
-              className="border-b border-slate-200 bg-white cursor-pointer select-none"
+              className="border-b border-[var(--ct-border)] bg-[var(--ct-bg-card)] cursor-pointer select-none"
               onClick={() => { setShowEdit(v => !v); if (showEdit) resetEdit(); }}
             >
               <div className="flex items-center justify-between">
@@ -902,9 +903,9 @@ export default function AdminTools() {
                     <Settings className="w-5 h-5 text-blue-600" />
                     Edit Game
                   </CardTitle>
-                  <p className="text-sm text-slate-500 mt-1">Edit statistics for a completed game</p>
+                  <p className="text-sm text-[var(--ct-text-secondary)] mt-1">Edit statistics for a completed game</p>
                 </div>
-                {showEdit ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                {showEdit ? <ChevronUp className="w-5 h-5 text-[var(--ct-text-muted)]" /> : <ChevronDown className="w-5 h-5 text-[var(--ct-text-muted)]" />}
               </div>
             </CardHeader>
 
@@ -944,7 +945,7 @@ export default function AdminTools() {
                 ) : (
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="text-sm text-slate-600">
+                      <div className="text-sm text-[var(--ct-text-secondary)]">
                         <span className="font-semibold">Editing: {editGame ? formatGameHeader(editGame) : ""}</span>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => setEditStep(1)}>Change Game</Button>
@@ -983,20 +984,25 @@ export default function AdminTools() {
           </Card>
 
           {/* ── Delete Game ───────────────────────────────────────────────── */}
-          <Card className="border-red-200 shadow-lg">
+          <Card style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)" }}>
             <CardHeader
-              className="border-b border-red-200 bg-red-50 cursor-pointer select-none"
+              className="cursor-pointer select-none"
+              style={{ borderBottom: "1px solid var(--ct-border)" }}
               onClick={() => setShowDelete(v => !v)}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl flex items-center gap-2 text-red-700">
+                  <CardTitle className="text-xl flex items-center gap-2" style={{ color: "var(--ct-danger)" }}>
                     <Trash2 className="w-5 h-5" />
                     Delete Game
                   </CardTitle>
-                  <p className="text-sm text-red-600 mt-1">Permanently delete a game and all associated data</p>
+                  <p className="text-sm mt-1" style={{ color: "var(--ct-text-secondary)" }}>
+                    Permanently delete a game and all associated data
+                  </p>
                 </div>
-                {showDelete ? <ChevronUp className="w-5 h-5 text-red-400" /> : <ChevronDown className="w-5 h-5 text-red-400" />}
+                {showDelete
+                  ? <ChevronUp className="w-5 h-5" style={{ color: "var(--ct-text-muted)" }} />
+                  : <ChevronDown className="w-5 h-5" style={{ color: "var(--ct-text-muted)" }} />}
               </div>
             </CardHeader>
 
@@ -1023,9 +1029,9 @@ export default function AdminTools() {
                   )}
 
                   {deleteGame && (
-                    <div className="bg-slate-50 rounded-lg p-4 space-y-1">
+                    <div className="bg-[var(--ct-bg-page)] rounded-lg p-4 space-y-1">
                       <p className="font-semibold text-sm">{deleteGame.home_team?.name} vs {deleteGame.away_team?.name}</p>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-sm text-[var(--ct-text-secondary)]">
                         {deleteGame.scheduled_at ? format(new Date(deleteGame.scheduled_at), "MMM d, yyyy · h:mm a") : "—"}
                       </p>
                       <p className="text-sm">Score: {deleteGame.home_score ?? 0} – {deleteGame.away_score ?? 0}</p>
@@ -1034,9 +1040,17 @@ export default function AdminTools() {
                   )}
 
                   {deleteGame && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                      <p className="text-sm text-red-700">This will permanently delete the game, all player stats, and all game logs.</p>
+                    <div
+                      className="rounded-lg p-3 flex items-start gap-2"
+                      style={{
+                        background: "rgba(239, 68, 68, 0.1)",
+                        border: "1px solid rgba(239, 68, 68, 0.3)",
+                      }}
+                    >
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--ct-danger)" }} />
+                      <p className="text-sm" style={{ color: "var(--ct-danger)" }}>
+                        This will permanently delete the game, all player stats, and all game logs.
+                      </p>
                     </div>
                   )}
 
@@ -1053,9 +1067,9 @@ export default function AdminTools() {
           </Card>
 
           {/* ── Change History ────────────────────────────────────────────── */}
-          <Card className="border-slate-200 shadow-lg">
+          <Card className="border-[var(--ct-border)] ">
             <CardHeader
-              className="border-b border-slate-200 bg-white cursor-pointer select-none"
+              className="border-b border-[var(--ct-border)] bg-[var(--ct-bg-card)] cursor-pointer select-none"
               onClick={() => { setShowHistory(v => !v); setHistoryPage(0); }}
             >
               <div className="flex items-center justify-between">
@@ -1064,9 +1078,9 @@ export default function AdminTools() {
                     <History className="w-5 h-5 text-purple-600" />
                     Change History
                   </CardTitle>
-                  <p className="text-sm text-slate-500 mt-1">Audit trail of game edits</p>
+                  <p className="text-sm text-[var(--ct-text-secondary)] mt-1">Audit trail of game edits</p>
                 </div>
-                {showHistory ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                {showHistory ? <ChevronUp className="w-5 h-5 text-[var(--ct-text-muted)]" /> : <ChevronDown className="w-5 h-5 text-[var(--ct-text-muted)]" />}
               </div>
             </CardHeader>
 
@@ -1083,14 +1097,14 @@ export default function AdminTools() {
                 </div>
 
                 {historyLoading && historyPage === 0 ? (
-                  <p className="text-sm text-slate-500">Loading...</p>
+                  <p className="text-sm text-[var(--ct-text-secondary)]">Loading...</p>
                 ) : historyData.length === 0 ? (
-                  <p className="text-sm text-slate-500">No edit history found.</p>
+                  <p className="text-sm text-[var(--ct-text-secondary)]">No edit history found.</p>
                 ) : (
                   <>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="text-xs text-slate-500 border-b">
+                        <thead className="text-xs text-[var(--ct-text-secondary)] border-b">
                           <tr>
                             <th className="py-2 px-3 text-left">Date</th>
                             <th className="py-2 px-3 text-left">Changed By</th>
@@ -1098,12 +1112,12 @@ export default function AdminTools() {
                             <th className="py-2 px-3 text-left">Change</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-[var(--ct-border)]">
                           {historyData.map(row => {
                             const isDeleted = row.field_name === "game_deleted";
                             const rowCls = isDeleted
                               ? "bg-red-50 border-l-4 border-red-500"
-                              : "hover:bg-slate-50";
+                              : "hover:bg-[var(--ct-bg-elevated)]";
                             const gameLabel = row.game
                               ? `${row.game.home_team?.name} vs ${row.game.away_team?.name}`
                               : isDeleted
@@ -1111,15 +1125,15 @@ export default function AdminTools() {
                               : "—";
                             return (
                               <tr key={row.id} className={rowCls}>
-                                <td className="py-2 px-3 whitespace-nowrap text-slate-600 text-xs">
+                                <td className="py-2 px-3 whitespace-nowrap text-[var(--ct-text-secondary)] text-xs">
                                   {row.changed_at ? format(new Date(row.changed_at), "MMM d, yyyy · h:mm a") : "—"}
                                 </td>
-                                <td className="py-2 px-3 text-slate-700">{row.changed_by_profile?.display_name ?? "—"}</td>
+                                <td className="py-2 px-3 text-[var(--ct-text-primary)]">{row.changed_by_profile?.display_name ?? "—"}</td>
                                 <td className="py-2 px-3 whitespace-nowrap">
                                   {isDeleted ? (
                                     <span className="text-red-700 font-medium">{gameLabel}</span>
                                   ) : (
-                                    <span className="text-slate-700">{gameLabel}</span>
+                                    <span className="text-[var(--ct-text-primary)]">{gameLabel}</span>
                                   )}
                                 </td>
                                 <td className="py-2 px-3">
@@ -1128,7 +1142,7 @@ export default function AdminTools() {
                                       <Trash2 className="w-3.5 h-3.5" /> Game Deleted
                                     </span>
                                   ) : (
-                                    <span className="text-slate-600">{row.description || row.field_name}</span>
+                                    <span className="text-[var(--ct-text-secondary)]">{row.description || row.field_name}</span>
                                   )}
                                 </td>
                               </tr>
@@ -1193,9 +1207,9 @@ export default function AdminTools() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             {deleteGame && (
-              <div className="bg-slate-50 rounded-lg p-3 text-sm">
+              <div className="bg-[var(--ct-bg-page)] rounded-lg p-3 text-sm">
                 <p className="font-semibold">{deleteGame.home_team?.name} vs {deleteGame.away_team?.name}</p>
-                <p className="text-slate-500">{deleteGame.scheduled_at ? format(new Date(deleteGame.scheduled_at), "MMM d, yyyy") : "—"}</p>
+                <p className="text-[var(--ct-text-secondary)]">{deleteGame.scheduled_at ? format(new Date(deleteGame.scheduled_at), "MMM d, yyyy") : "—"}</p>
               </div>
             )}
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">

@@ -1,44 +1,16 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabaseClient";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { BarChart3, Filter, Shield, User, Trophy, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
+import { useIsNarrowLayout } from "@/lib/DevicePreviewContext";
+import { totalPoints as calcPts } from "@/lib/playerStats";
+import {
+  BarChart3, Shield, User, Trophy, ChevronUp, ChevronDown, Loader2, Search,
+} from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt1 = (n) => (n == null ? "0.0" : Number(n).toFixed(1));
-
-function calcPts(s) {
-  return (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0);
-}
-
-// ─── Sortable column header ───────────────────────────────────────────────────
-
-function SortTh({ label, col, sortCol, sortDir, onSort, className = "" }) {
-  const active = sortCol === col;
-  return (
-    <th
-      onClick={() => onSort(col)}
-      className={`py-3 px-2 text-center font-semibold cursor-pointer select-none whitespace-nowrap ${
-        active ? "text-purple-700" : "text-slate-500"
-      } ${className}`}
-    >
-      <span className="inline-flex items-center gap-0.5">
-        {label}
-        {active ? (
-          sortDir === "desc" ? (
-            <ChevronDown className="w-3 h-3" />
-          ) : (
-            <ChevronUp className="w-3 h-3" />
-          )
-        ) : (
-          <span className="text-slate-300 text-[10px]">↕</span>
-        )}
-      </span>
-    </th>
-  );
-}
 
 function useSort(defaultCol, defaultDir = "desc") {
   const [sortCol, setSortCol] = useState(defaultCol);
@@ -52,13 +24,294 @@ function useSort(defaultCol, defaultDir = "desc") {
     const bv = b[sortCol] ?? 0;
     return sortDir === "desc" ? bv - av : av - bv;
   };
-  return { sortCol, sortDir, onSort, sortFn };
+  return { sortCol, sortDir, onSort, setSortCol, setSortDir, sortFn };
+}
+
+// ─── Desktop sortable column header ───────────────────────────────────────────
+
+function SortTh({ label, col, sortCol, sortDir, onSort, className = "" }) {
+  const active = sortCol === col;
+  return (
+    <th
+      onClick={() => onSort(col)}
+      className={`py-3 px-2 text-center cursor-pointer select-none whitespace-nowrap text-xs font-semibold uppercase tracking-wider ${className}`}
+      style={{ color: active ? "var(--ct-accent)" : "var(--ct-text-secondary)" }}
+    >
+      <span className="inline-flex items-center gap-0.5">
+        {label}
+        {active ? (
+          sortDir === "desc"
+            ? <ChevronDown className="w-3 h-3" />
+            : <ChevronUp className="w-3 h-3" />
+        ) : (
+          <span style={{ color: "var(--ct-text-muted)", fontSize: 10 }}>↕</span>
+        )}
+      </span>
+    </th>
+  );
+}
+
+// ─── Pill bar ─────────────────────────────────────────────────────────────────
+
+function PillBar({ options, activeId, onChange, className = "" }) {
+  return (
+    <div
+      className={`flex gap-2 overflow-x-auto ${className}`}
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+    >
+      {options.map(opt => {
+        const active = activeId === opt.id;
+        return (
+          <button
+            key={opt.id}
+            onClick={() => onChange(opt.id)}
+            className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+            style={{
+              background: active ? "var(--ct-accent)" : "var(--ct-bg-elevated)",
+              color:      active ? "#ffffff"  : "var(--ct-text-secondary)",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Dropdown pill (for League + Team filters) ────────────────────────────────
+
+function DropdownPill({ label, options, selectedId, onChange, active = false }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+        style={{
+          background: active ? "var(--ct-accent)" : "var(--ct-bg-elevated)",
+          color:      active ? "#ffffff"  : "var(--ct-text-secondary)",
+          border: "none",
+          cursor: "pointer",
+          maxWidth: 180,
+        }}
+      >
+        <span className="truncate">{label}</span>
+        <ChevronDown className="w-3 h-3 flex-shrink-0" />
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-full left-0 mt-1 rounded-xl p-2 min-w-[200px] z-50"
+          style={{
+            background: "var(--ct-bg-card)",
+            border: "1px solid var(--ct-border)",
+            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.6)",
+            maxHeight: "60vh",
+            overflowY: "auto",
+          }}
+        >
+          {options.map(opt => {
+            const sel = opt.id === selectedId;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => { onChange(opt.id); setOpen(false); }}
+                className="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap block"
+                style={{
+                  background: "transparent",
+                  color: sel ? "var(--ct-accent)" : "var(--ct-text-secondary)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: sel ? 600 : 400,
+                }}
+                onMouseEnter={e => {
+                  if (!sel) {
+                    e.currentTarget.style.background = "var(--ct-bg-elevated)";
+                    e.currentTarget.style.color = "var(--ct-text-primary)";
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!sel) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "var(--ct-text-secondary)";
+                  }
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Collapsible search (mobile player tab) ───────────────────────────────────
+
+function CollapsibleSearch({ value, onChange, placeholder }) {
+  const [expanded, setExpanded] = useState(!!value);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (expanded) inputRef.current?.focus();
+  }, [expanded]);
+
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+        style={{
+          background: "var(--ct-bg-elevated)",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--ct-text-secondary)",
+        }}
+        aria-label="Search players"
+      >
+        <Search className="w-4 h-4" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative flex-1 min-w-[140px]">
+      <Search
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+        style={{ color: "var(--ct-text-muted)" }}
+      />
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onBlur={() => { if (!value) setExpanded(false); }}
+        placeholder={placeholder}
+        className="w-full pl-9 pr-3 py-1.5 rounded-full text-sm focus:outline-none"
+        style={{
+          background: "var(--ct-bg-elevated)",
+          border: "1px solid var(--ct-border)",
+          color: "var(--ct-text-primary)",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Stat cell (mobile card grid) ─────────────────────────────────────────────
+
+function StatCell({ label, value, highlight }) {
+  return (
+    <div>
+      <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--ct-text-muted)" }}>
+        {label}
+      </div>
+      <div
+        className="text-lg font-bold leading-tight mt-0.5"
+        style={{ color: highlight ? "var(--ct-accent)" : "var(--ct-text-primary)" }}
+      >
+        {value}
+      </div>
+    </div>
+  );
 }
 
 // ─── Tab 1: Team Stats ────────────────────────────────────────────────────────
 
-function TeamStatsTab({ teams, allStats, selectedTeamId }) {
-  const { sortCol, sortDir, onSort, sortFn } = useSort("pts");
+const TEAM_SORT_PILLS = [
+  { id: "pts",  label: "PPG"  },
+  { id: "reb",  label: "RPG"  },
+  { id: "ast",  label: "APG"  },
+  { id: "stl",  label: "SPG"  },
+  { id: "blk",  label: "BPG"  },
+  { id: "to",   label: "TO"   },
+  { id: "gp",   label: "GP"   },
+];
+
+function TeamCardMobile({ team, sortCol, isExpanded, onToggle }) {
+  return (
+    <div
+      className="rounded-xl mb-2"
+      style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)", padding: "16px" }}
+    >
+      <button
+        onClick={onToggle}
+        className="w-full text-left bg-transparent border-0 p-0 cursor-pointer"
+      >
+        {/* Top row: logo + name on left, W-L on right isn't available here (no wins/losses in stats scope).
+            Show GP as the right indicator. */}
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="rounded-full flex items-center justify-center text-white text-base font-bold flex-shrink-0"
+            style={{ width: 44, height: 44, backgroundColor: team.color || "var(--ct-accent)" }}
+          >
+            {team.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-base font-semibold truncate" style={{ color: "var(--ct-text-primary)" }}>
+              {team.name}
+            </div>
+            <div className="text-xs mt-0.5" style={{ color: "var(--ct-text-muted)" }}>
+              {team.gp} {team.gp === 1 ? "game" : "games"} played
+            </div>
+          </div>
+          <ChevronDown
+            className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+            style={{ color: "var(--ct-text-muted)" }}
+          />
+        </div>
+
+        {/* 4-stat grid: PPG RPG APG SPG */}
+        <div className="grid grid-cols-4 gap-2">
+          <StatCell label="PPG" value={fmt1(team.pts)} highlight={sortCol === "pts"} />
+          <StatCell label="RPG" value={fmt1(team.reb)} highlight={sortCol === "reb"} />
+          <StatCell label="APG" value={fmt1(team.ast)} highlight={sortCol === "ast"} />
+          <StatCell label="SPG" value={fmt1(team.stl)} highlight={sortCol === "stl"} />
+        </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div
+              className="rounded-lg mt-3 p-3 grid grid-cols-4 gap-2"
+              style={{ background: "var(--ct-bg-page)" }}
+            >
+              <StatCell label="OREB" value={fmt1(team.oreb)} highlight={sortCol === "oreb"} />
+              <StatCell label="DREB" value={fmt1(team.dreb)} highlight={sortCol === "dreb"} />
+              <StatCell label="BPG"  value={fmt1(team.blk)}  highlight={sortCol === "blk"} />
+              <StatCell label="TO"   value={fmt1(team.to)}   highlight={sortCol === "to"} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function TeamStatsTab({ teams, allStats, selectedTeamId, isNarrow }) {
+  const { sortCol, sortDir, onSort, setSortCol, sortFn } = useSort("pts");
+  const [expandedId, setExpandedId] = useState(null);
 
   const rows = useMemo(() => {
     const filtered = selectedTeamId === "all" ? teams : teams.filter(t => t.id === selectedTeamId);
@@ -92,60 +345,99 @@ function TeamStatsTab({ teams, allStats, selectedTeamId }) {
   }, [teams, allStats, selectedTeamId, sortFn]);
 
   if (rows.length === 0) {
-    return <p className="text-slate-500 text-center py-12">No team stats available yet.</p>;
+    return <p className="text-center py-12" style={{ color: "var(--ct-text-muted)" }}>No team stats available yet.</p>;
   }
 
   const thProps = { sortCol, sortDir, onSort };
 
+  if (isNarrow) {
+    return (
+      <div>
+        {/* Section label + mobile sort pills */}
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="w-4 h-4" style={{ color: "var(--ct-accent)" }} />
+          <span className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>Team Statistics</span>
+        </div>
+        <div className="mb-3">
+          <PillBar
+            options={TEAM_SORT_PILLS}
+            activeId={sortCol}
+            onChange={(id) => setSortCol(id)}
+          />
+        </div>
+        {rows.map(team => (
+          <TeamCardMobile
+            key={team.id}
+            team={team}
+            sortCol={sortCol}
+            isExpanded={expandedId === team.id}
+            onToggle={() => setExpandedId(expandedId === team.id ? null : team.id)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Desktop table
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <Shield className="w-4 h-4 text-purple-600" />
-        <span className="font-semibold text-slate-900">Team Statistics (Per Game Averages)</span>
+        <Shield className="w-4 h-4" style={{ color: "var(--ct-accent)" }} />
+        <span className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>Team Statistics (Per Game Averages)</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="py-3 px-3 text-left font-semibold text-slate-500 whitespace-nowrap">Team</th>
-              <SortTh label="GP"   col="gp"   {...thProps} />
-              <SortTh label="PTS"  col="pts"  {...thProps} />
-              <SortTh label="REB"  col="reb"  {...thProps} />
-              <SortTh label="AST"  col="ast"  {...thProps} />
-              <SortTh label="OREB" col="oreb" {...thProps} />
-              <SortTh label="DREB" col="dreb" {...thProps} />
-              <SortTh label="STL"  col="stl"  {...thProps} />
-              <SortTh label="BLK"  col="blk"  {...thProps} />
-              <SortTh label="TO"   col="to"   {...thProps} />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(team => (
-              <tr key={team.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                <td className="py-3 px-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: team.color || "#3b82f6" }}
-                    >
-                      {team.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="font-bold text-slate-900 uppercase tracking-wide text-xs">{team.name}</span>
-                  </div>
-                </td>
-                <td className="py-3 px-2 text-center text-slate-700">{team.gp}</td>
-                <td className="py-3 px-2 text-center font-bold text-purple-700">{fmt1(team.pts)}</td>
-                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.reb)}</td>
-                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.ast)}</td>
-                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.oreb)}</td>
-                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.dreb)}</td>
-                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.stl)}</td>
-                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.blk)}</td>
-                <td className="py-3 px-2 text-center text-slate-700">{fmt1(team.to)}</td>
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)" }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
+            <thead>
+              <tr style={{ background: "var(--ct-bg-elevated)", borderBottom: "1px solid var(--ct-border)" }}>
+                <th className="py-3 px-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--ct-text-secondary)" }}>Team</th>
+                <SortTh label="GP"   col="gp"   {...thProps} />
+                <SortTh label="PTS"  col="pts"  {...thProps} />
+                <SortTh label="REB"  col="reb"  {...thProps} />
+                <SortTh label="AST"  col="ast"  {...thProps} />
+                <SortTh label="OREB" col="oreb" {...thProps} />
+                <SortTh label="DREB" col="dreb" {...thProps} />
+                <SortTh label="STL"  col="stl"  {...thProps} />
+                <SortTh label="BLK"  col="blk"  {...thProps} />
+                <SortTh label="TO"   col="to"   {...thProps} />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map(team => (
+                <tr
+                  key={team.id}
+                  style={{ borderBottom: "1px solid var(--ct-border)" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--ct-bg-elevated)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <td className="py-3 px-3">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: team.color || "var(--ct-accent)" }}
+                      >
+                        {team.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="font-semibold text-xs whitespace-nowrap" style={{ color: "var(--ct-text-primary)" }}>{team.name}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{team.gp}</td>
+                  <td className="py-3 px-2 text-center font-bold" style={{ color: "var(--ct-accent)" }}>{fmt1(team.pts)}</td>
+                  <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(team.reb)}</td>
+                  <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(team.ast)}</td>
+                  <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(team.oreb)}</td>
+                  <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(team.dreb)}</td>
+                  <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(team.stl)}</td>
+                  <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(team.blk)}</td>
+                  <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(team.to)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -153,8 +445,93 @@ function TeamStatsTab({ teams, allStats, selectedTeamId }) {
 
 // ─── Tab 2: Player Stats ──────────────────────────────────────────────────────
 
-function PlayerStatsTab({ players, teams, allStats, selectedTeamId, playerSearch }) {
-  const { sortCol, sortDir, onSort, sortFn } = useSort("ppg");
+const PLAYER_SORT_PILLS = [
+  { id: "ppg", label: "PPG" },
+  { id: "rpg", label: "RPG" },
+  { id: "apg", label: "APG" },
+  { id: "stl", label: "SPG" },
+  { id: "blk", label: "BPG" },
+  { id: "pm3", label: "3PM" },
+  { id: "pm2", label: "2PM" },
+];
+
+function PlayerCardMobile({ player, sortCol, isExpanded, onToggle }) {
+  const name = player.name || `${player.first_name || ""} ${player.last_name || ""}`.trim() || "Unknown";
+  const teamAbbr = player.team?.short_name || player.team?.name || "—";
+
+  return (
+    <div
+      className="rounded-xl mb-2"
+      style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)", padding: "16px" }}
+    >
+      <button
+        onClick={onToggle}
+        className="w-full text-left bg-transparent border-0 p-0 cursor-pointer"
+      >
+        {/* Top row: jersey circle + name + team abbr */}
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+            style={{ width: 36, height: 36, backgroundColor: player.team?.color || "var(--ct-accent)" }}
+          >
+            {player.jersey_number ?? "—"}
+          </div>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <div className="text-base font-semibold truncate" style={{ color: "var(--ct-text-primary)" }}>
+              {name}
+            </div>
+          </div>
+          <span className="text-xs font-semibold uppercase flex-shrink-0" style={{ color: "var(--ct-text-secondary)" }}>
+            {teamAbbr}
+          </span>
+          <ChevronDown
+            className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+            style={{ color: "var(--ct-text-muted)" }}
+          />
+        </div>
+
+        {/* 4-stat grid: PPG RPG APG SPG */}
+        <div className="grid grid-cols-4 gap-2">
+          <StatCell label="PPG" value={fmt1(player.ppg)} highlight={sortCol === "ppg"} />
+          <StatCell label="RPG" value={fmt1(player.rpg)} highlight={sortCol === "rpg"} />
+          <StatCell label="APG" value={fmt1(player.apg)} highlight={sortCol === "apg"} />
+          <StatCell label="SPG" value={fmt1(player.stl)} highlight={sortCol === "stl"} />
+        </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div
+              className="rounded-lg mt-3 p-3 grid grid-cols-4 gap-2"
+              style={{ background: "var(--ct-bg-page)" }}
+            >
+              <StatCell label="GP"   value={player.gp}        highlight={sortCol === "gp"} />
+              <StatCell label="2PM"  value={fmt1(player.pm2)} highlight={sortCol === "pm2"} />
+              <StatCell label="3PM"  value={fmt1(player.pm3)} highlight={sortCol === "pm3"} />
+              <StatCell label="FTM"  value={fmt1(player.ftm)} highlight={sortCol === "ftm"} />
+              <StatCell label="OREB" value={fmt1(player.oreb)} highlight={sortCol === "oreb"} />
+              <StatCell label="DREB" value={fmt1(player.dreb)} highlight={sortCol === "dreb"} />
+              <StatCell label="BPG"  value={fmt1(player.blk)} highlight={sortCol === "blk"} />
+              <StatCell label="TO"   value={fmt1(player.to)}  highlight={sortCol === "to"} />
+              <StatCell label="PF"   value={fmt1(player.pf)}  highlight={sortCol === "pf"} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function PlayerStatsTab({ players, teams, allStats, selectedTeamId, playerSearch, isNarrow }) {
+  const { sortCol, sortDir, onSort, setSortCol, sortFn } = useSort("ppg");
+  const [expandedId, setExpandedId] = useState(null);
 
   const rows = useMemo(() => {
     const search = playerSearch.trim().toLowerCase();
@@ -169,7 +546,6 @@ function PlayerStatsTab({ players, teams, allStats, selectedTeamId, playerSearch
       const ps = allStats.filter(s => s.player_id === player.id);
       if (ps.length === 0) return null;
 
-      // Group by game, sum per game, then average
       const byGame = {};
       ps.forEach(s => {
         if (!byGame[s.game_id]) byGame[s.game_id] = [];
@@ -216,75 +592,113 @@ function PlayerStatsTab({ players, teams, allStats, selectedTeamId, playerSearch
   }, [players, teams, allStats, selectedTeamId, playerSearch, sortFn]);
 
   if (rows.length === 0) {
-    return <p className="text-slate-500 text-center py-12">No player stats available yet.</p>;
+    return <p className="text-center py-12" style={{ color: "var(--ct-text-muted)" }}>No player stats available yet.</p>;
   }
 
   const thProps = { sortCol, sortDir, onSort };
 
+  if (isNarrow) {
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <User className="w-4 h-4" style={{ color: "var(--ct-accent)" }} />
+          <span className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>Player Statistics</span>
+        </div>
+        <div className="mb-3">
+          <PillBar
+            options={PLAYER_SORT_PILLS}
+            activeId={sortCol}
+            onChange={(id) => setSortCol(id)}
+          />
+        </div>
+        {rows.map(player => (
+          <PlayerCardMobile
+            key={player.id}
+            player={player}
+            sortCol={sortCol}
+            isExpanded={expandedId === player.id}
+            onToggle={() => setExpandedId(expandedId === player.id ? null : player.id)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Desktop table
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <User className="w-4 h-4 text-purple-600" />
-        <span className="font-semibold text-slate-900">Player Statistics</span>
+        <User className="w-4 h-4" style={{ color: "var(--ct-accent)" }} />
+        <span className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>Player Statistics</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[900px]">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="py-3 px-3 text-left font-semibold text-slate-500 whitespace-nowrap">Player</th>
-              <th className="py-3 px-2 text-left font-semibold text-slate-500 whitespace-nowrap">Team</th>
-              <SortTh label="GP"   col="gp"   {...thProps} />
-              <SortTh label="PPG"  col="ppg"  {...thProps} />
-              <SortTh label="2PM"  col="pm2"  {...thProps} />
-              <SortTh label="3PM"  col="pm3"  {...thProps} />
-              <SortTh label="FTM"  col="ftm"  {...thProps} />
-              <SortTh label="OREB" col="oreb" {...thProps} />
-              <SortTh label="DREB" col="dreb" {...thProps} />
-              <SortTh label="RPG"  col="rpg"  {...thProps} />
-              <SortTh label="APG"  col="apg"  {...thProps} />
-              <SortTh label="STL"  col="stl"  {...thProps} />
-              <SortTh label="BLK"  col="blk"  {...thProps} />
-              <SortTh label="TO"   col="to"   {...thProps} />
-              <SortTh label="PF"   col="pf"   {...thProps} />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(player => {
-              const name = player.name || `${player.first_name || ""} ${player.last_name || ""}`.trim() || "Unknown";
-              return (
-                <tr key={player.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                  <td className="py-3 px-3">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                        style={{ backgroundColor: player.team?.color || "#3b82f6" }}
-                      >
-                        {player.jersey_number ?? "—"}
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)" }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[900px]">
+            <thead>
+              <tr style={{ background: "var(--ct-bg-elevated)", borderBottom: "1px solid var(--ct-border)" }}>
+                <th className="py-3 px-3 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--ct-text-secondary)" }}>Player</th>
+                <th className="py-3 px-2 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--ct-text-secondary)" }}>Team</th>
+                <SortTh label="GP"   col="gp"   {...thProps} />
+                <SortTh label="PPG"  col="ppg"  {...thProps} />
+                <SortTh label="2PM"  col="pm2"  {...thProps} />
+                <SortTh label="3PM"  col="pm3"  {...thProps} />
+                <SortTh label="FTM"  col="ftm"  {...thProps} />
+                <SortTh label="OREB" col="oreb" {...thProps} />
+                <SortTh label="DREB" col="dreb" {...thProps} />
+                <SortTh label="RPG"  col="rpg"  {...thProps} />
+                <SortTh label="APG"  col="apg"  {...thProps} />
+                <SortTh label="STL"  col="stl"  {...thProps} />
+                <SortTh label="BLK"  col="blk"  {...thProps} />
+                <SortTh label="TO"   col="to"   {...thProps} />
+                <SortTh label="PF"   col="pf"   {...thProps} />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(player => {
+                const name = player.name || `${player.first_name || ""} ${player.last_name || ""}`.trim() || "Unknown";
+                return (
+                  <tr
+                    key={player.id}
+                    style={{ borderBottom: "1px solid var(--ct-border)" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--ct-bg-elevated)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                          style={{ backgroundColor: player.team?.color || "var(--ct-accent)" }}
+                        >
+                          {player.jersey_number ?? "—"}
+                        </div>
+                        <span className="font-semibold text-xs whitespace-nowrap" style={{ color: "var(--ct-text-primary)" }}>{name}</span>
                       </div>
-                      <span className="font-bold text-slate-900 uppercase tracking-wide text-xs whitespace-nowrap">{name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-2 text-slate-500 uppercase text-xs font-semibold whitespace-nowrap">
-                    {player.team?.short_name || player.team?.name || "—"}
-                  </td>
-                  <td className="py-3 px-2 text-center text-slate-700">{player.gp}</td>
-                  <td className="py-3 px-2 text-center font-bold text-purple-700">{fmt1(player.ppg)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.pm2)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.pm3)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.ftm)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.oreb)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.dreb)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.rpg)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.apg)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.stl)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.blk)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.to)}</td>
-                  <td className="py-3 px-2 text-center text-slate-700">{fmt1(player.pf)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="py-3 px-2 text-xs font-semibold uppercase whitespace-nowrap" style={{ color: "var(--ct-text-secondary)" }}>
+                      {player.team?.short_name || player.team?.name || "—"}
+                    </td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{player.gp}</td>
+                    <td className="py-3 px-2 text-center font-bold" style={{ color: "var(--ct-accent)" }}>{fmt1(player.ppg)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.pm2)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.pm3)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.ftm)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.oreb)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.dreb)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.rpg)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.apg)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.stl)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.blk)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.to)}</td>
+                    <td className="py-3 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{fmt1(player.pf)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -293,58 +707,75 @@ function PlayerStatsTab({ players, teams, allStats, selectedTeamId, playerSearch
 // ─── Tab 3: League Leaders ────────────────────────────────────────────────────
 
 const LEADER_CATEGORIES = [
-  { key: "ppg",  label: "PPG Leaders",  icon: "🏀" },
-  { key: "pm3",  label: "3PM Leaders",  icon: "🎯" },
-  { key: "rpg",  label: "RPG Leaders",  icon: "💪" },
-  { key: "apg",  label: "APG Leaders",  icon: "🤝" },
-  { key: "stl",  label: "SPG Leaders",  icon: "🏆" },
-  { key: "blk",  label: "BPG Leaders",  icon: "🚫" },
+  { key: "ppg", label: "PPG Leaders", short: "PPG", icon: "🏀" },
+  { key: "pm3", label: "3PM Leaders", short: "3PM", icon: "🎯" },
+  { key: "rpg", label: "RPG Leaders", short: "RPG", icon: "💪" },
+  { key: "apg", label: "APG Leaders", short: "APG", icon: "🤝" },
+  { key: "stl", label: "SPG Leaders", short: "SPG", icon: "🏆" },
+  { key: "blk", label: "BPG Leaders", short: "BPG", icon: "🚫" },
 ];
 
-const RANK_STYLE = [
-  "bg-yellow-400 text-yellow-900",   // #1 gold
-  "bg-slate-300 text-slate-700",     // #2 silver
-  "bg-orange-400 text-white",        // #3 bronze
-  "bg-slate-200 text-slate-500",     // #4
-  "bg-slate-200 text-slate-500",     // #5
-];
-
-function LeaderCard({ category, leaderRows }) {
+function LeaderCategoryCard({ category, rows }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+    <div
+      id={`leader-${category.key}`}
+      className="rounded-xl"
+      style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)", padding: "16px" }}
+    >
       <div className="flex items-center gap-2 mb-3">
         <span className="text-xl">{category.icon}</span>
-        <span className="font-bold text-slate-900 text-sm">{category.label}</span>
+        <span className="text-base font-semibold" style={{ color: "var(--ct-text-primary)" }}>{category.label}</span>
       </div>
-      {leaderRows.length === 0 ? (
-        <p className="text-slate-400 text-xs text-center py-4">No data yet</p>
+
+      {rows.length === 0 ? (
+        <div className="text-sm text-center py-4" style={{ color: "var(--ct-text-muted)" }}>No data yet</div>
       ) : (
-        <div className="space-y-2">
-          {leaderRows.map((row, i) => (
-            <div key={row.id} className="flex items-center gap-2">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${RANK_STYLE[i] || RANK_STYLE[4]}`}>
-                {i + 1}
-              </span>
+        <div>
+          {rows.map((row, i) => {
+            const rank = i + 1;
+            const rankColor = rank === 1 ? "var(--ct-accent-gold)" : rank <= 3 ? "var(--ct-text-primary)" : "var(--ct-text-secondary)";
+            const isLast = i === rows.length - 1;
+            const name = row.playerName;
+            const teamAbbr = row.team?.short_name || row.team?.name || "—";
+            return (
               <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                style={{ backgroundColor: row.team?.color || "#3b82f6" }}
+                key={row.id}
+                className="flex items-center gap-3 py-2.5"
+                style={{ borderBottom: isLast ? "none" : "1px solid var(--ct-border)" }}
               >
-                {row.jersey_number ?? "—"}
+                <span
+                  className="w-5 text-center text-sm font-bold flex-shrink-0"
+                  style={{ color: rankColor }}
+                >
+                  {rank}
+                </span>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                  style={{ backgroundColor: row.team?.color || "var(--ct-accent)" }}
+                >
+                  {row.jersey_number ?? "—"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate" style={{ color: "var(--ct-text-primary)" }}>
+                    {name}
+                  </div>
+                  <div className="text-xs mt-0.5 truncate" style={{ color: "var(--ct-text-muted)" }}>
+                    {teamAbbr}
+                  </div>
+                </div>
+                <span className="text-base font-bold flex-shrink-0" style={{ color: "var(--ct-accent)" }}>
+                  {fmt1(row[category.key])}
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-slate-900 text-xs truncate uppercase">{row.playerName}</div>
-                <div className="text-slate-400 text-[10px] truncate uppercase">{row.team?.short_name || row.team?.name || "—"}</div>
-              </div>
-              <span className="font-bold text-purple-700 text-sm flex-shrink-0">{fmt1(row[category.key])}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-function LeagueLeadersTab({ players, teams, allStats }) {
+function LeagueLeadersTab({ players, teams, allStats, isNarrow }) {
   const leaderData = useMemo(() => {
     return players.map(player => {
       const ps = allStats.filter(s => s.player_id === player.id);
@@ -384,15 +815,47 @@ function LeagueLeadersTab({ players, teams, allStats }) {
 
   const top5 = (key) => [...leaderData].sort((a, b) => b[key] - a[key]).slice(0, 5);
 
+  const scrollToCategory = (key) => {
+    const el = document.getElementById(`leader-${key}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const categoryPillOptions = LEADER_CATEGORIES.map(c => ({ id: c.key, label: c.short }));
+  const [activeCategoryPill, setActiveCategoryPill] = useState(LEADER_CATEGORIES[0].key);
+
+  if (isNarrow) {
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Trophy className="w-4 h-4" style={{ color: "var(--ct-accent)" }} />
+          <span className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>League Leaders</span>
+        </div>
+        <div className="mb-3">
+          <PillBar
+            options={categoryPillOptions}
+            activeId={activeCategoryPill}
+            onChange={(id) => { setActiveCategoryPill(id); scrollToCategory(id); }}
+          />
+        </div>
+        <div className="flex flex-col gap-3">
+          {LEADER_CATEGORIES.map(cat => (
+            <LeaderCategoryCard key={cat.key} category={cat} rows={top5(cat.key)} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop grid (3 cols lg, 2 cols md)
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <Trophy className="w-4 h-4 text-purple-600" />
-        <span className="font-semibold text-slate-900">League Leaders</span>
+        <Trophy className="w-4 h-4" style={{ color: "var(--ct-accent)" }} />
+        <span className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>League Leaders</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {LEADER_CATEGORIES.map(cat => (
-          <LeaderCard key={cat.key} category={cat} leaderRows={top5(cat.key)} />
+          <LeaderCategoryCard key={cat.key} category={cat} rows={top5(cat.key)} />
         ))}
       </div>
     </div>
@@ -404,8 +867,10 @@ function LeagueLeadersTab({ players, teams, allStats }) {
 export default function Statistics() {
   const [selectedLeagueId, setSelectedLeagueId] = useState(null);
   const [selectedTeamId,   setSelectedTeamId]   = useState("all");
-  const [playerSearch,     setPlayerSearch]      = useState("");
-  const [activeTab,        setActiveTab]         = useState("team");
+  const [playerSearch,     setPlayerSearch]     = useState("");
+  const [activeTab,        setActiveTab]        = useState("team");
+
+  const isNarrow = useIsNarrowLayout();
 
   // Debounce player search
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -422,7 +887,6 @@ export default function Statistics() {
         .then(({ data, error }) => { if (error) throw error; return data || []; }),
   });
 
-  // Default to first league
   useEffect(() => {
     if (leagues.length > 0 && !selectedLeagueId) setSelectedLeagueId(leagues[0].id);
   }, [leagues, selectedLeagueId]);
@@ -470,147 +934,189 @@ export default function Statistics() {
   const isLoading = leaguesLoading || teamsLoading || playersLoading || gamesLoading || statsLoading;
 
   const TABS = [
-    { id: "team",    label: "Team Stats" },
-    { id: "player",  label: "Player Stats" },
-    { id: "leaders", label: "League Leaders" },
+    { id: "team",    short: "Teams",   long: "Team Stats"     },
+    { id: "player",  short: "Players", long: "Player Stats"   },
+    { id: "leaders", short: "Leaders", long: "League Leaders" },
   ];
 
+  // Filter pill options
+  const leaguePillOptions = leagues.map(l => ({ id: l.id, label: l.name }));
+  const teamPillOptions = [
+    { id: "all", label: "All Teams" },
+    ...teams.map(t => ({ id: t.id, label: t.name })),
+  ];
+
+  const currentLeague = leagues.find(l => l.id === selectedLeagueId);
+  const currentTeam = selectedTeamId === "all"
+    ? null
+    : teams.find(t => t.id === selectedTeamId);
+  const teamPillLabel = currentTeam ? currentTeam.name : "All Teams";
+  const leaguePillLabel = currentLeague ? currentLeague.name : "League";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-4 md:py-12">
+    <div className="min-h-screen" style={{ background: "var(--color-bg-page)" }}>
 
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-              <BarChart3 className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-slate-900">Statistics</h1>
+      {/* Header */}
+      <div className="px-4 sm:px-6 lg:px-8 pt-4 md:pt-8 pb-3">
+        <div className="max-w-[1600px] mx-auto flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--ct-accent)" }}
+          >
+            <BarChart3 className="w-5 h-5 text-white" />
           </div>
-          <p className="text-slate-600 text-xs sm:text-sm pl-1">League, team and player statistics</p>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold leading-tight" style={{ color: "var(--ct-text-primary)" }}>
+              Statistics
+            </h1>
+            <p className="text-xs sm:text-sm" style={{ color: "var(--ct-text-muted)" }}>
+              League, team and player statistics
+            </p>
+          </div>
         </div>
+      </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-6 mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-purple-600" />
-            <span className="font-semibold text-slate-900 text-base">Filters</span>
+      {/* Sticky section: Tabs + Filter pills */}
+      <div
+        className="sticky top-0 z-10"
+        style={{ background: "var(--color-bg-page)" }}
+      >
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-3 flex flex-col gap-3">
+          {/* Tab bar — horizontally scrollable so short labels always fit on one line */}
+          <div
+            className="overflow-x-auto"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            <div
+              className="inline-flex p-1 rounded-full gap-1"
+              style={{ background: "var(--ct-bg-card)" }}
+            >
+              {TABS.map(tab => {
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className="px-4 py-2 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
+                    style={{
+                      background: active ? "var(--ct-accent)" : "transparent",
+                      color:      active ? "#ffffff" : "var(--ct-text-secondary)",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {isNarrow ? tab.short : tab.long}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {/* League */}
-            <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">League</label>
-              {leaguesLoading ? (
-                <div className="flex items-center gap-2 text-slate-400 text-sm py-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
-              ) : (
-                <Select
-                  value={selectedLeagueId || ""}
-                  onValueChange={v => { setSelectedLeagueId(v); setSelectedTeamId("all"); setPlayerSearch(""); }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select league" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leagues.map(l => (
-                      <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+          {/* Compact filter row: league pill + team dropdown + (search on player tab) */}
+          {leaguesLoading ? (
+            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--ct-text-muted)" }}>
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading leagues…
+            </div>
+          ) : leagues.length > 0 && (
+            <div
+              className="flex gap-2 items-center overflow-x-auto"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {/* League dropdown pill — active blue */}
+              <DropdownPill
+                active
+                label={leaguePillLabel}
+                options={leaguePillOptions}
+                selectedId={selectedLeagueId}
+                onChange={(id) => { setSelectedLeagueId(id); setSelectedTeamId("all"); setPlayerSearch(""); }}
+              />
+
+              {/* Team dropdown pill */}
+              {teams.length > 0 && (
+                <DropdownPill
+                  label={teamPillLabel}
+                  options={teamPillOptions}
+                  selectedId={selectedTeamId}
+                  onChange={(id) => { setSelectedTeamId(id); setPlayerSearch(""); }}
+                />
+              )}
+
+              {/* Player search — collapsible on mobile, inline input on desktop */}
+              {activeTab === "player" && (
+                isNarrow ? (
+                  <CollapsibleSearch
+                    value={playerSearch}
+                    onChange={setPlayerSearch}
+                    placeholder="Search players…"
+                  />
+                ) : (
+                  <div className="relative flex-shrink-0" style={{ width: 220 }}>
+                    <Search
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                      style={{ color: "var(--ct-text-muted)" }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search players…"
+                      value={playerSearch}
+                      onChange={e => setPlayerSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-1.5 rounded-full text-sm focus:outline-none"
+                      style={{
+                        background: "var(--ct-bg-elevated)",
+                        border: "1px solid var(--ct-border)",
+                        color: "var(--ct-text-primary)",
+                      }}
+                    />
+                  </div>
+                )
               )}
             </div>
+          )}
+        </div>
+      </div>
 
-            {/* Team */}
-            <div>
-              <label className="text-xs font-medium text-slate-600 mb-1 block">Team</label>
-              <Select
-                value={selectedTeamId}
-                onValueChange={v => { setSelectedTeamId(v); setPlayerSearch(""); }}
-                disabled={!selectedLeagueId || teams.length === 0}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="All Teams" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Teams</SelectItem>
-                  {teams.map(t => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Tab content */}
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 pb-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--ct-text-muted)" }} />
+          </div>
+        ) : !selectedLeagueId ? (
+          <div className="flex flex-col items-center justify-center py-20 px-4 gap-4">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: "var(--ct-bg-elevated)" }}
+            >
+              <BarChart3 className="w-8 h-8" style={{ color: "var(--ct-text-muted)" }} />
             </div>
-
-            {/* Player search — only on Player Stats tab */}
-            {activeTab === "player" && (
-              <div>
-                <label className="text-xs font-medium text-slate-600 mb-1 block">Search Player</label>
-                <Input
-                  type="text"
-                  placeholder="Filter by player name…"
-                  value={playerSearch}
-                  onChange={e => setPlayerSearch(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-            )}
+            <p className="text-sm" style={{ color: "var(--ct-text-muted)" }}>
+              Select a league to view statistics.
+            </p>
           </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          {/* Tab bar */}
-          <div className="flex items-center gap-1 px-3 pt-3 pb-0 border-b border-slate-100">
-            {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-t-lg text-sm font-semibold transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-purple-600 text-white"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          <div className="p-4 sm:p-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-              </div>
-            ) : !selectedLeagueId ? (
-              <div className="flex flex-col items-center justify-center py-20 px-4">
-                <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4">
-                  <BarChart3 className="w-8 h-8 text-purple-300" />
-                </div>
-                <p className="text-slate-500 text-sm">Select a league to view statistics.</p>
-              </div>
-            ) : activeTab === "team" ? (
-              <TeamStatsTab
-                teams={teams}
-                allStats={allStats}
-                selectedTeamId={selectedTeamId}
-              />
-            ) : activeTab === "player" ? (
-              <PlayerStatsTab
-                players={players}
-                teams={teams}
-                allStats={allStats}
-                selectedTeamId={selectedTeamId}
-                playerSearch={debouncedSearch}
-              />
-            ) : (
-              <LeagueLeadersTab
-                players={players}
-                teams={teams}
-                allStats={allStats}
-              />
-            )}
-          </div>
-        </div>
-
+        ) : activeTab === "team" ? (
+          <TeamStatsTab
+            teams={teams}
+            allStats={allStats}
+            selectedTeamId={selectedTeamId}
+            isNarrow={isNarrow}
+          />
+        ) : activeTab === "player" ? (
+          <PlayerStatsTab
+            players={players}
+            teams={teams}
+            allStats={allStats}
+            selectedTeamId={selectedTeamId}
+            playerSearch={debouncedSearch}
+            isNarrow={isNarrow}
+          />
+        ) : (
+          <LeagueLeadersTab
+            players={players}
+            teams={teams}
+            allStats={allStats}
+            isNarrow={isNarrow}
+          />
+        )}
       </div>
     </div>
   );

@@ -32,14 +32,14 @@ export default function MobileAwardCards({ candidates, awardType = "mvp", isExpa
           key={candidate.playerId}
           className={`p-4 rounded-xl border transition-all ${
             index === 0
-              ? "bg-gradient-to-br from-yellow-50 to-yellow-100/50 border-yellow-200 shadow-md"
-              : "bg-white border-slate-200 shadow-sm"
+              ? "bg-gradient-to-br from-yellow-50 to-yellow-100/50 border-yellow-200 "
+              : "bg-[var(--ct-bg-card)] border-[var(--ct-border)] "
           }`}
         >
           {/* Rank and Award Badge */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className={`text-xl font-bold ${index === 0 ? "text-yellow-600" : "text-slate-400"}`}>
+              <span className={`text-xl font-bold ${index === 0 ? "text-yellow-600" : "text-[var(--ct-text-muted)]"}`}>
                 #{index + 1}
               </span>
             </div>
@@ -48,27 +48,27 @@ export default function MobileAwardCards({ candidates, awardType = "mvp", isExpa
 
           {/* Player Name and Team */}
           <div className="mb-3">
-            <h3 className={`font-bold ${index === 0 ? "text-lg text-slate-900" : "text-base text-slate-900"}`}>
+            <h3 className={`font-bold ${index === 0 ? "text-lg text-[var(--ct-text-primary)]" : "text-base text-[var(--ct-text-primary)]"}`}>
               {candidate.player.name}
             </h3>
-            <p className="text-sm text-slate-600">{candidate.team.name} • {candidate.gp} GP</p>
+            <p className="text-sm text-[var(--ct-text-secondary)]">{candidate.team.name} • {candidate.gp} GP</p>
           </div>
 
           {/* Score and Stats */}
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-[var(--ct-text-secondary)]">
                 {isMvp ? "MVP Score" : "DPOY Score"}:
               </span>
-              <span className={`font-bold ${index === 0 ? "text-2xl text-yellow-600" : "text-xl text-slate-900"}`}>
+              <span className={`font-bold ${index === 0 ? "text-2xl text-yellow-600" : "text-xl text-[var(--ct-text-primary)]"}`}>
                 {candidate[scoreKey]}
               </span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-[var(--ct-text-secondary)]">
                 {isMvp ? "Avg GIS" : "Avg DEF_GIS"}:
               </span>
-              <span className="text-sm font-semibold text-slate-700">{candidate[avgKey]}</span>
+              <span className="text-sm font-semibold text-[var(--ct-text-primary)]">{candidate[avgKey]}</span>
             </div>
           </div>
         </div>
@@ -79,7 +79,7 @@ export default function MobileAwardCards({ candidates, awardType = "mvp", isExpa
         <Button
           onClick={() => setShowAll(!showAll)}
           variant="outline"
-          className="w-full mt-4 border-slate-200 text-slate-700 hover:bg-slate-50"
+          className="w-full mt-4 border-[var(--ct-border)] text-[var(--ct-text-primary)] hover:bg-[var(--ct-bg-elevated)]"
         >
           {showAll ? "Show Top 5" : "View Full Ranking"}
           <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${showAll ? "rotate-180" : ""}`} />

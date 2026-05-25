@@ -28,7 +28,7 @@ export default function PlayerTableInput({ players, onChange }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--ct-text-secondary)]">
           {validPlayers.length} player{validPlayers.length !== 1 ? 's' : ''} added
         </p>
         <Button
@@ -43,19 +43,19 @@ export default function PlayerTableInput({ players, onChange }) {
         </Button>
       </div>
 
-      <div className="border border-slate-200 rounded-lg overflow-hidden">
+      <div className="border border-[var(--ct-border)] rounded-lg overflow-hidden">
         <Table className="text-sm">
-          <TableHeader className="bg-slate-50">
+          <TableHeader className="bg-[var(--ct-bg-page)]">
             <TableRow>
-              <TableHead className="w-1/2 text-slate-900">Player Name</TableHead>
-              <TableHead className="w-20 text-slate-900">Number</TableHead>
-              <TableHead className="w-24 text-slate-900">Position</TableHead>
-              <TableHead className="w-10 text-slate-900"></TableHead>
+              <TableHead className="w-1/2 text-[var(--ct-text-primary)]">Player Name</TableHead>
+              <TableHead className="w-20 text-[var(--ct-text-primary)]">Number</TableHead>
+              <TableHead className="w-24 text-[var(--ct-text-primary)]">Position</TableHead>
+              <TableHead className="w-10 text-[var(--ct-text-primary)]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {players.map((player, index) => (
-              <TableRow key={index} className="hover:bg-slate-50">
+              <TableRow key={index} className="hover:bg-[var(--ct-bg-elevated)]">
                 <TableCell className="p-2">
                   <Input
                     value={player.name}

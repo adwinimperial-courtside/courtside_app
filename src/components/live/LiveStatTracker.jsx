@@ -7,6 +7,7 @@ import { ArrowLeft, Trophy, RefreshCw, Undo2, Activity, AlertTriangle, Clock } f
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabaseClient";
+import { totalPoints } from "@/lib/playerStats";
 
 import ScoreHeader from "./ScoreHeader";
 import EndOfPeriodModal from "./EndOfPeriodModal";
@@ -54,9 +55,7 @@ const computeTimeLeft = (game) => {
 
 const calcTeamScore = (teamId, stats) =>
   (stats || []).reduce((acc, s) =>
-    s.team_id === teamId
-      ? acc + (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0)
-      : acc,
+    s.team_id === teamId ? acc + totalPoints(s) : acc,
   0);
 
 const getFoulResetKey = (period, game) => {
@@ -989,7 +988,7 @@ export default function LiveStatTracker({
 
   const PlayerButton = ({ player, teamColor, onSubClick, isDesktop }) => {
     const pStats     = existingStats.find(s => s.player_id === player.id);
-    const totalPts   = ((pStats?.points_2 || 0) * 2) + ((pStats?.points_3 || 0) * 3) + (pStats?.free_throws || 0);
+    const totalPts   = totalPoints(pStats);
     const isSelected = selectedPlayer?.id === player.id;
 
     const style = isDesktop

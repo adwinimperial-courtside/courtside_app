@@ -55,8 +55,13 @@ const AuthenticatedApp = () => {
         {Object.entries(Pages).map(([path, Page]) => (
           <Route key={path} path={`/${path}`} element={<Page />} handle={{ pageName: path }} />
         ))}
-        <Route path="/LeagueUsers" element={<LayoutWrapper currentPageName="LeagueUsers"><LeagueUsersPage /></LayoutWrapper>} />
-        <Route path="/ApplyForLeague" element={<LayoutWrapper currentPageName="ApplyForLeague"><ApplyForLeaguePage /></LayoutWrapper>} />
+        {/* These routes live inside the outer <LayoutWrapper> at the top of
+            AuthenticatedApp, so we must NOT wrap them again — a nested Layout
+            creates a second DevicePreviewProvider whose deviceMode state is
+            detached from the FAB in the outer Layout, which breaks
+            useIsNarrowLayout() on these pages. */}
+        <Route path="/LeagueUsers" element={<LeagueUsersPage />} />
+        <Route path="/ApplyForLeague" element={<ApplyForLeaguePage />} />
         <Route path="/invite/:token" element={<AcceptInvitePage />} />
         <Route path="/Login" element={<Navigate to="/Home" replace />} />
         <Route path="*" element={<PageNotFound />} />

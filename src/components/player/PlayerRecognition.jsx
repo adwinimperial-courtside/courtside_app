@@ -108,7 +108,7 @@ export default function PlayerRecognition({ myStats, allStats, teams, games, mat
   if (twentyPlusGames > 0) badges.push({ label: `${twentyPlusGames}× 20+ PTS`, color: "bg-orange-100 text-orange-800" });
 
   return (
-    <Card className="border-slate-200 shadow-sm">
+    <Card className="border-[var(--ct-border)] ">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Award className="w-5 h-5 text-yellow-500" />
@@ -117,7 +117,7 @@ export default function PlayerRecognition({ myStats, allStats, teams, games, mat
       </CardHeader>
       <CardContent>
         {badges.length === 0 ? (
-          <p className="text-slate-400 text-sm text-center py-6">No recognition yet — keep playing!</p>
+          <p className="text-[var(--ct-text-muted)] text-sm text-center py-6">No recognition yet — keep playing!</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {badges.map((b, i) => (

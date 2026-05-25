@@ -16,14 +16,14 @@ export default function PlayerNextGame({ games, teams, teamId }) {
   }, [games, teamId]);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-purple-500 overflow-hidden">
+    <div className="bg-[var(--ct-bg-card)] rounded-2xl border border-[var(--ct-border)] border-l-4 border-l-purple-500 overflow-hidden">
       <div className="px-6 pt-5 pb-2">
-        <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider">Next Game</h3>
+        <h3 className="text-sm font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider">Next Game</h3>
       </div>
 
       {!nextGame ? (
         <div className="px-6 pb-5 pt-2">
-          <p className="text-slate-400 text-sm">No upcoming games scheduled.</p>
+          <p className="text-[var(--ct-text-muted)] text-sm">No upcoming games scheduled.</p>
         </div>
       ) : (
         <button
@@ -43,22 +43,22 @@ export default function PlayerNextGame({ games, teams, teamId }) {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 min-w-0">
                   {/* Opponent avatar */}
-                  <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 ">
                     <span className="text-lg font-bold text-purple-600">
                       {opponent?.name?.charAt(0) || "?"}
                     </span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-lg font-bold text-slate-900 truncate">{opponent?.name || "TBD"}</p>
+                    <p className="text-lg font-bold text-[var(--ct-text-primary)] truncate">{opponent?.name || "TBD"}</p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      <p className="text-sm text-slate-600 font-medium">{dateLabel} · {format(gameDate, "HH:mm")}</p>
+                      <Calendar className="w-4 h-4 text-[var(--ct-text-muted)]" />
+                      <p className="text-sm text-[var(--ct-text-secondary)] font-medium">{dateLabel} · {format(gameDate, "HH:mm")}</p>
                     </div>
-                    <p className="text-xs text-slate-500 font-medium mt-1">{isHome ? "🏠 Home" : "🚌 Away"}</p>
+                    <p className="text-xs text-[var(--ct-text-secondary)] font-medium mt-1">{isHome ? "🏠 Home" : "🚌 Away"}</p>
                   </div>
                 </div>
                 {gameDay && (
-                  <span className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-xs font-bold px-4 py-2 rounded-full shadow-md">
+                  <span className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-xs font-bold px-4 py-2 rounded-full ">
                     Today
                   </span>
                 )}

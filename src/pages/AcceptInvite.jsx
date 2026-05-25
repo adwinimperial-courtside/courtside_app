@@ -93,7 +93,7 @@ export default function AcceptInvite() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+      <div className="bg-[var(--ct-bg-card)] rounded-2xl max-w-sm w-full overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-8 py-6 text-center">
           <Trophy className="w-10 h-10 text-white mx-auto mb-2" />
@@ -104,22 +104,22 @@ export default function AcceptInvite() {
           {loading || (invite && !isLoadingAuth && currentUser && !done && !error) ? (
             <div className="flex flex-col items-center gap-3">
               <RefreshCw className="w-8 h-8 text-orange-500 animate-spin" />
-              <p className="text-slate-600">{loading ? "Loading invitation…" : "Joining league…"}</p>
+              <p className="text-[var(--ct-text-secondary)]">{loading ? "Loading invitation…" : "Joining league…"}</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center gap-3">
               <AlertTriangle className="w-10 h-10 text-red-500" />
-              <h2 className="text-lg font-semibold text-slate-900">Invitation Invalid</h2>
-              <p className="text-slate-500 text-sm">{error}</p>
-              <Button onClick={() => navigate("/Home")} className="mt-2 bg-slate-800 hover:bg-slate-700 text-white">
+              <h2 className="text-lg font-semibold text-[var(--ct-text-primary)]">Invitation Invalid</h2>
+              <p className="text-[var(--ct-text-secondary)] text-sm">{error}</p>
+              <Button onClick={() => navigate("/Home")} className="mt-2 bg-[var(--ct-bg-card)] hover:bg-[var(--ct-bg-elevated)] text-white">
                 Go to App
               </Button>
             </div>
           ) : done ? (
             <div className="flex flex-col items-center gap-3">
               <CheckCircle2 className="w-10 h-10 text-green-500" />
-              <h2 className="text-lg font-semibold text-slate-900">You're in!</h2>
-              <p className="text-slate-500 text-sm">Redirecting you to the app…</p>
+              <h2 className="text-lg font-semibold text-[var(--ct-text-primary)]">You're in!</h2>
+              <p className="text-[var(--ct-text-secondary)] text-sm">Redirecting you to the app…</p>
             </div>
           ) : invite ? (
             <div className="flex flex-col items-center gap-4">
@@ -127,18 +127,18 @@ export default function AcceptInvite() {
                 <Trophy className="w-7 h-7 text-orange-500" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-900 mb-1">You're invited!</h2>
-                <p className="text-slate-600 text-sm">
+                <h2 className="text-lg font-bold text-[var(--ct-text-primary)] mb-1">You're invited!</h2>
+                <p className="text-[var(--ct-text-secondary)] text-sm">
                   <span className="font-medium">
                     {invite.inviter?.full_name || invite.inviter?.display_name || "Someone"}
                   </span>{" "}
                   invited you to join
                 </p>
-                <p className="text-slate-900 font-semibold text-base mt-1">{invite.league?.name}</p>
-                <p className="text-slate-500 text-sm mt-0.5">
+                <p className="text-[var(--ct-text-primary)] font-semibold text-base mt-1">{invite.league?.name}</p>
+                <p className="text-[var(--ct-text-secondary)] text-sm mt-0.5">
                   as a <span className="font-medium text-orange-600">{ROLE_LABELS[invite.role] ?? invite.role}</span>
                 </p>
-                <p className="text-slate-400 text-xs mt-2">
+                <p className="text-[var(--ct-text-muted)] text-xs mt-2">
                   Expires {format(new Date(invite.expires_at), "MMM d, yyyy")}
                 </p>
               </div>

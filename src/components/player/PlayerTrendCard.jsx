@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
+import { totalPoints as getPts } from "@/lib/playerStats";
 
-function getPts(s) { return (s.points_2||0)*2 + (s.points_3||0)*3 + (s.free_throws||0); }
 function getReb(s) { return (s.offensive_rebounds||0) + (s.defensive_rebounds||0); }
 function getAst(s) { return s.assists || 0; }
 function getStl(s) { return s.steals || 0; }
@@ -157,7 +157,7 @@ export default function PlayerTrendCard({ myStats, games, teamId }) {
   if (!trend) return null;
 
   return (
-    <div className="bg-orange-50 rounded-2xl shadow-sm border border-orange-200 border-l-4 border-l-orange-400 px-6 py-5">
+    <div className="bg-orange-50 rounded-2xl border border-orange-200 border-l-4 border-l-orange-400 px-6 py-5">
       <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-3">Current Trend</p>
       <div className="flex items-start gap-4">
         <span className="text-3xl flex-shrink-0">{trend.emoji}</span>

@@ -38,7 +38,7 @@ export default function GameStats({ games, teams, players, stats }) {
   };
 
   return (
-    <Card className="border-slate-200">
+    <Card className="border-[var(--ct-border)]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calendar className="w-5 h-5 text-purple-600" />
@@ -47,7 +47,7 @@ export default function GameStats({ games, teams, players, stats }) {
       </CardHeader>
       <CardContent>
         {completedGames.length === 0 ? (
-          <p className="text-slate-500 text-center py-8">No completed games yet</p>
+          <p className="text-[var(--ct-text-secondary)] text-center py-8">No completed games yet</p>
         ) : (
           <div className="space-y-4">
             {completedGames.map(game => {
@@ -76,10 +76,10 @@ export default function GameStats({ games, teams, players, stats }) {
               const awayPlayerStats = gamePlayerStats.filter(s => s.team_id === game.away_team_id && hasStats(s));
 
               return (
-                <Card key={game.id} className="border-slate-200 bg-gradient-to-br from-white to-slate-50">
+                <Card key={game.id} className="border-[var(--ct-border)] bg-gradient-to-br from-[var(--ct-bg-card)] to-[var(--ct-bg-page)]">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-[var(--ct-text-secondary)]">
                         {format(new Date(game.game_date), 'MMM d, yyyy • h:mm a')}
                       </p>
                       <span className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded-full font-medium">
@@ -92,7 +92,7 @@ export default function GameStats({ games, teams, players, stats }) {
                       {/* Away Team */}
                        <div className="text-right">
                          <div className="flex items-center justify-end gap-3 mb-2">
-                           <span className="text-lg font-semibold text-slate-900">{awayTeam?.name}</span>
+                           <span className="text-lg font-semibold text-[var(--ct-text-primary)]">{awayTeam?.name}</span>
                            {awayTeam?.logo_url ? (
                              <img src={awayTeam.logo_url} alt={awayTeam.name} className="w-10 h-10 rounded-lg object-cover" />
                            ) : (
@@ -104,7 +104,7 @@ export default function GameStats({ games, teams, players, stats }) {
                              </div>
                            )}
                          </div>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-[var(--ct-text-secondary)]">
                           {awayTeamStats.rebounds} REB • {awayTeamStats.assists} AST • {awayTeamStats.fouls} FOULS
                         </p>
                       </div>
@@ -112,9 +112,9 @@ export default function GameStats({ games, teams, players, stats }) {
                       {/* Score */}
                       <div className="text-center px-6">
                         <div className="flex items-center gap-3">
-                          <span className="text-3xl font-bold text-slate-900">{game.away_score || 0}</span>
-                          <span className="text-2xl text-slate-400">-</span>
-                          <span className="text-3xl font-bold text-slate-900">{game.home_score || 0}</span>
+                          <span className="text-3xl font-bold text-[var(--ct-text-primary)]">{game.away_score || 0}</span>
+                          <span className="text-2xl text-[var(--ct-text-muted)]">-</span>
+                          <span className="text-3xl font-bold text-[var(--ct-text-primary)]">{game.home_score || 0}</span>
                         </div>
                       </div>
 
@@ -131,9 +131,9 @@ export default function GameStats({ games, teams, players, stats }) {
                               {homeTeam?.name?.[0]}
                             </div>
                           )}
-                          <span className="text-lg font-semibold text-slate-900">{homeTeam?.name}</span>
+                          <span className="text-lg font-semibold text-[var(--ct-text-primary)]">{homeTeam?.name}</span>
                         </div>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm text-[var(--ct-text-secondary)]">
                           {homeTeamStats.rebounds} REB • {homeTeamStats.assists} AST • {homeTeamStats.fouls} FOULS
                         </p>
                       </div>
@@ -151,30 +151,30 @@ export default function GameStats({ games, teams, players, stats }) {
                             {topPerformer.player?.jersey_number}
                           </div>
                           <div className="flex-1">
-                            <p className="font-semibold text-slate-900">{topPerformer.player?.name}</p>
-                            <p className="text-sm text-slate-600">{teams.find(t => t.id === topPerformer.player?.team_id)?.name}</p>
+                            <p className="font-semibold text-[var(--ct-text-primary)]">{topPerformer.player?.name}</p>
+                            <p className="text-sm text-[var(--ct-text-secondary)]">{teams.find(t => t.id === topPerformer.player?.team_id)?.name}</p>
                           </div>
                         </div>
                         <div className="grid grid-cols-5 gap-3">
                           <div className="text-center">
                             <p className="text-lg font-bold text-purple-600">{topPerformer.points}</p>
-                            <p className="text-xs text-slate-600">PTS</p>
+                            <p className="text-xs text-[var(--ct-text-secondary)]">PTS</p>
                           </div>
                           <div className="text-center">
                             <p className="text-lg font-bold text-purple-600">{(topPerformer.stat.offensive_rebounds || 0) + (topPerformer.stat.defensive_rebounds || 0)}</p>
-                            <p className="text-xs text-slate-600">REB</p>
+                            <p className="text-xs text-[var(--ct-text-secondary)]">REB</p>
                           </div>
                           <div className="text-center">
                             <p className="text-lg font-bold text-purple-600">{topPerformer.stat.assists || 0}</p>
-                            <p className="text-xs text-slate-600">AST</p>
+                            <p className="text-xs text-[var(--ct-text-secondary)]">AST</p>
                           </div>
                           <div className="text-center">
                             <p className="text-lg font-bold text-purple-600">{topPerformer.stat.steals || 0}</p>
-                            <p className="text-xs text-slate-600">STL</p>
+                            <p className="text-xs text-[var(--ct-text-secondary)]">STL</p>
                           </div>
                           <div className="text-center">
                             <p className="text-lg font-bold text-purple-600">{topPerformer.stat.blocks || 0}</p>
-                            <p className="text-xs text-slate-600">BLK</p>
+                            <p className="text-xs text-[var(--ct-text-secondary)]">BLK</p>
                           </div>
                         </div>
                       </div>
@@ -215,7 +215,7 @@ export default function GameStats({ games, teams, players, stats }) {
                                 {awayTeam?.name?.[0]}
                               </div>
                             )}
-                            <h4 className="font-semibold text-slate-900">{awayTeam?.name}</h4>
+                            <h4 className="font-semibold text-[var(--ct-text-primary)]">{awayTeam?.name}</h4>
                           </div>
                           <div className="overflow-x-auto">
                             <Table>
@@ -269,7 +269,7 @@ export default function GameStats({ games, teams, players, stats }) {
                                     </TableRow>
                                   );
                                 })}
-                                <TableRow className="bg-slate-50 font-semibold">
+                                <TableRow className="bg-[var(--ct-bg-page)] font-semibold">
                                   <TableCell>TEAM TOTALS</TableCell>
                                   <TableCell className="text-center">{game.away_score || 0}</TableCell>
                                   <TableCell className="text-center">{awayPlayerStats.reduce((acc, s) => acc + (s.points_2 || 0), 0)}</TableCell>
@@ -302,7 +302,7 @@ export default function GameStats({ games, teams, players, stats }) {
                                 {homeTeam?.name?.[0]}
                               </div>
                             )}
-                            <h4 className="font-semibold text-slate-900">{homeTeam?.name}</h4>
+                            <h4 className="font-semibold text-[var(--ct-text-primary)]">{homeTeam?.name}</h4>
                           </div>
                           <div className="overflow-x-auto">
                             <Table>
@@ -356,7 +356,7 @@ export default function GameStats({ games, teams, players, stats }) {
                                     </TableRow>
                                   );
                                 })}
-                                <TableRow className="bg-slate-50 font-semibold">
+                                <TableRow className="bg-[var(--ct-bg-page)] font-semibold">
                                   <TableCell>TEAM TOTALS</TableCell>
                                   <TableCell className="text-center">{game.home_score || 0}</TableCell>
                                   <TableCell className="text-center">{homePlayerStats.reduce((acc, s) => acc + (s.points_2 || 0), 0)}</TableCell>

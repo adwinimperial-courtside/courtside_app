@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from "react";
 
-const ARROW_COLORS = ["#000000", "#22C55E", "#EF4444", "#FFFFFF"];
+const ARROW_COLORS = ["#000000", "var(--ct-success)", "var(--ct-danger)", "#FFFFFF"];
 
 function arrowId(color) { return `wb-arrow-${color.replace("#", "")}`; }
 

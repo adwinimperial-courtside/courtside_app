@@ -46,7 +46,7 @@ export default function RoleSelection() {
   const { signOut } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[var(--ct-bg-page)] flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-2xl">
 
         {/* Logo */}
@@ -56,10 +56,10 @@ export default function RoleSelection() {
 
         {/* Heading */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">
+          <h1 className="text-2xl font-bold text-[var(--ct-text-primary)] mb-2">
             How will you use Courtside by AI?
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[var(--ct-text-secondary)]">
             Choose your role below. An admin will review and approve your request.
           </p>
         </div>
@@ -70,26 +70,26 @@ export default function RoleSelection() {
             <button
               key={key}
               onClick={() => navigate(`/LeagueApplication?role=${key}`)}
-              className={`flex flex-col items-start gap-3 bg-white rounded-2xl border-2 border-slate-200 ${border} p-5 text-left transition-all duration-150 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300`}
+              className={`flex flex-col items-start gap-3 bg-[var(--ct-bg-card)] rounded-2xl border-2 border-[var(--ct-border)] ${border} p-5 text-left transition-all duration-150 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--ct-border)]`}
             >
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconBg}`}>
                 <Icon className={`w-6 h-6 ${iconColor}`} />
               </div>
               <div>
-                <p className="font-semibold text-slate-900 text-sm mb-1">{label}</p>
-                <p className="text-xs text-slate-500 leading-relaxed">{description}</p>
+                <p className="font-semibold text-[var(--ct-text-primary)] text-sm mb-1">{label}</p>
+                <p className="text-xs text-[var(--ct-text-secondary)] leading-relaxed">{description}</p>
               </div>
             </button>
           ))}
         </div>
 
         {/* Sign out */}
-        <p className="text-center text-sm text-slate-500">
+        <p className="text-center text-sm text-[var(--ct-text-secondary)]">
           Wrong account?{" "}
           <button
             type="button"
             onClick={signOut}
-            className="text-slate-700 font-medium hover:underline"
+            className="text-[var(--ct-text-primary)] font-medium hover:underline"
           >
             Sign out
           </button>

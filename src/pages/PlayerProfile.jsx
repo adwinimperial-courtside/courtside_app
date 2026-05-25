@@ -184,7 +184,7 @@ export default function PlayerProfile() {
   if (currentUser && userType !== 'player' && userType !== 'coach') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-500 text-lg">This page is only accessible to players and coaches.</p>
+        <p className="text-[var(--ct-text-secondary)] text-lg">This page is only accessible to players and coaches.</p>
       </div>
     );
   }
@@ -193,30 +193,30 @@ export default function PlayerProfile() {
   if (userType === 'coach' && !matchedPlayerId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-slate-500 text-lg">This page requires a matched player identity.</p>
+        <p className="text-[var(--ct-text-secondary)] text-lg">This page requires a matched player identity.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8">
+    <div className="min-h-screen bg-[var(--ct-bg-card)] p-4 md:p-8">
       {/* Hero Gradient Background Section */}
-      <div className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-b from-indigo-50 via-blue-50 to-white pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-b from-indigo-50 via-blue-50 to-[var(--ct-bg-card)] pointer-events-none" />
       
       <div className="max-w-2xl mx-auto relative z-10">
 
         {/* Page title */}
         <div className="pt-4 pb-6">
-          <h1 className="text-3xl font-bold text-slate-900">Player Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Your performance, achievements & upcoming games</p>
+          <h1 className="text-3xl font-bold text-[var(--ct-text-primary)]">Player Dashboard</h1>
+          <p className="text-sm text-[var(--ct-text-secondary)] mt-1">Your performance, achievements & upcoming games</p>
         </div>
 
         {/* League Selector (only if multiple leagues) */}
         {userLeagues.length > 1 && (
           <div className="mb-32">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Select League</label>
+            <label className="block text-sm font-semibold text-[var(--ct-text-primary)] mb-2">Select League</label>
             <Select value={selectedLeagueId || ""} onValueChange={setSelectedLeagueId}>
-              <SelectTrigger className="w-full bg-white border-slate-300 shadow-md">
+              <SelectTrigger className="w-full bg-[var(--ct-bg-card)] border-[var(--ct-border)] ">
                 <SelectValue placeholder="Choose a league" />
               </SelectTrigger>
               <SelectContent>

@@ -61,18 +61,18 @@ export default function BadgeCard({ badgeKey, badgeName, badgeIcon, badgeDescrip
         onClick={handleTap}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="bg-white rounded-full px-4 py-2 shadow-sm border border-slate-200 hover:shadow-md hover:border-slate-300 transition-all duration-200 flex items-center gap-2 cursor-pointer"
+        className="bg-[var(--ct-bg-card)] rounded-full px-4 py-2 border border-[var(--ct-border)] hover:shadow-md hover:border-[var(--ct-border)] transition-all duration-200 flex items-center gap-2 cursor-pointer"
       >
         <span className="text-lg">{badgeIcon}</span>
-        <span className="font-semibold text-slate-800 text-sm">{badgeName}</span>
-        <span className="text-xs text-slate-500 font-medium">x{count}</span>
+        <span className="font-semibold text-[var(--ct-text-primary)] text-sm">{badgeName}</span>
+        <span className="text-xs text-[var(--ct-text-secondary)] font-medium">x{count}</span>
       </button>
 
       {/* Tooltip - Fixed Positioning */}
       {showTooltip && (
         <div
           ref={tooltipRef}
-          className="fixed bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 max-w-xs"
+          className="fixed bg-[var(--ct-bg-card)] rounded-xl border border-[var(--ct-border)] p-4 z-50 max-w-xs"
           style={{
             top: `${tooltipPosition.top}px`,
             left: `${tooltipPosition.left}px`,
@@ -82,9 +82,9 @@ export default function BadgeCard({ badgeKey, badgeName, badgeIcon, badgeDescrip
           {window.innerWidth < 768 && (
             <button
               onClick={() => setShowTooltip(false)}
-              className="absolute top-2 right-2 p-1 hover:bg-slate-100 rounded-lg"
+              className="absolute top-2 right-2 p-1 hover:bg-[var(--ct-bg-elevated)] rounded-lg"
             >
-              <X className="w-4 h-4 text-slate-500" />
+              <X className="w-4 h-4 text-[var(--ct-text-secondary)]" />
             </button>
           )}
 
@@ -92,23 +92,23 @@ export default function BadgeCard({ badgeKey, badgeName, badgeIcon, badgeDescrip
             {/* Icon + Name */}
             <div className="flex items-center gap-2">
               <span className="text-2xl">{badgeIcon}</span>
-              <h3 className="font-bold text-slate-900">{badgeName}</h3>
+              <h3 className="font-bold text-[var(--ct-text-primary)]">{badgeName}</h3>
             </div>
 
             {/* Description */}
-            <p className="text-sm text-slate-700">{badgeDescription}</p>
+            <p className="text-sm text-[var(--ct-text-primary)]">{badgeDescription}</p>
 
             {/* Rule */}
-            <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
-              <p className="text-xs text-slate-600 font-medium">
-                <span className="text-slate-500">Unlock: </span>
+            <div className="bg-[var(--ct-bg-page)] rounded-lg p-2 border border-[var(--ct-border)]">
+              <p className="text-xs text-[var(--ct-text-secondary)] font-medium">
+                <span className="text-[var(--ct-text-secondary)]">Unlock: </span>
                 {badgeRule}
               </p>
             </div>
 
             {/* Count */}
-            <p className="text-xs text-slate-500">
-              <span className="font-semibold text-slate-700">Unlocked:</span> {count} {count === 1 ? "time" : "times"}
+            <p className="text-xs text-[var(--ct-text-secondary)]">
+              <span className="font-semibold text-[var(--ct-text-primary)]">Unlocked:</span> {count} {count === 1 ? "time" : "times"}
             </p>
           </div>
         </div>

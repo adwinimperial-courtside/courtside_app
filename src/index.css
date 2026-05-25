@@ -1,158 +1,121 @@
+@import './styles/theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-
-/* :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-} */
-
-
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    /* Dark Court — mapped to shadcn semantic tokens */
+    --background:           240 27% 8%;    /* #0F0F1A */
+    --foreground:           240 20% 95%;   /* #F0F0F5 */
+    --card:                 240 28% 14%;   /* #1A1A2E */
+    --card-foreground:      240 20% 95%;   /* #F0F0F5 */
+    --popover:              240 28% 14%;   /* #1A1A2E */
+    --popover-foreground:   240 20% 95%;   /* #F0F0F5 */
+    --primary:              217 91% 60%;   /* #3B82F6 electric blue */
+    --primary-foreground:   0 0% 100%;
+    --secondary:            240 22% 21%;   /* #2A2A42 */
+    --secondary-foreground: 240 20% 95%;   /* #F0F0F5 */
+    --muted:                240 22% 21%;   /* #2A2A42 */
+    --muted-foreground:     240 9% 45%;    /* #6B6B80 */
+    --accent:               240 22% 21%;   /* #2A2A42 */
+    --accent-foreground:    240 20% 95%;   /* #F0F0F5 */
+    --destructive:          0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border:               240 22% 21%;   /* #2A2A42 */
+    --input:                240 22% 21%;   /* #2A2A42 */
+    --ring:                 217 91% 60%;   /* #3B82F6 */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar */
+    --sidebar-background:            240 28% 14%;   /* #1A1A2E */
+    --sidebar-foreground:            240 20% 95%;   /* #F0F0F5 */
+    --sidebar-primary:               217 91% 60%;   /* #3B82F6 */
+    --sidebar-primary-foreground:    0 0% 100%;
+    --sidebar-accent:                240 22% 21%;   /* #2A2A42 */
+    --sidebar-accent-foreground:     240 20% 95%;   /* #F0F0F5 */
+    --sidebar-border:                240 22% 21%;   /* #2A2A42 */
+    --sidebar-ring:                  217 91% 60%;   /* #3B82F6 */
   }
+
+  /* Warm Sand (Claude-inspired light) — applied when the root has
+   * data-theme="light" (set by the no-flash script in index.html, toggled
+   * by the ThemeToggle component). All shadcn vars stay in HSL space-
+   * separated format to match the :root values above. */
+  html[data-theme="light"] {
+    --background:           50 22% 94%;   /* #F4F3EE */
+    --foreground:           23 24% 8%;    /* #1A1410 */
+    --card:                 0 0% 100%;    /* #FFFFFF */
+    --card-foreground:      23 24% 8%;
+    --popover:              0 0% 100%;
+    --popover-foreground:   23 24% 8%;
+    --primary:              16 53% 50%;   /* #C15F3C terracotta */
+    --primary-foreground:   0 0% 100%;
+    --secondary:            37 22% 91%;   /* #EDE9E3 */
+    --secondary-foreground: 32 16% 36%;   /* #6B5D4D */
+    --muted:                37 22% 91%;
+    --muted-foreground:     45 9% 66%;    /* #B1ADA1 */
+    --accent:               37 22% 91%;
+    --accent-foreground:    23 24% 8%;
+    --destructive:          0 72% 51%;    /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+    --border:               33 28% 87%;   /* #E8E0D6 */
+    --input:                0 0% 100%;
+    --ring:                 16 53% 50%;
+    /* Sidebar */
+    --sidebar-background:            0 0% 100%;
+    --sidebar-foreground:            23 24% 8%;
+    --sidebar-primary:               16 53% 50%;
+    --sidebar-primary-foreground:    0 0% 100%;
+    --sidebar-accent:                37 22% 91%;
+    --sidebar-accent-foreground:     23 24% 8%;
+    --sidebar-border:                33 28% 87%;
+    --sidebar-ring:                  16 53% 50%;
+  }
+
+  /* Keep .dark class values from shadcn for any dark-mode aware components */
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 240 27% 8%;
+    --foreground: 240 20% 95%;
+    --card: 240 28% 14%;
+    --card-foreground: 240 20% 95%;
+    --popover: 240 28% 14%;
+    --popover-foreground: 240 20% 95%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 22% 21%;
+    --secondary-foreground: 240 20% 95%;
+    --muted: 240 22% 21%;
+    --muted-foreground: 240 9% 45%;
+    --accent: 240 22% 21%;
+    --accent-foreground: 240 20% 95%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --border: 240 22% 21%;
+    --input: 240 22% 21%;
+    --ring: 217 91% 60%;
+    --sidebar-background: 240 28% 14%;
+    --sidebar-foreground: 240 20% 95%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 240 22% 21%;
+    --sidebar-accent-foreground: 240 20% 95%;
+    --sidebar-border: 240 22% 21%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
-
-
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--ct-bg-page);
+    color: var(--ct-text-primary);
   }
 }

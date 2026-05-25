@@ -34,7 +34,7 @@ export default function PendingApproval() {
   }, [currentUser]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[var(--ct-bg-page)] flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
 
         {/* Logo */}
@@ -43,7 +43,7 @@ export default function PendingApproval() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+        <div className="bg-[var(--ct-bg-card)] rounded-2xl border border-[var(--ct-border)] p-8 text-center">
 
           {/* Clock icon */}
           <div className="flex justify-center mb-5">
@@ -53,10 +53,10 @@ export default function PendingApproval() {
           </div>
 
           {/* Title */}
-          <h1 className="text-xl font-bold text-slate-900 mb-2">
+          <h1 className="text-xl font-bold text-[var(--ct-text-primary)] mb-2">
             Application Under Review
           </h1>
-          <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+          <p className="text-sm text-[var(--ct-text-secondary)] mb-6 leading-relaxed">
             Your application has been submitted. Our admin team will review it shortly and grant you access once approved.
           </p>
 
@@ -90,11 +90,11 @@ export default function PendingApproval() {
           </button>
 
           {/* Sign out */}
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[var(--ct-text-secondary)]">
             <button
               type="button"
               onClick={signOut}
-              className="text-slate-700 font-medium hover:underline"
+              className="text-[var(--ct-text-primary)] font-medium hover:underline"
             >
               Sign Out
             </button>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabaseClient";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Filter, Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useIsNarrowLayout } from "@/lib/DevicePreviewContext";
+import { Trophy, Loader2, TrendingUp, TrendingDown, Minus, ChevronDown } from "lucide-react";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers (unchanged) ──────────────────────────────────────────────────────
 
 function getGameResult(teamId, game) {
   if (game.is_default_result) {
@@ -33,8 +34,6 @@ function getTeamStreak(teamId, games) {
   return { type, count };
 }
 
-// ─── Standings computation ────────────────────────────────────────────────────
-
 function getMiniStats(teamId, subGames) {
   let wins = 0, losses = 0, pf = 0, pa = 0;
   subGames.forEach(g => {
@@ -57,7 +56,6 @@ function getMiniStats(teamId, subGames) {
 function sortTiedGroup(group, allGames) {
   if (group.length === 1) return group;
 
-  // 2-team tie: head-to-head first, fall through to points diff if h2h tied
   if (group.length === 2) {
     const [a, b] = group;
     const h2hGames = allGames.filter(g =>
@@ -67,11 +65,9 @@ function sortTiedGroup(group, allGames) {
     const sa = getMiniStats(a.id, h2hGames);
     const sb = getMiniStats(b.id, h2hGames);
     if (sb.winPct !== sa.winPct) return sb.winPct > sa.winPct ? [b, a] : [a, b];
-    // h2h tied — fall through to points diff
     return b.pointsDiff >= a.pointsDiff ? [b, a] : [a, b];
   }
 
-  // 3+ team tie: points differential only
   return [...group].sort((a, b) => b.pointsDiff - a.pointsDiff);
 }
 
@@ -101,7 +97,6 @@ function computeStandings(teams, games) {
     return { ...team, wins, losses, winPct, pf, pa, pointsDiff: pf - pa };
   });
 
-  // Group by winPct, sort within each tied group, then flatten
   const sorted = [];
   const seen = new Set();
   const byWinPct = [...unsorted].sort((a, b) => b.winPct - a.winPct);
@@ -116,10 +111,174 @@ function computeStandings(teams, games) {
   return sorted;
 }
 
+function getLast5Results(teamId, games) {
+  return games
+    .filter(g => g.home_team_id === teamId || g.away_team_id === teamId)
+    .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at))
+    .slice(0, 5)
+    .map(g => getGameResult(teamId, g))
+    .filter(Boolean);
+}
+
+// ─── Mobile team card ─────────────────────────────────────────────────────────
+
+function TeamCard({ team, rank, isExpanded, onToggle }) {
+  const rankColor =
+    rank === 1 ? "var(--ct-accent-gold)" :
+    rank <= 3 ? "var(--ct-text-primary)" :
+    "var(--ct-text-secondary)";
+
+  const diff = team.pointsDiff;
+  const diffStr = diff > 0 ? `+${diff}` : `${diff}`;
+  const winPctStr = `${(team.winPct * 100).toFixed(0)}%`;
+
+  return (
+    <div
+      className="rounded-xl mb-2"
+      style={{
+        background: "var(--ct-bg-card)",
+        border: "1px solid var(--ct-border)",
+        padding: "16px",
+      }}
+    >
+      {/* Main tappable area */}
+      <button
+        onClick={onToggle}
+        className="w-full flex items-start gap-3 text-left bg-transparent border-0 p-0 cursor-pointer"
+      >
+        {/* Rank */}
+        <span
+          className="text-lg font-bold flex-shrink-0 leading-none pt-2.5 w-5 text-center"
+          style={{ color: rankColor }}
+        >
+          {rank}
+        </span>
+
+        {/* Team initial circle */}
+        <div
+          className="rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
+          style={{
+            width: 44,
+            height: 44,
+            backgroundColor: team.color || "var(--ct-accent)",
+          }}
+        >
+          {team.name.charAt(0).toUpperCase()}
+        </div>
+
+        {/* Name + stats stacked */}
+        <div className="flex-1 min-w-0">
+          {/* Top row: team name + trend arrow */}
+          <div className="flex items-center gap-1.5">
+            <span
+              className="text-base font-semibold truncate"
+              style={{ color: "var(--ct-text-primary)" }}
+            >
+              {team.name}
+            </span>
+            {team.trend === "up" &&
+              <TrendingUp className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-success)" }} />}
+            {team.trend === "down" &&
+              <TrendingDown className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-danger)" }} />}
+            {team.trend === "neutral" &&
+              <Minus className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-text-secondary)" }} />}
+          </div>
+
+          {/* Second row: W-L • Win% • +/- */}
+          <div className="text-sm mt-1 flex items-center gap-1.5 flex-wrap">
+            <span>
+              <span style={{ color: "var(--ct-success)", fontWeight: 600 }}>{team.wins}</span>
+              <span style={{ color: "var(--ct-text-secondary)" }}> - </span>
+              <span style={{ color: "var(--ct-danger)", fontWeight: 600 }}>{team.losses}</span>
+            </span>
+            <span style={{ color: "var(--ct-text-secondary)" }}>•</span>
+            <span style={{ color: "var(--ct-text-secondary)" }}>{winPctStr}</span>
+            <span style={{ color: "var(--ct-text-secondary)" }}>•</span>
+            <span style={{ color: "var(--ct-text-secondary)" }}>{diffStr}</span>
+          </div>
+        </div>
+
+        {/* Chevron */}
+        <ChevronDown
+          className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 mt-2 ${isExpanded ? "rotate-180" : ""}`}
+          style={{ color: "var(--ct-text-muted)" }}
+        />
+      </button>
+
+      {/* Expandable section (Framer Motion) */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div
+              className="rounded-lg flex flex-col gap-2.5"
+              style={{
+                background: "var(--ct-bg-page)",
+                padding: "12px",
+                marginTop: "8px",
+              }}
+            >
+              {/* Streak */}
+              <div className="flex items-center gap-3">
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-wider w-14"
+                  style={{ color: "var(--ct-text-muted)" }}
+                >
+                  Streak
+                </span>
+                {team.streak ? (
+                  <span
+                    className="text-sm font-bold"
+                    style={{ color: team.streak.type === "W" ? "var(--ct-success)" : "var(--ct-danger)" }}
+                  >
+                    {team.streak.type}{team.streak.count}
+                  </span>
+                ) : (
+                  <span className="text-sm font-bold" style={{ color: "var(--ct-text-muted)" }}>—</span>
+                )}
+              </div>
+
+              {/* Last 5 */}
+              {team.last5.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider w-14"
+                    style={{ color: "var(--ct-text-muted)" }}
+                  >
+                    Last 5
+                  </span>
+                  <div className="flex gap-1.5">
+                    {team.last5.map((r, i) => (
+                      <div
+                        key={i}
+                        className="w-4 h-4 rounded-full"
+                        style={{ background: r === "W" ? "var(--ct-success)" : "var(--ct-danger)" }}
+                        title={r === "W" ? "Win" : "Loss"}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Standings() {
   const [selectedLeagueId, setSelectedLeagueId] = useState(null);
+  const [expandedTeamId, setExpandedTeamId]     = useState(null);
+  const isNarrow = useIsNarrowLayout();
 
   // 1. Fetch active leagues
   const { data: leagues = [], isLoading: leaguesLoading } = useQuery({
@@ -132,14 +291,13 @@ export default function Standings() {
         .then(({ data, error }) => { if (error) throw error; return data || []; }),
   });
 
-  // Default to first league once loaded
   useEffect(() => {
     if (leagues.length > 0 && !selectedLeagueId) {
       setSelectedLeagueId(leagues[0].id);
     }
   }, [leagues, selectedLeagueId]);
 
-  // 2. Fetch teams for selected league
+  // 2. Fetch teams
   const { data: teams = [], isLoading: teamsLoading } = useQuery({
     queryKey: ['teams', selectedLeagueId],
     queryFn: () =>
@@ -152,7 +310,7 @@ export default function Standings() {
     enabled: !!selectedLeagueId,
   });
 
-  // 3. Fetch final games for selected league
+  // 3. Fetch final games
   const { data: games = [], isLoading: gamesLoading } = useQuery({
     queryKey: ['games', selectedLeagueId, 'final'],
     queryFn: () =>
@@ -170,10 +328,9 @@ export default function Standings() {
     return current.map((team, idx) => {
       const currentRank = idx + 1;
 
-      // Streak
       const streak = getTeamStreak(team.id, games);
+      const last5  = getLast5Results(team.id, games);
 
-      // Trend: standings without this team's most recent game
       const teamGames = games
         .filter(g => g.home_team_id === team.id || g.away_team_id === team.id)
         .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
@@ -187,7 +344,7 @@ export default function Standings() {
         else if (prevRank < currentRank) trend = 'down';
       }
 
-      return { ...team, streak, trend };
+      return { ...team, streak, trend, last5 };
     });
   }, [teams, games]);
 
@@ -196,192 +353,221 @@ export default function Standings() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 overflow-x-hidden">
-      <div className="w-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 py-4 md:py-12">
+    <div className="min-h-screen" style={{ background: "var(--color-bg-page)" }}>
 
-        {/* Header */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-              <Trophy className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-slate-900">Team Standings</h1>
+      {/* Page header */}
+      <div className="px-4 sm:px-6 lg:px-8 pt-4 md:pt-8 pb-3">
+        <div className="max-w-[1600px] mx-auto flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--ct-accent-gold)" }}
+          >
+            <Trophy className="w-5 h-5 text-white" />
           </div>
-          <p className="text-slate-600 text-xs sm:text-sm pl-1">Team rankings and records</p>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold leading-tight" style={{ color: "var(--ct-text-primary)" }}>
+              Team Standings
+            </h1>
+            <p className="text-xs sm:text-sm" style={{ color: "var(--ct-text-muted)" }}>
+              Team rankings and records
+            </p>
+          </div>
         </div>
+      </div>
 
-        {/* League selector */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-6 mb-3 sm:mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-yellow-600" />
-            <h2 className="text-base font-semibold text-slate-900">Filter by League</h2>
-          </div>
-          <div className="w-full max-w-md">
+      {/* League pills — shown on all viewports, sticky on mobile only */}
+      <div
+        className="sticky top-0 z-10 md:static"
+        style={{
+          background: "var(--color-bg-page)",
+        }}
+      >
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div
+            className="flex gap-2 overflow-x-auto"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
             {leaguesLoading ? (
-              <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Loading leagues…
-              </div>
+              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: "var(--ct-text-muted)" }} />
             ) : leagues.length === 0 ? (
-              <p className="text-slate-500 text-sm py-2">No leagues available.</p>
+              <span className="text-sm" style={{ color: "var(--ct-text-muted)" }}>No leagues available</span>
             ) : (
-              <Select
-                value={selectedLeagueId || ""}
-                onValueChange={setSelectedLeagueId}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select league" />
-                </SelectTrigger>
-                <SelectContent>
-                  {leagues.map(league => (
-                    <SelectItem key={league.id} value={league.id}>
-                      {league.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              leagues.map(league => {
+                const active = selectedLeagueId === league.id;
+                return (
+                  <button
+                    key={league.id}
+                    onClick={() => setSelectedLeagueId(league.id)}
+                    className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+                    style={{
+                      background: active ? "var(--ct-accent)" : "var(--ct-bg-elevated)",
+                      color:      active ? "#ffffff" : "var(--ct-text-secondary)",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {league.name}
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
+      </div>
 
-        {/* Standings table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          {/* Section label */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-            <Trophy className="w-4 h-4 text-purple-600" />
-            <span className="font-semibold text-slate-900 text-base">Team Standings</span>
+      {/* Main content */}
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 pb-6">
+
+        {/* Loading */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--ct-text-muted)" }} />
           </div>
+        )}
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+        {/* Empty state */}
+        {!isLoading && standings.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: "var(--ct-bg-elevated)" }}
+            >
+              <Trophy className="w-8 h-8" style={{ color: "var(--ct-text-muted)" }} />
             </div>
-          ) : standings.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 px-4">
-              <div className="w-16 h-16 bg-yellow-50 rounded-full flex items-center justify-center mb-4">
-                <Trophy className="w-8 h-8 text-yellow-400" />
+            <p className="text-sm" style={{ color: "var(--ct-text-muted)" }}>
+              No teams in this league yet.
+            </p>
+          </div>
+        )}
+
+        {!isLoading && standings.length > 0 && (
+          <>
+            {/* ── Narrow layout: stacked cards (real mobile OR phone/tablet preview) ── */}
+            {isNarrow && (
+              <div>
+                {standings.map((team, i) => (
+                  <TeamCard
+                    key={team.id}
+                    team={team}
+                    rank={i + 1}
+                    isExpanded={expandedTeamId === team.id}
+                    onToggle={() => setExpandedTeamId(expandedTeamId === team.id ? null : team.id)}
+                  />
+                ))}
               </div>
-              <p className="text-slate-500 text-sm">No teams in this league yet.</p>
-            </div>
-          ) : (
-            <>
-              {/* Mobile */}
-              <div className="block sm:hidden">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500 bg-slate-50">
-                      <th className="text-left py-2 pl-3 pr-1 font-semibold">#</th>
-                      <th className="text-left py-2 font-semibold">Team</th>
-                      <th className="text-center py-2 font-semibold">W</th>
-                      <th className="text-center py-2 font-semibold">L</th>
-                      <th className="text-center py-2 font-semibold">Str</th>
-                      <th className="text-center py-2 pr-3 font-semibold">+/-</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {standings.map((team, i) => (
-                      <tr key={team.id} className="border-b border-slate-100 last:border-0">
-                        <td className="py-2.5 pl-3 pr-1 font-bold text-slate-700">{i + 1}</td>
-                        <td className="py-2.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                              style={{ backgroundColor: team.color || '#3b82f6' }}
-                            >
-                              {team.name.charAt(0).toUpperCase()}
-                            </div>
-                            <span className="font-bold text-slate-900 uppercase truncate max-w-[110px] text-[11px]">
-                              {team.name}
-                            </span>
-                            {team.trend === 'up' && <TrendingUp className="w-3 h-3 text-green-600 flex-shrink-0" />}
-                            {team.trend === 'down' && <TrendingDown className="w-3 h-3 text-red-500 flex-shrink-0" />}
-                            {team.trend === 'neutral' && <Minus className="w-3 h-3 text-slate-400 flex-shrink-0" />}
-                          </div>
-                        </td>
-                        <td className="py-2.5 text-center font-bold text-green-600">{team.wins}</td>
-                        <td className="py-2.5 text-center font-bold text-red-500">{team.losses}</td>
-                        <td className="py-2.5 text-center font-bold">
-                          {team.streak ? (
-                            <span className={team.streak.type === 'W' ? 'text-green-600' : 'text-red-500'}>
-                              {team.streak.type}{team.streak.count}
-                            </span>
-                          ) : <span className="text-slate-400">—</span>}
-                        </td>
-                        <td className={`py-2.5 text-center font-bold pr-3 ${
-                          team.pointsDiff > 0 ? 'text-green-600' :
-                          team.pointsDiff < 0 ? 'text-red-500' :
-                          'text-slate-400'
-                        }`}>
-                          {team.pointsDiff > 0 ? '+' : ''}{team.pointsDiff}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            )}
+
+            {/* ── Desktop: dark table (unchanged) ─────────────────────────── */}
+            {!isNarrow && (
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}
+            >
+              <div
+                className="flex items-center gap-2 px-4 py-3"
+                style={{ borderBottom: "1px solid var(--color-border)" }}
+              >
+                <Trophy className="w-4 h-4" style={{ color: "var(--color-accent)" }} />
+                <span className="font-semibold text-base" style={{ color: "var(--color-text-primary)" }}>
+                  Team Standings
+                </span>
               </div>
 
-              {/* Desktop */}
-              <div className="hidden sm:block overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
-                      <th className="text-left py-3 pl-4 pr-2 font-semibold w-12">#</th>
-                      <th className="text-left py-3 font-semibold">Team</th>
-                      <th className="text-center py-3 font-semibold w-16">W</th>
-                      <th className="text-center py-3 font-semibold w-16">L</th>
-                      <th className="text-center py-3 font-semibold w-20">Win%</th>
-                      <th className="text-center py-3 font-semibold w-20">Streak</th>
-                      <th className="text-center py-3 pr-4 font-semibold w-20">+/-</th>
+                    <tr style={{ background: "var(--color-bg-elevated)", borderBottom: "1px solid var(--color-border)" }}>
+                      {[
+                        { label: "#",      align: "left",   cls: "pl-4 pr-2 w-12" },
+                        { label: "Team",   align: "left",   cls: "" },
+                        { label: "W",      align: "center", cls: "w-16" },
+                        { label: "L",      align: "center", cls: "w-16" },
+                        { label: "Win%",   align: "center", cls: "w-20" },
+                        { label: "Streak", align: "center", cls: "w-20" },
+                        { label: "+/-",    align: "center", cls: "pr-4 w-20" },
+                      ].map(col => (
+                        <th
+                          key={col.label}
+                          className={`py-3 font-semibold text-xs uppercase tracking-wider ${col.cls}`}
+                          style={{ color: "var(--color-text-secondary)", textAlign: col.align }}
+                        >
+                          {col.label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {standings.map((team, i) => (
-                      <tr key={team.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
-                        <td className="py-3 pl-4 pr-2 font-bold text-slate-700">{i + 1}</td>
-                        <td className="py-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                              style={{ backgroundColor: team.color || '#3b82f6' }}
-                            >
-                              {team.name.charAt(0).toUpperCase()}
+                    {standings.map((team, i) => {
+                      const rank = i + 1;
+                      return (
+                        <tr
+                          key={team.id}
+                          className="transition-colors"
+                          style={{ borderBottom: "1px solid var(--color-border)" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "var(--color-bg-card-hover)")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <td
+                            className="py-3 pl-4 pr-2 font-bold"
+                            style={{ color: rank === 1 ? "var(--ct-accent-gold)" : "var(--color-text-secondary)" }}
+                          >
+                            {rank}
+                          </td>
+                          <td className="py-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                                style={{ backgroundColor: team.color || "var(--ct-accent)" }}
+                              >
+                                {team.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span
+                                className="font-bold uppercase tracking-wide"
+                                style={{ color: "var(--color-text-primary)" }}
+                              >
+                                {team.name}
+                              </span>
+                              {team.trend === "up"      && <TrendingUp   className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-success)" }} />}
+                              {team.trend === "down"    && <TrendingDown  className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-danger)" }} />}
+                              {team.trend === "neutral" && <Minus         className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-text-muted)" }} />}
                             </div>
-                            <span className="font-bold text-slate-900 uppercase tracking-wide">
-                              {team.name}
-                            </span>
-                            {team.trend === 'up' && <TrendingUp className="w-4 h-4 text-green-600 flex-shrink-0" />}
-                            {team.trend === 'down' && <TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0" />}
-                            {team.trend === 'neutral' && <Minus className="w-4 h-4 text-slate-400 flex-shrink-0" />}
-                          </div>
-                        </td>
-                        <td className="py-3 text-center font-bold text-green-600">{team.wins}</td>
-                        <td className="py-3 text-center font-bold text-red-500">{team.losses}</td>
-                        <td className="py-3 text-center font-bold text-slate-900">
-                          {(team.winPct * 100).toFixed(1)}%
-                        </td>
-                        <td className="py-3 text-center font-bold">
-                          {team.streak ? (
-                            <span className={team.streak.type === 'W' ? 'text-green-600' : 'text-red-500'}>
-                              {team.streak.type}{team.streak.count}
-                            </span>
-                          ) : <span className="text-slate-400">—</span>}
-                        </td>
-                        <td className={`py-3 text-center font-bold pr-4 ${
-                          team.pointsDiff > 0 ? 'text-green-600' :
-                          team.pointsDiff < 0 ? 'text-red-500' :
-                          'text-slate-400'
-                        }`}>
-                          {team.pointsDiff > 0 ? '+' : ''}{team.pointsDiff}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-3 text-center font-bold" style={{ color: "var(--ct-success)" }}>
+                            {team.wins}
+                          </td>
+                          <td className="py-3 text-center font-bold" style={{ color: "var(--ct-danger)" }}>
+                            {team.losses}
+                          </td>
+                          <td className="py-3 text-center font-bold" style={{ color: "var(--color-text-primary)" }}>
+                            {(team.winPct * 100).toFixed(1)}%
+                          </td>
+                          <td className="py-3 text-center font-bold">
+                            {team.streak ? (
+                              <span style={{ color: team.streak.type === "W" ? "var(--ct-success)" : "var(--ct-danger)" }}>
+                                {team.streak.type}{team.streak.count}
+                              </span>
+                            ) : (
+                              <span style={{ color: "var(--ct-text-muted)" }}>—</span>
+                            )}
+                          </td>
+                          <td
+                            className="py-3 text-center font-bold pr-4"
+                            style={{
+                              color: team.pointsDiff > 0 ? "var(--ct-success)" : team.pointsDiff < 0 ? "var(--ct-danger)" : "var(--ct-text-muted)",
+                            }}
+                          >
+                            {team.pointsDiff > 0 ? "+" : ""}{team.pointsDiff}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-            </>
-          )}
-        </div>
-
+            </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

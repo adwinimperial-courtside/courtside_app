@@ -51,17 +51,17 @@ export default function ImpersonationBanner() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white flex items-center justify-center px-4 gap-3 shadow-md"
+      className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white flex items-center justify-center px-4 gap-3 "
       style={{ height: "48px" }}
     >
       <span className="text-sm font-semibold hidden sm:inline">Simulating:</span>
       <span className="text-sm font-bold truncate max-w-[220px]">{displayName}</span>
-      <Badge className="bg-white/20 text-white text-xs border-0 hover:bg-white/30">{roleLabel}</Badge>
+      <Badge className="bg-[var(--ct-bg-card)]/20 text-white text-xs border-0 hover:bg-[var(--ct-bg-card)]/30">{roleLabel}</Badge>
       <span className="ml-2 font-mono text-sm tabular-nums opacity-90">{countdown}</span>
       <Button
         size="sm"
         variant="outline"
-        className="ml-4 border-white/70 text-white hover:bg-white/20 hover:text-white bg-transparent h-7 text-xs"
+        className="ml-4 border-white/70 text-white hover:bg-[var(--ct-bg-card)]/20 hover:text-white bg-transparent h-7 text-xs"
         onClick={handleExit}
       >
         <LogOut className="w-3 h-3 mr-1" />

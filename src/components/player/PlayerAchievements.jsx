@@ -20,9 +20,9 @@ export default function PlayerAchievements({ myStats, games, teamId, playerRecor
 
   if (badges.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">Achievements</h3>
-        <p className="text-sm text-slate-500">
+      <div className="bg-[var(--ct-bg-card)] rounded-2xl border border-[var(--ct-border)] p-6">
+        <h3 className="text-lg font-bold text-[var(--ct-text-primary)] mb-4">Achievements</h3>
+        <p className="text-sm text-[var(--ct-text-secondary)]">
           No badges unlocked yet. Play more games to earn achievements!
         </p>
       </div>
@@ -30,8 +30,8 @@ export default function PlayerAchievements({ myStats, games, teamId, playerRecor
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-      <h3 className="text-lg font-bold text-slate-900 mb-4">Achievements</h3>
+    <div className="bg-[var(--ct-bg-card)] rounded-2xl border border-[var(--ct-border)] p-6">
+      <h3 className="text-lg font-bold text-[var(--ct-text-primary)] mb-4">Achievements</h3>
       
       <div className="flex flex-wrap gap-3">
         {badges.map(badge => (

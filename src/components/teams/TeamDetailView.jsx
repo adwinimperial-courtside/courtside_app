@@ -149,14 +149,14 @@ export default function TeamDetailView({ team, onBack, canManage }) {
   const captain = players.find((p) => p.is_captain);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] via-[var(--ct-bg-card)] to-[var(--ct-bg-page)]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
 
         {/* Back button */}
         <Button
           variant="ghost"
           onClick={onBack}
-          className="mb-6 hover:bg-slate-100"
+          className="mb-6 hover:bg-[var(--ct-bg-elevated)]"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           {t("teams.backToTeams", "Back to Teams")}
@@ -180,24 +180,24 @@ export default function TeamDetailView({ team, onBack, canManage }) {
             </div>
           )}
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">{team.name}</h1>
-            <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-600">
+            <h1 className="text-3xl font-bold text-[var(--ct-text-primary)]">{team.name}</h1>
+            <div className="flex flex-wrap gap-4 mt-2 text-sm text-[var(--ct-text-secondary)]">
               {team.head_coach && (
                 <span>
-                  <span className="text-slate-400">Head Coach:</span>{" "}
-                  <span className="font-medium text-slate-800">{team.head_coach}</span>
+                  <span className="text-[var(--ct-text-muted)]">Head Coach:</span>{" "}
+                  <span className="font-medium text-[var(--ct-text-primary)]">{team.head_coach}</span>
                 </span>
               )}
               {team.manager && (
                 <span>
-                  <span className="text-slate-400">Manager:</span>{" "}
-                  <span className="font-medium text-slate-800">{team.manager}</span>
+                  <span className="text-[var(--ct-text-muted)]">Manager:</span>{" "}
+                  <span className="font-medium text-[var(--ct-text-primary)]">{team.manager}</span>
                 </span>
               )}
               {captain && (
                 <span className="flex items-center gap-1">
                   <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                  <span className="font-medium text-slate-800">
+                  <span className="font-medium text-[var(--ct-text-primary)]">
                     {captain.first_name} {captain.last_name}
                   </span>
                 </span>
@@ -207,14 +207,14 @@ export default function TeamDetailView({ team, onBack, canManage }) {
         </div>
 
         {/* Players section */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-[var(--ct-bg-card)] rounded-xl border border-[var(--ct-border)] overflow-hidden">
           {/* Section header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--ct-border)]">
             <div>
-              <h2 className="font-semibold text-slate-800">
+              <h2 className="font-semibold text-[var(--ct-text-primary)]">
                 {t("players.roster", "Roster")}
               </h2>
-              <p className="text-sm text-slate-500 mt-0.5">
+              <p className="text-sm text-[var(--ct-text-secondary)] mt-0.5">
                 {players.length} {t("players.players", "players")}
               </p>
             </div>
@@ -234,7 +234,7 @@ export default function TeamDetailView({ team, onBack, canManage }) {
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-12 gap-2 px-6 py-2 bg-slate-50 text-xs font-medium text-slate-500 uppercase tracking-wide border-b border-slate-100">
+          <div className="grid grid-cols-12 gap-2 px-6 py-2 bg-[var(--ct-bg-page)] text-xs font-medium text-[var(--ct-text-secondary)] uppercase tracking-wide border-b border-[var(--ct-border)]">
             <div className="col-span-1">#</div>
             <div className="col-span-3">{t("players.firstName", "First Name")}</div>
             <div className="col-span-3">{t("players.lastName", "Last Name")}</div>
@@ -244,11 +244,11 @@ export default function TeamDetailView({ team, onBack, canManage }) {
           </div>
 
           {isLoading ? (
-            <div className="px-6 py-8 text-center text-slate-400">Loading...</div>
+            <div className="px-6 py-8 text-center text-[var(--ct-text-muted)]">Loading...</div>
           ) : (
             <>
               {players.length === 0 && !isAddingPlayer && (
-                <div className="px-6 py-8 text-center text-slate-400">
+                <div className="px-6 py-8 text-center text-[var(--ct-text-muted)]">
                   {t("players.noPlayers", "No players yet. Add your first player above.")}
                 </div>
               )}
@@ -256,7 +256,7 @@ export default function TeamDetailView({ team, onBack, canManage }) {
               {players.map((player) => (
                 <div
                   key={player.id}
-                  className="grid grid-cols-12 gap-2 px-6 py-2.5 items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors group"
+                  className="grid grid-cols-12 gap-2 px-6 py-2.5 items-center border-b border-[var(--ct-border)] last:border-0 hover:bg-[var(--ct-bg-elevated)] transition-colors group"
                 >
                   {editingPlayerId === player.id ? (
                     <>
@@ -319,10 +319,10 @@ export default function TeamDetailView({ team, onBack, canManage }) {
                             className={`w-4 h-4 transition-colors ${
                               editValues.is_captain
                                 ? "text-amber-500 fill-amber-500"
-                                : "text-slate-300"
+                                : "text-[var(--ct-text-muted)]"
                             }`}
                           />
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-[var(--ct-text-secondary)]">
                             {editValues.is_captain ? "Captain" : "Set"}
                           </span>
                         </button>
@@ -337,7 +337,7 @@ export default function TeamDetailView({ team, onBack, canManage }) {
                           <Check className="w-4 h-4" />
                         </button>
                         <button
-                          className="text-slate-400 hover:text-slate-600"
+                          className="text-[var(--ct-text-muted)] hover:text-[var(--ct-text-secondary)]"
                           onClick={cancelEdit}
                         >
                           <X className="w-4 h-4" />
@@ -346,13 +346,13 @@ export default function TeamDetailView({ team, onBack, canManage }) {
                     </>
                   ) : (
                     <>
-                      <div className="col-span-1 text-sm font-mono text-slate-500">
+                      <div className="col-span-1 text-sm font-mono text-[var(--ct-text-secondary)]">
                         {player.jersey_number || "—"}
                       </div>
-                      <div className="col-span-3 text-sm text-slate-800">
+                      <div className="col-span-3 text-sm text-[var(--ct-text-primary)]">
                         {player.first_name}
                       </div>
-                      <div className="col-span-3 text-sm font-medium text-slate-900">
+                      <div className="col-span-3 text-sm font-medium text-[var(--ct-text-primary)]">
                         {player.last_name}
                       </div>
                       <div className="col-span-2">
@@ -374,13 +374,13 @@ export default function TeamDetailView({ team, onBack, canManage }) {
                         {canManage && (
                           <>
                             <button
-                              className="text-slate-400 hover:text-blue-600 transition-colors"
+                              className="text-[var(--ct-text-muted)] hover:text-blue-600 transition-colors"
                               onClick={() => startEdit(player)}
                             >
                               ✏️
                             </button>
                             <button
-                              className="text-slate-400 hover:text-red-600 transition-colors"
+                              className="text-[var(--ct-text-muted)] hover:text-red-600 transition-colors"
                               onClick={() => setPlayerToDelete(player)}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -457,10 +457,10 @@ export default function TeamDetailView({ team, onBack, canManage }) {
                         className={`w-4 h-4 transition-colors ${
                           newPlayer.is_captain
                             ? "text-amber-500 fill-amber-500"
-                            : "text-slate-300"
+                            : "text-[var(--ct-text-muted)]"
                         }`}
                       />
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-[var(--ct-text-secondary)]">
                         {newPlayer.is_captain ? "Captain" : "Set"}
                       </span>
                     </button>
@@ -474,7 +474,7 @@ export default function TeamDetailView({ team, onBack, canManage }) {
                       <Check className="w-4 h-4" />
                     </button>
                     <button
-                      className="text-slate-400 hover:text-slate-600"
+                      className="text-[var(--ct-text-muted)] hover:text-[var(--ct-text-secondary)]"
                       onClick={() => {
                         setIsAddingPlayer(false);
                         setNewPlayer(blankPlayer());

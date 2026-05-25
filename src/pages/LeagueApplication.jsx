@@ -16,14 +16,14 @@ const VALID_ROLES = Object.keys(ROLE_LABELS);
 function Field({ label, helper, children }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium text-slate-700">{label}</label>
+      <label className="text-sm font-medium text-[var(--ct-text-primary)]">{label}</label>
       {children}
-      {helper && <p className="text-xs text-slate-500">{helper}</p>}
+      {helper && <p className="text-xs text-[var(--ct-text-secondary)]">{helper}</p>}
     </div>
   );
 }
 
-const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent";
+const inputCls = "w-full rounded-lg border border-[var(--ct-border)] px-3 py-2 text-sm text-[var(--ct-text-primary)] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent";
 
 function LeagueCheckboxList({ leagues, selectedLeagueIds, onChange }) {
   const toggle = (id) => {
@@ -35,9 +35,9 @@ function LeagueCheckboxList({ leagues, selectedLeagueIds, onChange }) {
   };
 
   return (
-    <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-300 divide-y divide-slate-100">
+    <div className="max-h-48 overflow-y-auto rounded-lg border border-[var(--ct-border)] divide-y divide-[var(--ct-border)]">
       {leagues.length === 0 && (
-        <p className="text-sm text-slate-400 px-3 py-2">Loading leagues…</p>
+        <p className="text-sm text-[var(--ct-text-muted)] px-3 py-2">Loading leagues…</p>
       )}
       {leagues.map(l => (
         <label key={l.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-orange-50">
@@ -47,7 +47,7 @@ function LeagueCheckboxList({ leagues, selectedLeagueIds, onChange }) {
             onChange={() => toggle(l.id)}
             className="accent-orange-500 w-4 h-4 shrink-0"
           />
-          <span className="text-sm text-slate-800">{l.name}</span>
+          <span className="text-sm text-[var(--ct-text-primary)]">{l.name}</span>
         </label>
       ))}
     </div>
@@ -167,7 +167,7 @@ export default function LeagueApplication() {
   if (!role || !VALID_ROLES.includes(role)) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center px-4 py-12">
+    <div className="min-h-screen bg-[var(--ct-bg-page)] flex flex-col items-center px-4 py-12">
       <div className="w-full max-w-lg">
 
         {/* Logo */}
@@ -179,17 +179,17 @@ export default function LeagueApplication() {
         <button
           type="button"
           onClick={() => navigate("/RoleSelection")}
-          className="text-sm text-slate-500 hover:text-slate-700 mb-6 flex items-center gap-1"
+          className="text-sm text-[var(--ct-text-secondary)] hover:text-[var(--ct-text-primary)] mb-6 flex items-center gap-1"
         >
           ← Back to role selection
         </button>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-          <h1 className="text-xl font-bold text-slate-900 mb-1">
+        <div className="bg-[var(--ct-bg-card)] rounded-2xl border border-[var(--ct-border)] p-8">
+          <h1 className="text-xl font-bold text-[var(--ct-text-primary)] mb-1">
             Apply as {ROLE_LABELS[role]}
           </h1>
-          <p className="text-sm text-slate-500 mb-6">
+          <p className="text-sm text-[var(--ct-text-secondary)] mb-6">
             Fill in the details below and an admin will review your request.
           </p>
 

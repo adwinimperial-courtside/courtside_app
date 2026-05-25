@@ -15,8 +15,8 @@ export default function LeagueCard({ league, role, isDefault, onSetDefault, mult
     league_admin: "bg-orange-100 text-orange-700",
     coach:        "bg-blue-100 text-blue-700",
     player:       "bg-green-100 text-green-700",
-    viewer:       "bg-slate-100 text-slate-600",
-  }[role] ?? "bg-slate-100 text-slate-600";
+    viewer:       "bg-[var(--ct-bg-elevated)] text-[var(--ct-text-secondary)]",
+  }[role] ?? "bg-[var(--ct-bg-elevated)] text-[var(--ct-text-secondary)]";
 
   const roleLabel = {
     league_admin: t("roles.leagueAdmin", "League Admin"),
@@ -41,14 +41,14 @@ export default function LeagueCard({ league, role, isDefault, onSetDefault, mult
               </span>
               {/* Country */}
               {league.country && (
-                <span className="flex items-center gap-1 text-xs text-slate-500">
+                <span className="flex items-center gap-1 text-xs text-[var(--ct-text-secondary)]">
                   <Globe className="w-3 h-3" />
                   {league.country}
                 </span>
               )}
             </div>
           </div>
-          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:from-indigo-600 group-hover:to-blue-700 transition-all shadow-lg ml-3 shrink-0">
+          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:from-indigo-600 group-hover:to-blue-700 transition-all ml-3 shrink-0">
             <Trophy className="w-6 h-6 text-white" />
           </div>
         </div>
@@ -57,7 +57,7 @@ export default function LeagueCard({ league, role, isDefault, onSetDefault, mult
       <CardContent>
         <div className="space-y-3">
           {!isViewer && (
-            <div className="flex items-center gap-2 text-sm text-slate-600">
+            <div className="flex items-center gap-2 text-sm text-[var(--ct-text-secondary)]">
               <Users className="w-4 h-4 text-indigo-500" />
               <span className="font-medium">
                 {t("leagues.manageTeams", "Manage teams and schedule")}

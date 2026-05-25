@@ -1,3 +1,5 @@
+import { totalPoints as getPoints } from "@/lib/playerStats";
+
 // Milestone tiers and progress calculation
 const MILESTONES = {
   season_points: {
@@ -26,10 +28,6 @@ const MILESTONES = {
     unit: "awards",
   },
 };
-
-function getPoints(stat) {
-  return (stat.points_2 || 0) * 2 + (stat.points_3 || 0) * 3 + (stat.free_throws || 0);
-}
 
 function getRebounds(stat) {
   return (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0);

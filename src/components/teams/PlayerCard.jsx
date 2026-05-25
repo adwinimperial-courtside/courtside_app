@@ -4,12 +4,12 @@ import { Badge } from "@/components/ui/badge";
 
 export default function PlayerCard({ player, teamColor, isTeamCaptain }) {
   return (
-    <Card className="border-slate-200 hover:shadow-lg transition-all duration-200">
+    <Card className="border-[var(--ct-border)] hover:shadow-lg transition-all duration-200">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div 
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md relative"
+              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg relative"
               style={{ backgroundColor: teamColor || '#f97316' }}
             >
               {player.jersey_number}
@@ -20,9 +20,9 @@ export default function PlayerCard({ player, teamColor, isTeamCaptain }) {
               )}
             </div>
             <div>
-              <p className="font-semibold text-slate-900">{player.name}</p>
+              <p className="font-semibold text-[var(--ct-text-primary)]">{player.name}</p>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="secondary" className="bg-slate-100 text-slate-700 text-xs">
+                <Badge variant="secondary" className="bg-[var(--ct-bg-elevated)] text-[var(--ct-text-primary)] text-xs">
                   {player.position || 'N/A'}
                 </Badge>
                 {isTeamCaptain && (

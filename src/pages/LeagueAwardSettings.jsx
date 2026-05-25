@@ -91,11 +91,11 @@ function NumField({ label, fieldKey, value, onChange, errors, step = 0.1, min = 
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1">
-        <label className="text-xs font-medium text-slate-600">{label}</label>
+        <label className="text-xs font-medium text-[var(--ct-text-secondary)]">{label}</label>
         {tooltip && (
           <span className="group relative cursor-help">
-            <Info className="w-3 h-3 text-slate-400" />
-            <span className="invisible group-hover:visible absolute left-0 bottom-5 z-10 w-56 rounded-md bg-slate-800 text-white text-xs px-2 py-1.5 shadow-lg">
+            <Info className="w-3 h-3 text-[var(--ct-text-muted)]" />
+            <span className="invisible group-hover:visible absolute left-0 bottom-5 z-10 w-56 rounded-md bg-[var(--ct-accent)] text-white text-xs px-2 py-1.5 ">
               {tooltip}
             </span>
           </span>
@@ -108,8 +108,8 @@ function NumField({ label, fieldKey, value, onChange, errors, step = 0.1, min = 
         max={max}
         value={value}
         onChange={e => onChange(fieldKey, e.target.value)}
-        className={`h-8 w-full rounded-md border px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-orange-400 ${
-          error ? "border-red-400 bg-red-50" : "border-slate-200 bg-white"
+        className={`h-8 w-full rounded-md border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400 ${
+          error ? "border-red-400 bg-red-50" : "border-[var(--ct-border)] bg-[var(--ct-bg-card)]"
         }`}
       />
       {error && <p className="text-xs text-red-600">{error}</p>}
@@ -125,12 +125,12 @@ function FieldGrid({ children }) {
 }
 
 function SectionLabel({ children }) {
-  return <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-4 mb-2">{children}</p>;
+  return <p className="text-xs font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider mt-4 mb-2">{children}</p>;
 }
 
 function FormulaBox({ children }) {
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 font-mono leading-relaxed whitespace-pre-wrap">
+    <div className="bg-[var(--ct-bg-page)] border border-[var(--ct-border)] rounded-lg p-3 text-xs text-[var(--ct-text-secondary)] font-mono leading-relaxed whitespace-pre-wrap">
       {children}
     </div>
   );
@@ -149,14 +149,14 @@ function InfoBox({ children }) {
 function AwardCard({ icon: Icon, iconColor, title, onReset, formula, insight, children }) {
   const [formulaOpen, setFormulaOpen] = useState(false);
   return (
-    <Card className="border-slate-200">
+    <Card className="border-[var(--ct-border)]">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             <Icon className={`w-5 h-5 ${iconColor}`} />
             {title}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onReset} className="text-xs text-slate-500 hover:text-slate-800 gap-1">
+          <Button variant="ghost" size="sm" onClick={onReset} className="text-xs text-[var(--ct-text-secondary)] hover:text-[var(--ct-text-primary)] gap-1">
             <RotateCcw className="w-3 h-3" /> Reset to Default
           </Button>
         </div>
@@ -208,7 +208,7 @@ function ChangeHistory({ leagueId }) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 w-full">
+      <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold text-[var(--ct-text-primary)] hover:text-[var(--ct-text-primary)] w-full">
         {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         Change History
       </CollapsibleTrigger>
@@ -229,28 +229,28 @@ function ChangeHistory({ leagueId }) {
             </Select>
           </div>
           {loading && page === 0 ? (
-            <p className="text-sm text-slate-400 py-4 text-center">Loading…</p>
+            <p className="text-sm text-[var(--ct-text-muted)] py-4 text-center">Loading…</p>
           ) : rows.length === 0 ? (
-            <p className="text-sm text-slate-400 py-4 text-center">No changes recorded yet</p>
+            <p className="text-sm text-[var(--ct-text-muted)] py-4 text-center">No changes recorded yet</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <div className="overflow-x-auto rounded-lg border border-[var(--ct-border)]">
               <table className="w-full text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider">
+                <thead className="bg-[var(--ct-bg-page)] text-[var(--ct-text-secondary)] uppercase tracking-wider">
                   <tr>
                     {["Date", "Changed By", "Award", "Setting", "From", "To"].map(h => (
                       <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[var(--ct-border)]">
                   {rows.map(r => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">
+                    <tr key={r.id} className="hover:bg-[var(--ct-bg-elevated)]">
+                      <td className="px-3 py-2 text-[var(--ct-text-secondary)] whitespace-nowrap">
                         {new Date(r.changed_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                       </td>
-                      <td className="px-3 py-2 text-slate-700">{r.profiles?.display_name ?? "—"}</td>
-                      <td className="px-3 py-2 text-slate-600 uppercase">{r.award_type}</td>
-                      <td className="px-3 py-2 text-slate-600 font-mono">{r.field_name}</td>
+                      <td className="px-3 py-2 text-[var(--ct-text-primary)]">{r.profiles?.display_name ?? "—"}</td>
+                      <td className="px-3 py-2 text-[var(--ct-text-secondary)] uppercase">{r.award_type}</td>
+                      <td className="px-3 py-2 text-[var(--ct-text-secondary)] font-mono">{r.field_name}</td>
                       <td className="px-3 py-2 text-red-600">{r.old_value ?? "—"}</td>
                       <td className="px-3 py-2 text-green-700">{r.new_value ?? "—"}</td>
                     </tr>
@@ -416,7 +416,7 @@ export default function LeagueAwardSettings() {
   if (!isAuthorized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-slate-500 text-sm">Access denied.</p>
+        <p className="text-[var(--ct-text-secondary)] text-sm">Access denied.</p>
       </div>
     );
   }
@@ -428,7 +428,7 @@ export default function LeagueAwardSettings() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <SlidersHorizontal className="w-6 h-6 text-orange-500" />
-        <h1 className="text-2xl font-bold text-slate-900">League Award Settings</h1>
+        <h1 className="text-2xl font-bold text-[var(--ct-text-primary)]">League Award Settings</h1>
       </div>
 
       {/* Status message */}
@@ -447,7 +447,7 @@ export default function LeagueAwardSettings() {
 
       {/* League selector */}
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-slate-700 shrink-0">League</label>
+        <label className="text-sm font-medium text-[var(--ct-text-primary)] shrink-0">League</label>
         <Select value={selectedLeagueId ?? ""} onValueChange={setSelectedLeagueId}>
           <SelectTrigger className="w-64">
             <SelectValue placeholder="Select a league" />
@@ -603,7 +603,7 @@ Winner: Highest Game Score
             onChange={() => handleToggle("pog_winning_team_only")}
             className="accent-orange-500 w-4 h-4"
           />
-          <span className="text-sm text-slate-700">Winning team only</span>
+          <span className="text-sm text-[var(--ct-text-primary)]">Winning team only</span>
         </label>
       </AwardCard>
 
@@ -619,7 +619,7 @@ Winner: Highest Game Score
       >
         <FieldGrid>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-slate-600">Source</label>
+            <label className="text-xs font-medium text-[var(--ct-text-secondary)]">Source</label>
             <Select value={s.mythical_source} onValueChange={v => handleChange("mythical_source", v)}>
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue />
@@ -641,7 +641,7 @@ Winner: Highest Game Score
       </AwardCard>
 
       {/* ── Footer buttons ───────────────────────────────────────────── */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+      <div className="flex items-center justify-between pt-2 border-t border-[var(--ct-border)]">
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setSettings({ ...savedSettings })}>
             Cancel
@@ -662,7 +662,7 @@ Winner: Highest Game Score
 
       {/* ── Change History ────────────────────────────────────────────── */}
       {selectedLeagueId && (
-        <div className="pt-4 border-t border-slate-200">
+        <div className="pt-4 border-t border-[var(--ct-border)]">
           <ChangeHistory leagueId={selectedLeagueId} />
         </div>
       )}

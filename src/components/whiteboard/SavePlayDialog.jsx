@@ -56,7 +56,7 @@ export default function SavePlayDialog({
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div>
-            <label className="text-sm font-medium text-slate-700">Play name</label>
+            <label className="text-sm font-medium text-[var(--ct-text-primary)]">Play name</label>
             <Input
               autoFocus
               value={name}
@@ -67,11 +67,11 @@ export default function SavePlayDialog({
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 block">Tags</label>
+            <label className="text-sm font-medium text-[var(--ct-text-primary)] mb-2 block">Tags</label>
             <div className="grid grid-cols-2 gap-2">
               {TAGS.map((t) => (
                 <label key={t.id}
-                       className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                       className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--ct-border)] cursor-pointer hover:bg-[var(--ct-bg-elevated)]">
                   <Checkbox checked={tags.includes(t.id)} onCheckedChange={() => toggleTag(t.id)} />
                   <span className="text-sm">{t.label}</span>
                 </label>

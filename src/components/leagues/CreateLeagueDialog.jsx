@@ -34,10 +34,10 @@ export default function CreateLeagueDialog({ open, onOpenChange }) {
             <AlertTriangle className="w-7 h-7 text-amber-500" />
           </div>
           <div>
-            <p className="font-semibold text-slate-800 mb-1">
+            <p className="font-semibold text-[var(--ct-text-primary)] mb-1">
               {t("leagues.createComingSoon", "Coming Soon")}
             </p>
-            <p className="text-sm text-slate-500 max-w-xs">
+            <p className="text-sm text-[var(--ct-text-secondary)] max-w-xs">
               {t(
                 "leagues.createDescription",
                 "League creation requires a server-side function that hasn't been built yet. This will be available in a future phase."

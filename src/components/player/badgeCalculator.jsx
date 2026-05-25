@@ -1,8 +1,5 @@
 import { BADGE_DEFINITIONS } from "./badgeDefinitions";
-
-function getPoints(stat) {
-  return (stat.points_2 || 0) * 2 + (stat.points_3 || 0) * 3 + (stat.free_throws || 0);
-}
+import { totalPoints as getPoints } from "@/lib/playerStats";
 
 function getRebounds(stat) {
   return (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0);

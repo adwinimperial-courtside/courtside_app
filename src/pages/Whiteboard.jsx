@@ -245,34 +245,34 @@ export default function Whiteboard() {
   const allowed = ["coach", "league_admin", "player", "app_admin"];
   if (currentUser && !allowed.includes(userType) && !isSupabaseAdmin) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--ct-bg-page)] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl font-bold text-slate-900 mb-2">Access Restricted</p>
-          <p className="text-slate-500">Whiteboard is not available for your role.</p>
+          <p className="text-xl font-bold text-[var(--ct-text-primary)] mb-2">Access Restricted</p>
+          <p className="text-[var(--ct-text-secondary)]">Whiteboard is not available for your role.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] via-[var(--ct-bg-card)] to-[var(--ct-bg-page)]">
       <Toaster position="top-right" richColors />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
+          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center ">
             <PenTool className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Whiteboard</h1>
-            <p className="text-slate-500 text-sm">Diagram plays and tactical formations</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--ct-text-primary)]">Whiteboard</h1>
+            <p className="text-[var(--ct-text-secondary)] text-sm">Diagram plays and tactical formations</p>
           </div>
           <div className="w-full sm:w-64">
             <Select value={selectedLeague || ""} onValueChange={(v) => setSelectedLeague(v || null)}>
               <SelectTrigger>
                 <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-slate-400" />
+                  <Trophy className="w-4 h-4 text-[var(--ct-text-muted)]" />
                   <SelectValue placeholder="Select league" />
                 </div>
               </SelectTrigger>
@@ -287,27 +287,27 @@ export default function Whiteboard() {
 
         {/* Court tabs */}
         <div className="flex justify-center mb-3">
-          <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden shadow-sm bg-white">
+          <div className="inline-flex rounded-lg border border-[var(--ct-border)] overflow-hidden bg-[var(--ct-bg-card)]">
             <button
               onClick={() => switchCourt("half")}
               className={`px-6 py-2.5 text-sm font-semibold transition-colors ${
-                courtType === "half" ? "bg-orange-500 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+                courtType === "half" ? "bg-orange-500 text-white" : "bg-[var(--ct-bg-card)] text-[var(--ct-text-secondary)] hover:bg-[var(--ct-bg-elevated)]"
               }`}
             >Half Court</button>
             <button
               onClick={() => switchCourt("full")}
-              className={`px-6 py-2.5 text-sm font-semibold transition-colors border-l border-slate-200 ${
-                courtType === "full" ? "bg-orange-500 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+              className={`px-6 py-2.5 text-sm font-semibold transition-colors border-l border-[var(--ct-border)] ${
+                courtType === "full" ? "bg-orange-500 text-white" : "bg-[var(--ct-bg-card)] text-[var(--ct-text-secondary)] hover:bg-[var(--ct-bg-elevated)]"
               }`}
             >Full Court</button>
           </div>
         </div>
 
         {/* Whiteboard panel */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-[var(--ct-bg-card)] rounded-2xl border border-[var(--ct-border)] overflow-hidden">
 
           {/* Toolbar row */}
-          <div className="border-b border-slate-100 px-3 py-2 flex flex-wrap items-center gap-2">
+          <div className="border-b border-[var(--ct-border)] px-3 py-2 flex flex-wrap items-center gap-2">
             <DrawingToolbar
               activeTool={activeTool}
               onToolChange={setActiveTool}
@@ -317,9 +317,9 @@ export default function Whiteboard() {
               onDashedChange={setDrawDashed}
               onClearDrawings={() => setDrawings([])}
             />
-            <div className="w-px h-6 bg-slate-200" />
+            <div className="w-px h-6 bg-[var(--ct-bg-elevated)]" />
             <Button variant="ghost" size="sm" onClick={resetAll} title="Reset all"
-                    className="h-9 text-slate-600">
+                    className="h-9 text-[var(--ct-text-secondary)]">
               <RotateCcw className="w-4 h-4 mr-1" />
               <span className="hidden sm:inline">Reset</span>
             </Button>
@@ -333,7 +333,7 @@ export default function Whiteboard() {
           </div>
 
           {/* Court area */}
-          <div className="p-3 sm:p-4 flex justify-center bg-slate-50">
+          <div className="p-3 sm:p-4 flex justify-center bg-[var(--ct-bg-page)]">
             <div
               className="relative w-full"
               style={{
@@ -383,7 +383,7 @@ export default function Whiteboard() {
         </div>
 
         {!selectedLeague && (
-          <p className="text-xs text-center text-slate-400 mt-3">
+          <p className="text-xs text-center text-[var(--ct-text-muted)] mt-3">
             Select a league to enable save/load. The whiteboard works as a scratchpad without one.
           </p>
         )}

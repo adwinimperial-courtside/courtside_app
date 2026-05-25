@@ -113,8 +113,14 @@ export default function Home() {
   // Show spinner while auth is loading or routing queries are in flight
   if (isLoadingAuth || isRouting) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+      <div
+        className="fixed inset-0 flex items-center justify-center"
+        style={{ background: "var(--color-bg-page)" }}
+      >
+        <div
+          className="w-8 h-8 border-4 rounded-full animate-spin"
+          style={{ borderColor: "var(--ct-border)", borderTopColor: "var(--ct-accent)" }}
+        />
       </div>
     );
   }

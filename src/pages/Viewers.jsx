@@ -8,12 +8,12 @@ export default function Viewers() {
 
   if (userType && !isAppAdmin && userType !== "app_admin") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-xl border border-red-200 p-8 text-center">
+          <div className="bg-[var(--ct-bg-card)] rounded-xl border border-red-200 p-8 text-center">
             <Key className="w-12 h-12 text-red-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
-            <p className="text-slate-600">You don't have permission to access this page.</p>
+            <h1 className="text-2xl font-bold text-[var(--ct-text-primary)] mb-2">Access Denied</h1>
+            <p className="text-[var(--ct-text-secondary)]">You don't have permission to access this page.</p>
           </div>
         </div>
       </div>
@@ -21,14 +21,14 @@ export default function Viewers() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Eye className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-slate-900">Viewers</h1>
+            <h1 className="text-3xl font-bold text-[var(--ct-text-primary)]">Viewers</h1>
           </div>
-          <p className="text-slate-600">View users with Viewer access</p>
+          <p className="text-[var(--ct-text-secondary)]">View users with Viewer access</p>
         </div>
 
         <ViewersView />

@@ -18,7 +18,7 @@ export default function POGSpotlightModal({ open, onClose, pogPlayer }) {
       <DialogContent className="max-w-md w-full p-0 gap-0">
         {/* Header */}
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 bg-[var(--ct-bg-card)]/20 rounded-full flex items-center justify-center shrink-0">
             <Trophy className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1 min-w-0">
@@ -44,10 +44,10 @@ export default function POGSpotlightModal({ open, onClose, pogPlayer }) {
           <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mb-4">
             <Clock className="w-7 h-7 text-amber-400" />
           </div>
-          <h3 className="font-semibold text-slate-800 mb-2">
+          <h3 className="font-semibold text-[var(--ct-text-primary)] mb-2">
             {t("schedule.pogComingSoon", "Full Profile Coming Soon")}
           </h3>
-          <p className="text-sm text-slate-500 max-w-xs">
+          <p className="text-sm text-[var(--ct-text-secondary)] max-w-xs">
             {t(
               "schedule.pogDescription",
               "The full Player of the Game spotlight will be available once the Player Profile phase is complete."

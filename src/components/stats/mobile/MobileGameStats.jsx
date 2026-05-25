@@ -26,14 +26,14 @@ export default function MobileGameStats({ games, teams, players, stats }) {
   };
 
   if (completedGames.length === 0) {
-    return <p className="text-slate-500 text-center py-8">No completed games yet</p>;
+    return <p className="text-[var(--ct-text-secondary)] text-center py-8">No completed games yet</p>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-1">
         <Calendar className="w-4 h-4 text-purple-600" />
-        <h2 className="text-base font-semibold text-slate-900">Game Statistics</h2>
+        <h2 className="text-base font-semibold text-[var(--ct-text-primary)]">Game Statistics</h2>
       </div>
 
       {completedGames.map(game => {
@@ -57,8 +57,8 @@ export default function MobileGameStats({ games, teams, players, stats }) {
                 {team?.name?.[0]}
               </div>
             )}
-            <p className="text-xs font-semibold text-slate-700 text-center max-w-[70px] truncate">{team?.name}</p>
-            <p className="text-2xl font-extrabold text-slate-900">{score || 0}</p>
+            <p className="text-xs font-semibold text-[var(--ct-text-primary)] text-center max-w-[70px] truncate">{team?.name}</p>
+            <p className="text-2xl font-extrabold text-[var(--ct-text-primary)]">{score || 0}</p>
           </div>
         );
 
@@ -67,7 +67,7 @@ export default function MobileGameStats({ games, teams, players, stats }) {
           const pts = ((stat.points_2 || 0) * 2) + ((stat.points_3 || 0) * 3) + (stat.free_throws || 0);
           const reb = (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0);
           return (
-            <div className="flex items-start gap-3 py-2 border-b border-slate-100 last:border-0">
+            <div className="flex items-start gap-3 py-2 border-b border-[var(--ct-border)] last:border-0">
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5"
                 style={{ backgroundColor: team?.color || '#f97316' }}
@@ -75,8 +75,8 @@ export default function MobileGameStats({ games, teams, players, stats }) {
                 {player?.jersey_number}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate">{player?.name}</p>
-                <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-slate-500 mt-0.5">
+                <p className="text-sm font-semibold text-[var(--ct-text-primary)] truncate">{player?.name}</p>
+                <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-[var(--ct-text-secondary)] mt-0.5">
                   <span className="font-bold text-purple-600">{pts} PTS</span>
                   <span>•</span>
                   <span>{reb} REB</span>
@@ -95,17 +95,17 @@ export default function MobileGameStats({ games, teams, players, stats }) {
         };
 
         return (
-          <Card key={game.id} className="border-slate-200 shadow-sm">
+          <Card key={game.id} className="border-[var(--ct-border)] ">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs text-slate-500">{format(new Date(game.game_date), 'MMM d, yyyy')}</p>
+                <p className="text-xs text-[var(--ct-text-secondary)]">{format(new Date(game.game_date), 'MMM d, yyyy')}</p>
                 <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Final</span>
               </div>
 
               {/* Score */}
               <div className="flex items-center justify-around mb-4">
                 <TeamLogo team={awayTeam} score={game.away_score} />
-                <span className="text-xl text-slate-300 font-light">vs</span>
+                <span className="text-xl text-[var(--ct-text-muted)] font-light">vs</span>
                 <TeamLogo team={homeTeam} score={game.home_score} />
               </div>
 
@@ -121,8 +121,8 @@ export default function MobileGameStats({ games, teams, players, stats }) {
                       {topPerformer.player?.jersey_number}
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-900 text-sm">{topPerformer.player?.name}</p>
-                      <p className="text-xs text-slate-500">{teams.find(t => t.id === topPerformer.player?.team_id)?.name}</p>
+                      <p className="font-semibold text-[var(--ct-text-primary)] text-sm">{topPerformer.player?.name}</p>
+                      <p className="text-xs text-[var(--ct-text-secondary)]">{teams.find(t => t.id === topPerformer.player?.team_id)?.name}</p>
                     </div>
                   </div>
                   <div className="flex gap-4 text-xs">
@@ -135,7 +135,7 @@ export default function MobileGameStats({ games, teams, players, stats }) {
                     ].map(s => (
                       <div key={s.label} className="text-center">
                         <p className="font-bold text-purple-600 text-sm">{s.val}</p>
-                        <p className="text-slate-500">{s.label}</p>
+                        <p className="text-[var(--ct-text-secondary)]">{s.label}</p>
                       </div>
                     ))}
                   </div>
@@ -161,7 +161,7 @@ export default function MobileGameStats({ games, teams, players, stats }) {
                           {awayTeam?.name?.[0]}
                         </div>
                       )}
-                      <p className="text-sm font-bold text-slate-800">{awayTeam?.name}</p>
+                      <p className="text-sm font-bold text-[var(--ct-text-primary)]">{awayTeam?.name}</p>
                     </div>
                     {awayPlayerStats.map(stat => <PlayerRow key={stat.id} stat={stat} team={awayTeam} />)}
                   </div>
@@ -176,7 +176,7 @@ export default function MobileGameStats({ games, teams, players, stats }) {
                           {homeTeam?.name?.[0]}
                         </div>
                       )}
-                      <p className="text-sm font-bold text-slate-800">{homeTeam?.name}</p>
+                      <p className="text-sm font-bold text-[var(--ct-text-primary)]">{homeTeam?.name}</p>
                     </div>
                     {homePlayerStats.map(stat => <PlayerRow key={stat.id} stat={stat} team={homeTeam} />)}
                   </div>

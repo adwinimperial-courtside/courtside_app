@@ -25,8 +25,8 @@ const ROLE_COLORS = {
   league_admin: "bg-purple-100 text-purple-800",
   player: "bg-blue-100 text-blue-800",
   coach: "bg-green-100 text-green-800",
-  viewer: "bg-slate-100 text-slate-700",
-  user: "bg-gray-100 text-gray-700",
+  viewer: "bg-[var(--ct-bg-elevated)] text-[var(--ct-text-primary)]",
+  user: "bg-[var(--ct-bg-elevated)] text-[var(--ct-text-primary)]",
 };
 
 const ROLE_LABELS = {
@@ -63,12 +63,12 @@ export default function SimulateUser() {
   // Access guard
   if (currentUser && !isAppAdmin && !realIsAppAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6 flex items-center justify-center">
         <Card className="max-w-md border-red-200">
           <CardContent className="pt-6 text-center">
             <UserSearch className="w-10 h-10 text-red-500 mx-auto mb-3" />
-            <p className="font-semibold text-slate-900">Access Denied</p>
-            <p className="text-sm text-slate-500 mt-1">Only app admins can simulate users.</p>
+            <p className="font-semibold text-[var(--ct-text-primary)]">Access Denied</p>
+            <p className="text-sm text-[var(--ct-text-secondary)] mt-1">Only app admins can simulate users.</p>
           </CardContent>
         </Card>
       </div>
@@ -115,18 +115,18 @@ export default function SimulateUser() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">
             <UserSearch className="w-7 h-7 text-orange-500" />
-            <h1 className="text-2xl font-bold text-slate-900">Simulate User</h1>
+            <h1 className="text-2xl font-bold text-[var(--ct-text-primary)]">Simulate User</h1>
           </div>
-          <p className="text-slate-500 text-sm">Browse the app as any registered user</p>
+          <p className="text-[var(--ct-text-secondary)] text-sm">Browse the app as any registered user</p>
         </div>
 
         <div className="relative mb-5">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--ct-text-muted)]" />
           <Input
             placeholder="Search by name or email…"
             className="pl-9"
@@ -135,23 +135,23 @@ export default function SimulateUser() {
           />
         </div>
 
-        <Card className="border-slate-200 shadow-sm overflow-hidden">
+        <Card className="border-[var(--ct-border)] overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center py-16 text-slate-400">
+            <div className="flex items-center justify-center py-16 text-[var(--ct-text-muted)]">
               <Loader2 className="w-5 h-5 animate-spin mr-2" />
               Loading users…
             </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
+            <div className="flex flex-col items-center justify-center py-16 text-[var(--ct-text-muted)] gap-2">
               <UserSearch className="w-8 h-8 opacity-40" />
               <p>No users found</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-[var(--ct-border)]">
               {filteredUsers.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition-colors"
+                  className="flex items-center gap-4 px-5 py-3 hover:bg-[var(--ct-bg-elevated)] transition-colors"
                 >
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-200 to-orange-300 flex items-center justify-center text-orange-800 font-semibold text-sm flex-shrink-0 overflow-hidden">
                     {user.avatar_url ? (
@@ -161,17 +161,17 @@ export default function SimulateUser() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-900 text-sm truncate">
+                    <p className="font-semibold text-[var(--ct-text-primary)] text-sm truncate">
                       {user.full_name || "—"}
                     </p>
-                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                    <p className="text-xs text-[var(--ct-text-secondary)] truncate">{user.email}</p>
                   </div>
                   <Badge
-                    className={`text-xs flex-shrink-0 ${ROLE_COLORS[user.user_type] || "bg-slate-100 text-slate-600"}`}
+                    className={`text-xs flex-shrink-0 ${ROLE_COLORS[user.user_type] || "bg-[var(--ct-bg-elevated)] text-[var(--ct-text-secondary)]"}`}
                   >
                     {ROLE_LABELS[user.user_type] || user.user_type}
                   </Badge>
-                  <p className="text-xs text-slate-400 flex-shrink-0 hidden sm:block w-24 text-right">
+                  <p className="text-xs text-[var(--ct-text-muted)] flex-shrink-0 hidden sm:block w-24 text-right">
                     {user.created_at
                       ? new Date(user.created_at).toLocaleDateString()
                       : "—"}

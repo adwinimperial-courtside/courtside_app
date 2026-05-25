@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Play, Pause, Trophy } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { totalPoints } from "@/lib/playerStats";
 
 function getPeriodLabel(period, periodType) {
   const totalRegulation = periodType === "halves" ? 2 : 4;
@@ -53,7 +54,7 @@ export default function ScoreHeader({ game, homeTeam, awayTeam, onGameUpdate, on
   const queryClient = useQueryClient();
 
   const calcScore = (teamId) => playerStats.reduce((acc, s) =>
-    s.team_id === teamId ? acc + (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0) : acc, 0);
+    s.team_id === teamId ? acc + totalPoints(s) : acc, 0);
   const derivedHomeScore = playerStats.length > 0 ? calcScore(game.home_team_id) : (game.home_score || 0);
   const derivedAwayScore = playerStats.length > 0 ? calcScore(game.away_team_id) : (game.away_score || 0);
   const [possession, setPossession] = useState(() => game.possession || null);

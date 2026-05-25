@@ -18,17 +18,17 @@ export default function GameConfirmationModal({ isOpen, game, homeTeam, awayTeam
 
         <div className="space-y-6 py-4">
           {/* Final Score */}
-          <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg p-6">
+          <div className="bg-gradient-to-r from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] rounded-lg p-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="text-sm text-slate-600">{homeTeam?.name}</p>
-                  <p className="text-3xl font-bold text-slate-900">{game?.home_score}</p>
+                  <p className="text-sm text-[var(--ct-text-secondary)]">{homeTeam?.name}</p>
+                  <p className="text-3xl font-bold text-[var(--ct-text-primary)]">{game?.home_score}</p>
                 </div>
-                <p className="text-lg text-slate-400 font-semibold">-</p>
+                <p className="text-lg text-[var(--ct-text-muted)] font-semibold">-</p>
                 <div className="flex-1 text-right">
-                  <p className="text-sm text-slate-600">{awayTeam?.name}</p>
-                  <p className="text-3xl font-bold text-slate-900">{game?.away_score}</p>
+                  <p className="text-sm text-[var(--ct-text-secondary)]">{awayTeam?.name}</p>
+                  <p className="text-3xl font-bold text-[var(--ct-text-primary)]">{game?.away_score}</p>
                 </div>
               </div>
             </div>

@@ -1,23 +1,17 @@
 import { resolveSettings } from "@/utils/awardDefaults";
+import { totalPoints } from "@/lib/playerStats";
 
 /**
- * Calculate Player of the Game score based on stats
- * Accepts optional awardSettings to use league-specific weights.
- * Points are always calculated as: points_2*2 + points_3*3 + free_throws
- * (consistent with how season award calculations treat digital/non-edited games).
+ * Calculate Player of the Game score based on stats.
+ * Uses the shared totalPoints helper: prefers authoritative `points` (manual
+ * entry) otherwise derives from makes (points_2 * 2 + points_3 * 3 + free_throws).
  */
 export function calculatePOGScore(stats, awardSettings, game) {
   const cfg = resolveSettings(awardSettings);
-  // Always use full point value (points_2 * 2) — same as digital entry season calculation
-  const isDigital = game ? (game.entry_type === 'digital' && !game.edited) : true;
-  const totalPoints = cfg.pog_pts_weight * (
-    (isDigital ? (stats.points_2 || 0) * 2 : (stats.points_2 || 0)) +
-    (stats.points_3 || 0) * 3 +
-    (stats.free_throws || 0)
-  );
-  
-  const score = 
-    totalPoints +
+  const ptsScore = cfg.pog_pts_weight * totalPoints(stats);
+
+  const score =
+    ptsScore +
     cfg.pog_oreb_weight * (stats.offensive_rebounds || 0) +
     cfg.pog_dreb_weight * (stats.defensive_rebounds || 0) +
     cfg.pog_ast_weight * (stats.assists || 0) +

@@ -31,15 +31,15 @@ export default function DevicePreviewToggle({ activeDevice, onChange }) {
   return (
     <div ref={ref} className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
       {open && (
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-1 min-w-[180px]">
+        <div className="bg-[var(--ct-bg-card)] rounded-xl border border-[var(--ct-border)] overflow-hidden mb-1 min-w-[180px]">
           {DEVICES.map((device) => {
             const Icon = device.icon;
             const isActive = activeDevice === device.id;
             return (
               <button
                 key={device.id}
-                className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm hover:bg-slate-50 transition-colors ${
-                  isActive ? "bg-orange-50 text-orange-600 font-semibold" : "text-slate-700"
+                className={`flex items-center gap-3 px-4 py-2.5 w-full text-sm hover:bg-[var(--ct-bg-elevated)] transition-colors ${
+                  isActive ? "bg-orange-50 text-orange-600 font-semibold" : "text-[var(--ct-text-primary)]"
                 }`}
                 onClick={() => {
                   onChange(device.id);
@@ -55,7 +55,7 @@ export default function DevicePreviewToggle({ activeDevice, onChange }) {
         </div>
       )}
       <button
-        className="w-12 h-12 rounded-full bg-slate-800 text-white shadow-lg flex items-center justify-center hover:bg-slate-700 transition-colors"
+        className="w-12 h-12 rounded-full bg-[var(--ct-accent)] text-white flex items-center justify-center hover:bg-[var(--ct-bg-elevated)] transition-colors"
         onClick={() => setOpen((o) => !o)}
         title="Device Preview"
       >

@@ -3,13 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { createPageUrl } from "@/utils";
+import { totalPoints as calcPts } from "@/lib/playerStats";
 import { ArrowLeft, BarChart3, Loader2 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function calcPts(s) {
-  return (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0);
-}
 
 function mergeStatsByPlayer(statRows) {
   const groups = {};

@@ -28,3 +28,6 @@ dist-ssr
 *.sw?
 
 .env
+
+# Claude Code worktrees — nested git repos, never commit
+.claude/worktrees/

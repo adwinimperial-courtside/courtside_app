@@ -37,44 +37,44 @@ export default function MobileTeamStats({ teams, games, stats }) {
   }).filter(t => t.gp > 0).sort((a, b) => parseFloat(b.ppg) - parseFloat(a.ppg));
 
   if (teamStatistics.length === 0) {
-    return <p className="text-slate-500 text-center py-8">No team stats yet</p>;
+    return <p className="text-[var(--ct-text-secondary)] text-center py-8">No team stats yet</p>;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <Shield className="w-4 h-4 text-purple-600" />
-        <h2 className="text-base font-semibold text-slate-900">Team Statistics (Per Game)</h2>
+        <h2 className="text-base font-semibold text-[var(--ct-text-primary)]">Team Statistics (Per Game)</h2>
       </div>
       {teamStatistics.map(team => (
-        <Card key={team.id} className="border-slate-200 shadow-sm">
+        <Card key={team.id} className="border-[var(--ct-border)] ">
           <CardContent className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <TeamLogo team={team} size="sm" />
               <div>
-                <p className="font-bold text-slate-900 text-sm">{team.name}</p>
-                <p className="text-xs text-slate-500">{team.gp} GP</p>
+                <p className="font-bold text-[var(--ct-text-primary)] text-sm">{team.name}</p>
+                <p className="text-xs text-[var(--ct-text-secondary)]">{team.gp} GP</p>
               </div>
             </div>
             <div className="mb-2">
               <span className="text-2xl font-extrabold text-purple-600">{team.ppg}</span>
-              <span className="text-sm text-slate-500 ml-1">PTS</span>
+              <span className="text-sm text-[var(--ct-text-secondary)] ml-1">PTS</span>
             </div>
             <div className="flex gap-4 mb-3 text-sm">
-              <span><span className="font-semibold text-slate-800">{team.rpg}</span> <span className="text-slate-500">REB</span></span>
-              <span className="text-slate-300">•</span>
-              <span><span className="font-semibold text-slate-800">{team.apg}</span> <span className="text-slate-500">AST</span></span>
+              <span><span className="font-semibold text-[var(--ct-text-primary)]">{team.rpg}</span> <span className="text-[var(--ct-text-secondary)]">REB</span></span>
+              <span className="text-[var(--ct-text-muted)]">•</span>
+              <span><span className="font-semibold text-[var(--ct-text-primary)]">{team.apg}</span> <span className="text-[var(--ct-text-secondary)]">AST</span></span>
             </div>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-              <span>OREB <span className="font-semibold text-slate-700">{team.orebpg}</span></span>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--ct-text-secondary)]">
+              <span>OREB <span className="font-semibold text-[var(--ct-text-primary)]">{team.orebpg}</span></span>
               <span>•</span>
-              <span>DREB <span className="font-semibold text-slate-700">{team.drebpg}</span></span>
+              <span>DREB <span className="font-semibold text-[var(--ct-text-primary)]">{team.drebpg}</span></span>
               <span>•</span>
-              <span>STL <span className="font-semibold text-slate-700">{team.stlpg}</span></span>
+              <span>STL <span className="font-semibold text-[var(--ct-text-primary)]">{team.stlpg}</span></span>
               <span>•</span>
-              <span>BLK <span className="font-semibold text-slate-700">{team.blkpg}</span></span>
+              <span>BLK <span className="font-semibold text-[var(--ct-text-primary)]">{team.blkpg}</span></span>
               <span>•</span>
-              <span>TO <span className="font-semibold text-slate-700">{team.topg}</span></span>
+              <span>TO <span className="font-semibold text-[var(--ct-text-primary)]">{team.topg}</span></span>
             </div>
           </CardContent>
         </Card>

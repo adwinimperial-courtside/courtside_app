@@ -188,8 +188,8 @@ export default function CreateGameDialog({
           </div>
 
           {/* Game stage */}
-          <div className="border-t border-slate-200 pt-4 space-y-4">
-            <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+          <div className="border-t border-[var(--ct-border)] pt-4 space-y-4">
+            <p className="text-sm font-semibold text-[var(--ct-text-primary)] uppercase tracking-wide">
               {t("schedule.gameStage", "Game Stage")}
             </p>
             <div>
@@ -231,8 +231,8 @@ export default function CreateGameDialog({
           </div>
 
           {/* Game mode */}
-          <div className="border-t border-slate-200 pt-4 space-y-4">
-            <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+          <div className="border-t border-[var(--ct-border)] pt-4 space-y-4">
+            <p className="text-sm font-semibold text-[var(--ct-text-primary)] uppercase tracking-wide">
               {t("schedule.gameMode", "Game Mode")}
             </p>
 
@@ -290,7 +290,7 @@ export default function CreateGameDialog({
                   <div>
                     <Label htmlFor="overtime_minutes">
                       {t("schedule.overtimeMinutes", "Overtime Minutes")}{" "}
-                      <span className="text-slate-400 font-normal text-xs">(0 = none)</span>
+                      <span className="text-[var(--ct-text-muted)] font-normal text-xs">(0 = none)</span>
                     </Label>
                     <Input
                       id="overtime_minutes"

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar, MapPin, Play, Settings, AlertTriangle, BarChart3, Trophy } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabaseClient";
+import { totalPoints } from "@/lib/playerStats";
+import { useIsNarrowLayout } from "@/lib/DevicePreviewContext";
 import { findPlayerOfGame } from "../utils/pogCalculator";
 import DefaultWinnerDialog from "./DefaultWinnerDialog";
 import EditGameSettingsDialog from "./EditGameSettingsDialog";
@@ -38,9 +38,12 @@ const mergeStatsByPlayer = (rows) => {
   return [...map.values()];
 };
 
-// Inline pill badge — avoids shadcn Badge className conflicts
-const Pill = ({ children, className }) => (
-  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>
+// Dark-themed pill
+const Pill = ({ children, bg, color, border }) => (
+  <span
+    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap"
+    style={{ background: bg, color, border: border || "none" }}
+  >
     {children}
   </span>
 );
@@ -52,14 +55,10 @@ const STAGE_LABELS = {
   final:        "Grand Final",
 };
 
-const ENTRY_TYPE_LABELS = {
-  digital: "Digital Entry",
-  manual:  "Manual Entry",
-};
-
 export default function GameCard({ game, teams, leagueName, canManage, onStartGame, onGameUpdated }) {
   const navigate    = useNavigate();
   const queryClient = useQueryClient();
+  const isNarrow    = useIsNarrowLayout();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showEditSettings, setShowEditSettings] = useState(false);
   const [showDefaultDialog, setShowDefaultDialog] = useState(false);
@@ -149,40 +148,46 @@ export default function GameCard({ game, teams, leagueName, canManage, onStartGa
   const awayStats    = mergeStatsByPlayer(rawAwayStats);
 
   const sumField = (stats, field) => stats.reduce((acc, s) => acc + (s[field] || 0), 0);
-  const calcPts  = (s) => (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0);
+  const calcPts  = totalPoints;
 
   const pogName = pogPlayer
     ? pogPlayer.name || `${pogPlayer.first_name || ""} ${pogPlayer.last_name || ""}`.trim()
     : null;
 
+  const showScore = game.status === "final" || game.status === "live";
+  const isLive = game.status === "live";
+  const homeWon = showScore && (game.home_score || 0) > (game.away_score || 0);
+  const awayWon = showScore && (game.away_score || 0) > (game.home_score || 0);
+
+  const scoreColor = isLive ? "var(--ct-success)" : "var(--ct-text-primary)";
+
   const renderBoxScore = (stats, team) => {
     if (stats.length === 0) return (
-      <p className="text-slate-400 text-sm text-center py-4">No stats recorded</p>
+      <p className="text-sm text-center py-4" style={{ color: "var(--ct-text-muted)" }}>No stats recorded</p>
     );
 
     const sorted = [...stats].sort((a, b) => calcPts(b) - calcPts(a));
 
     return (
       <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50">
-              <TableHead className="min-w-[140px]">Player</TableHead>
-              <TableHead className="text-center">PTS</TableHead>
-              <TableHead className="text-center">3PT</TableHead>
-              <TableHead className="text-center">FT</TableHead>
-              <TableHead className="text-center">OREB</TableHead>
-              <TableHead className="text-center">DREB</TableHead>
-              <TableHead className="text-center">REB</TableHead>
-              <TableHead className="text-center">AST</TableHead>
-              <TableHead className="text-center">STL</TableHead>
-              <TableHead className="text-center">BLK</TableHead>
-              <TableHead className="text-center">TO</TableHead>
-              <TableHead className="text-center">F</TableHead>
-              <TableHead className="text-center">UNSPO</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <table className="w-full text-xs">
+          <thead>
+            <tr style={{ background: "var(--ct-bg-elevated)" }}>
+              {["Player", "PTS", "3PT", "FT", "OREB", "DREB", "REB", "AST", "STL", "BLK", "TO", "F", "UNSPO"].map((h, i) => (
+                <th
+                  key={h}
+                  className="py-2 px-2 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
+                  style={{
+                    color: "var(--ct-text-secondary)",
+                    textAlign: i === 0 ? "left" : "center",
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
             {sorted.map((stat) => {
               const pts  = calcPts(stat);
               const reb  = (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0);
@@ -190,284 +195,596 @@ export default function GameCard({ game, teams, leagueName, canManage, onStartGa
                 ? stat.player.name || `${stat.player.first_name || ""} ${stat.player.last_name || ""}`.trim()
                 : "Unknown";
               return (
-                <TableRow key={stat.player_id}>
-                  <TableCell>
+                <tr key={stat.player_id} style={{ borderBottom: "1px solid var(--ct-border)" }}>
+                  <td className="py-2 px-2">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ backgroundColor: team?.color || "#f97316" }}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: team?.color || "var(--ct-accent)" }}
                       >
                         {stat.player?.jersey_number || "?"}
                       </div>
-                      <span className="text-sm">{name}</span>
+                      <span className="text-sm" style={{ color: "var(--ct-text-primary)" }}>{name}</span>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-center font-semibold">{pts}</TableCell>
-                  <TableCell className="text-center">{stat.points_3 || 0}</TableCell>
-                  <TableCell className="text-center">{stat.free_throws || 0}</TableCell>
-                  <TableCell className="text-center">{stat.offensive_rebounds || 0}</TableCell>
-                  <TableCell className="text-center">{stat.defensive_rebounds || 0}</TableCell>
-                  <TableCell className="text-center font-medium">{reb}</TableCell>
-                  <TableCell className="text-center">{stat.assists || 0}</TableCell>
-                  <TableCell className="text-center">{stat.steals || 0}</TableCell>
-                  <TableCell className="text-center">{stat.blocks || 0}</TableCell>
-                  <TableCell className="text-center">{stat.turnovers || 0}</TableCell>
-                  <TableCell className="text-center">{stat.fouls || 0}</TableCell>
-                  <TableCell className="text-center">{stat.unsportsmanlike_fouls || 0}</TableCell>
-                </TableRow>
+                  </td>
+                  <td className="py-2 px-2 text-center font-semibold" style={{ color: "var(--ct-accent)" }}>{pts}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.points_3 || 0}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.free_throws || 0}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.offensive_rebounds || 0}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.defensive_rebounds || 0}</td>
+                  <td className="py-2 px-2 text-center font-medium" style={{ color: "var(--ct-text-primary)" }}>{reb}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.assists || 0}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.steals || 0}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.blocks || 0}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.turnovers || 0}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.fouls || 0}</td>
+                  <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{stat.unsportsmanlike_fouls || 0}</td>
+                </tr>
               );
             })}
-            <TableRow className="bg-slate-50 font-semibold">
-              <TableCell>TEAM TOTALS</TableCell>
-              <TableCell className="text-center">
-                {sumField(stats, "points_2") * 2 + sumField(stats, "points_3") * 3 + sumField(stats, "free_throws")}
-              </TableCell>
-              <TableCell className="text-center">{sumField(stats, "points_3")}</TableCell>
-              <TableCell className="text-center">{sumField(stats, "free_throws")}</TableCell>
-              <TableCell className="text-center">{sumField(stats, "offensive_rebounds")}</TableCell>
-              <TableCell className="text-center">{sumField(stats, "defensive_rebounds")}</TableCell>
-              <TableCell className="text-center">
+            <tr style={{ background: "var(--ct-bg-elevated)", fontWeight: 600 }}>
+              <td className="py-2 px-2" style={{ color: "var(--ct-text-primary)" }}>TEAM TOTALS</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-accent)" }}>
+                {stats.reduce((acc, s) => acc + totalPoints(s), 0)}
+              </td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "points_3")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "free_throws")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "offensive_rebounds")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "defensive_rebounds")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>
                 {sumField(stats, "offensive_rebounds") + sumField(stats, "defensive_rebounds")}
-              </TableCell>
-              <TableCell className="text-center">{sumField(stats, "assists")}</TableCell>
-              <TableCell className="text-center">{sumField(stats, "steals")}</TableCell>
-              <TableCell className="text-center">{sumField(stats, "blocks")}</TableCell>
-              <TableCell className="text-center">{sumField(stats, "turnovers")}</TableCell>
-              <TableCell className="text-center">{sumField(stats, "fouls")}</TableCell>
-              <TableCell className="text-center">{sumField(stats, "unsportsmanlike_fouls")}</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "assists")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "steals")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "blocks")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "turnovers")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "fouls")}</td>
+              <td className="py-2 px-2 text-center" style={{ color: "var(--ct-text-primary)" }}>{sumField(stats, "unsportsmanlike_fouls")}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     );
   };
 
-  const showScore = game.status === "final" || game.status === "live";
+  // ── Mobile card (narrow viewport or admin phone/tablet preview) ──────────
+  if (isNarrow) {
+    const awayWinnerColor = awayWon ? "var(--ct-text-primary)" : (showScore ? "var(--ct-text-muted)" : "var(--ct-text-primary)");
+    const homeWinnerColor = homeWon ? "var(--ct-text-primary)" : (showScore ? "var(--ct-text-muted)" : "var(--ct-text-primary)");
+    const awayScoreColor = isLive
+      ? "var(--ct-success)"
+      : awayWon ? "var(--ct-text-primary)" : "var(--ct-text-muted)";
+    const homeScoreColor = isLive
+      ? "var(--ct-success)"
+      : homeWon ? "var(--ct-text-primary)" : "var(--ct-text-muted)";
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-    >
-      <Card className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
-        <CardContent className="p-4 sm:p-5 space-y-3">
+    // Build compact meta line: "26 Apr 2026 · 19:00 · Helsinki Ice Hall"
+    const metaParts = [];
+    if (game.scheduled_at) {
+      metaParts.push(format(new Date(game.scheduled_at), "d MMM yyyy"));
+      metaParts.push(format(new Date(game.scheduled_at), "HH:mm"));
+    }
+    if (game.venue) metaParts.push(game.venue);
 
-          {/* Row 1 — Badges */}
-          <div className="flex flex-wrap gap-1.5">
-            {leagueName && (
-              <Pill className="bg-gray-100 text-gray-700">{leagueName}</Pill>
-            )}
-            {game.game_stage && game.game_stage !== "regular" && (
-              <Pill className="bg-amber-100 text-amber-700">
-                {STAGE_LABELS[game.game_stage] || game.game_stage}
-              </Pill>
-            )}
-            {game.status === "final" && (
-              <Pill className="bg-green-100 text-green-700">Completed</Pill>
-            )}
-            {game.status === "live" && (
-              <Pill className="bg-orange-100 text-orange-700 animate-pulse">Live</Pill>
-            )}
-            {game.status === "scheduled" && (
-              <Pill className="bg-blue-100 text-blue-700">Scheduled</Pill>
-            )}
-            {game.status === "cancelled" && (
-              <Pill className="bg-slate-100 text-slate-600">Cancelled</Pill>
-            )}
-            {game.status === "postponed" && (
-              <Pill className="bg-yellow-100 text-yellow-700">Postponed</Pill>
-            )}
-            {game.entry_type === "manual" && (
-              <Pill className="border border-blue-400 text-blue-700 bg-white">Manual Entry</Pill>
-            )}
-            {game.edited && (
-              <Pill className="border border-orange-400 text-orange-700 bg-white">Edited</Pill>
-            )}
-            {game.is_default_result && (
-              <Pill className="bg-red-100 text-red-700">
-                Default — {defaultWinnerTeam?.name || "Winner"}
-              </Pill>
-            )}
-            {game.exclude_from_awards && (
-              <Pill className="bg-yellow-100 text-yellow-800">Excluded from Awards</Pill>
-            )}
-          </div>
+    const TeamRow = ({ team, score, nameColor, scoreColor, isTBD }) => (
+      <div className="flex items-center gap-3 py-1">
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+          style={{ backgroundColor: team?.color || "var(--ct-accent)" }}
+        >
+          {team?.short_name || team?.name?.[0] || "?"}
+        </div>
+        <span
+          className="flex-1 text-sm leading-snug"
+          style={{
+            color: nameColor,
+            fontWeight: (homeWon && team?.id === homeTeam?.id) || (awayWon && team?.id === awayTeam?.id) ? 700 : 500,
+            wordBreak: "break-word",
+          }}
+        >
+          {team?.name || "TBD"}
+        </span>
+        {showScore ? (
+          <span className="text-2xl font-bold flex-shrink-0 tabular-nums" style={{ color: scoreColor }}>
+            {score}
+          </span>
+        ) : (
+          <span className="text-xs font-semibold uppercase tracking-wide flex-shrink-0" style={{ color: "var(--ct-text-muted)" }}>
+            {isTBD ? "—" : "vs"}
+          </span>
+        )}
+      </div>
+    );
 
-          {/* Row 2 — Teams and scores */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Home team */}
-            <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0">
-              <div
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                style={{ backgroundColor: homeTeam?.color || "#64748b" }}
-              >
-                {homeTeam?.short_name || homeTeam?.name?.[0] || "?"}
-              </div>
-              <span className="text-sm font-semibold text-slate-800 leading-tight truncate">
-                {homeTeam?.name || "TBD"}
-              </span>
-              {showScore && (
-                <span className="text-2xl sm:text-3xl font-bold text-slate-900 ml-auto shrink-0">
-                  {game.home_score}
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className="rounded-xl overflow-hidden mb-3"
+        style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)" }}
+      >
+        <div className="p-4 flex flex-col gap-3">
+
+          {/* Line 1 — Status + badges + league/date (compact) */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              {isLive ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--ct-danger)" }} />
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--ct-danger)" }}>Live</span>
                 </span>
-              )}
-            </div>
-
-            {/* Center divider */}
-            <div className="shrink-0 text-slate-400 font-medium text-lg select-none">
-              {showScore ? "—" : "vs"}
-            </div>
-
-            {/* Away team */}
-            <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0 flex-row-reverse">
-              <div
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                style={{ backgroundColor: awayTeam?.color || "#64748b" }}
-              >
-                {awayTeam?.short_name || awayTeam?.name?.[0] || "?"}
-              </div>
-              <span className="text-sm font-semibold text-slate-800 leading-tight truncate text-right">
-                {awayTeam?.name || "TBD"}
-              </span>
-              {showScore && (
-                <span className="text-2xl sm:text-3xl font-bold text-slate-900 mr-auto shrink-0">
-                  {game.away_score}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Row 3 — Meta info */}
-          {(game.scheduled_at || game.venue) && (
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-              {game.scheduled_at && (
-                <>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-slate-400" />
-                    {format(new Date(game.scheduled_at), "dd MMM yyyy")}
+              ) : game.status === "final" ? (
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--ct-text-muted)" }}>Final</span>
+              ) : game.status === "scheduled" ? (
+                game.scheduled_at ? (
+                  <span className="text-xs font-semibold" style={{ color: "var(--ct-text-secondary)" }}>
+                    {format(new Date(game.scheduled_at), "HH:mm")}
                   </span>
-                  <span>{format(new Date(game.scheduled_at), "HH:mm")}</span>
-                </>
+                ) : (
+                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--ct-text-secondary)" }}>Upcoming</span>
+                )
+              ) : game.status === "cancelled" ? (
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--ct-text-muted)" }}>Cancelled</span>
+              ) : game.status === "postponed" ? (
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--ct-accent-gold)" }}>Postponed</span>
+              ) : null}
+
+              {game.game_stage && game.game_stage !== "regular" && (
+                <Pill bg="rgb(var(--ct-accent-gold-rgb)/0.2)" color="var(--ct-accent-gold)">
+                  {STAGE_LABELS[game.game_stage] || game.game_stage}
+                </Pill>
               )}
-              {game.venue && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-slate-400" />
-                  {game.venue}
-                </span>
+              {game.is_default_result && (
+                <Pill bg="rgb(var(--ct-danger-rgb)/0.2)" color="var(--ct-danger)">Default</Pill>
               )}
+              {game.entry_type === "manual" && (
+                <Pill bg="transparent" color="var(--ct-accent)" border="1px solid var(--ct-accent)">Manual</Pill>
+              )}
+              {game.edited && (
+                <Pill bg="transparent" color="var(--ct-accent-gold)" border="1px solid var(--ct-accent-gold)">Edited</Pill>
+              )}
+            </div>
+            {leagueName && (
+              <span className="text-xs truncate max-w-[40%]" style={{ color: "var(--ct-text-muted)" }}>
+                {leagueName}
+              </span>
+            )}
+          </div>
+
+          {/* Line 2-3 — Team rows (stacked) */}
+          <div>
+            <TeamRow
+              team={awayTeam}
+              score={game.away_score}
+              nameColor={awayWinnerColor}
+              scoreColor={awayScoreColor}
+            />
+            <TeamRow
+              team={homeTeam}
+              score={game.home_score}
+              nameColor={homeWinnerColor}
+              scoreColor={homeScoreColor}
+            />
+          </div>
+
+          {/* Line 4 — Compact meta (date · time · venue) */}
+          {metaParts.length > 0 && (
+            <p className="text-xs" style={{ color: "var(--ct-text-muted)" }}>
+              {metaParts.join(" · ")}
+            </p>
+          )}
+
+          {/* Line 5 — POG (final games only) */}
+          {game.status === "final" && pogName && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <Trophy className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-accent-gold)" }} />
+              <span style={{ color: "var(--ct-text-secondary)" }}>POG:</span>
+              <span className="font-semibold truncate" style={{ color: "var(--ct-accent-gold)" }}>{pogName}</span>
             </div>
           )}
 
-          {/* Row 4 — POG + Actions (shown when there's something to display) */}
-          {(game.status === "final" || game.status === "live" || (canManage && game.status === "scheduled")) && (
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          {/* Line 6 — Action buttons */}
+          {game.status === "final" && (
+            <Button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="w-full rounded-lg"
+              style={{
+                background: "var(--ct-bg-elevated)",
+                color: "var(--ct-text-secondary)",
+                border: "none",
+                height: 40,
+              }}
+            >
+              <BarChart3 className="w-4 h-4 mr-1.5" />
+              {isExpanded ? "Hide Stats" : "View Stats"}
+            </Button>
+          )}
 
-              {/* Left: Player of the Game */}
-              <div className="flex items-center gap-1.5">
-                {game.status === "final" && pogName && (
-                  <>
-                    <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span className="text-xs text-slate-500">Player of the Game:</span>
-                    <span className="text-xs font-bold text-amber-600">{pogName}</span>
-                  </>
-                )}
-              </div>
-
-              {/* Right: Action buttons */}
-              <div className="flex items-center gap-2 ml-auto">
-                {canManage && game.status === "scheduled" && (
-                  <>
-                    <Button
-                      size="sm"
-                      onClick={onStartGame}
-                      className="bg-green-600 hover:bg-green-700 text-white h-8"
-                    >
-                      <Play className="w-3.5 h-3.5 mr-1" />
-                      Start
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowDefaultDialog(true)}
-                      className="h-8"
-                      title="Mark default winner"
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowEditSettings(true)}
-                      className="h-8"
-                      title="Edit game settings"
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                    </Button>
-                  </>
-                )}
-
-                {game.status === "live" && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate(`/LiveBoxScore?gameId=${game.id}`)}
-                      className="bg-white border-indigo-300 text-indigo-600 hover:bg-indigo-50 h-8"
-                    >
-                      <BarChart3 className="w-3.5 h-3.5 mr-1" />
-                      View Live Box Score
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={onStartGame}
-                      className="bg-orange-500 hover:bg-orange-600 text-white h-8 shadow-orange-500/40 shadow-md"
-                    >
-                      <Play className="w-3.5 h-3.5 mr-1" />
-                      Continue
-                    </Button>
-                  </>
-                )}
-
-                {game.status === "final" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="h-8 border-slate-300 text-slate-600 hover:bg-slate-50"
-                  >
-                    <BarChart3 className="w-3.5 h-3.5 mr-1" />
-                    {isExpanded ? "Hide Stats" : "View Stats"}
-                  </Button>
-                )}
-              </div>
+          {isLive && (
+            <div className="flex gap-2">
+              <Button
+                onClick={() => navigate(`/LiveBoxScore?gameId=${game.id}`)}
+                className="flex-1 rounded-lg"
+                style={{
+                  background: "transparent",
+                  color: "var(--ct-accent)",
+                  border: "1px solid var(--ct-accent)",
+                  height: 40,
+                }}
+              >
+                <BarChart3 className="w-4 h-4 mr-1.5" />
+                Live Box Score
+              </Button>
+              <Button
+                onClick={onStartGame}
+                className="flex-1 rounded-lg"
+                style={{ background: "var(--ct-danger)", color: "#ffffff", border: "none", height: 40 }}
+              >
+                <Play className="w-4 h-4 mr-1.5" />
+                Continue
+              </Button>
             </div>
           )}
 
-        </CardContent>
+          {canManage && game.status === "scheduled" && (
+            <div className="flex gap-2">
+              <Button
+                onClick={onStartGame}
+                className="flex-1 rounded-lg"
+                style={{ background: "var(--ct-success)", color: "#ffffff", border: "none", height: 40 }}
+              >
+                <Play className="w-4 h-4 mr-1.5" />
+                Start Game
+              </Button>
+              <Button
+                onClick={() => setShowDefaultDialog(true)}
+                className="rounded-lg"
+                style={{ background: "var(--ct-bg-elevated)", color: "var(--ct-text-secondary)", border: "none", height: 40, width: 44 }}
+                title="Mark default winner"
+              >
+                <AlertTriangle className="w-4 h-4" />
+              </Button>
+              <Button
+                onClick={() => setShowEditSettings(true)}
+                className="rounded-lg"
+                style={{ background: "var(--ct-bg-elevated)", color: "var(--ct-text-secondary)", border: "none", height: 40, width: 44 }}
+                title="Edit game settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </div>
 
-        {/* Expanded box score */}
+        {/* Expanded box score (final games only) — reuses desktop render */}
         {isExpanded && game.status === "final" && (
-          <div className="border-t border-slate-100 px-4 sm:px-5 py-4 space-y-6">
+          <div className="px-4 py-4 space-y-6" style={{ borderTop: "1px solid var(--ct-border)", background: "var(--ct-bg-page)" }}>
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: homeTeam?.color || "#64748b" }} />
-                <h4 className="font-semibold text-slate-800">{homeTeam?.name}</h4>
-                <span className="text-slate-400 text-sm">— {game.home_score} pts</span>
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: homeTeam?.color || "var(--ct-accent)" }} />
+                <h4 className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>{homeTeam?.name}</h4>
+                <span className="text-sm" style={{ color: "var(--ct-text-muted)" }}>— {game.home_score} pts</span>
               </div>
               {renderBoxScore(homeStats, homeTeam)}
             </div>
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: awayTeam?.color || "#64748b" }} />
-                <h4 className="font-semibold text-slate-800">{awayTeam?.name}</h4>
-                <span className="text-slate-400 text-sm">— {game.away_score} pts</span>
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: awayTeam?.color || "var(--ct-accent)" }} />
+                <h4 className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>{awayTeam?.name}</h4>
+                <span className="text-sm" style={{ color: "var(--ct-text-muted)" }}>— {game.away_score} pts</span>
               </div>
               {renderBoxScore(awayStats, awayTeam)}
             </div>
           </div>
         )}
-      </Card>
+
+        {/* Dialogs */}
+        <EditGameSettingsDialog
+          open={showEditSettings}
+          onOpenChange={setShowEditSettings}
+          game={game}
+          onSaved={() => {
+            onGameUpdated?.();
+            queryClient.invalidateQueries({ queryKey: ["games"] });
+          }}
+        />
+        <DefaultWinnerDialog
+          open={showDefaultDialog}
+          onOpenChange={setShowDefaultDialog}
+          game={game}
+          homeTeam={homeTeam}
+          awayTeam={awayTeam}
+          onSaved={() => {
+            onGameUpdated?.();
+            queryClient.invalidateQueries({ queryKey: ["games"] });
+          }}
+        />
+      </motion.div>
+    );
+  }
+
+  // ── Desktop card (unchanged) ─────────────────────────────────────────────
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="rounded-xl overflow-hidden"
+      style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)" }}
+    >
+      <div className="p-4 sm:p-5 space-y-3">
+
+        {/* Row 1 — Status indicator (time / Final / LIVE) + right-side badges */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 text-sm">
+            {isLive ? (
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="w-2 h-2 rounded-full animate-pulse"
+                  style={{ background: "var(--ct-danger)" }}
+                />
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--ct-danger)" }}>
+                  Live
+                </span>
+              </span>
+            ) : game.status === "scheduled" ? (
+              game.scheduled_at ? (
+                <span style={{ color: "var(--ct-text-secondary)" }}>
+                  {format(new Date(game.scheduled_at), "HH:mm")}
+                </span>
+              ) : (
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--ct-text-secondary)" }}>
+                  Scheduled
+                </span>
+              )
+            ) : game.status === "final" ? (
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--ct-text-muted)" }}>
+                Final
+              </span>
+            ) : game.status === "cancelled" ? (
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--ct-text-muted)" }}>
+                Cancelled
+              </span>
+            ) : game.status === "postponed" ? (
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--ct-accent-gold)" }}>
+                Postponed
+              </span>
+            ) : null}
+
+            {leagueName && (
+              <span style={{ color: "var(--ct-text-muted)" }} className="text-xs">· {leagueName}</span>
+            )}
+          </div>
+
+          {/* Right side: secondary badges */}
+          <div className="flex gap-1.5 flex-wrap justify-end">
+            {game.game_stage && game.game_stage !== "regular" && (
+              <Pill bg="rgba(245, 158, 11, 0.2)" color="var(--ct-accent-gold)">
+                {STAGE_LABELS[game.game_stage] || game.game_stage}
+              </Pill>
+            )}
+            {game.entry_type === "manual" && (
+              <Pill bg="transparent" color="var(--ct-accent)" border="1px solid var(--ct-accent)">Manual</Pill>
+            )}
+            {game.edited && (
+              <Pill bg="transparent" color="var(--ct-accent-gold)" border="1px solid var(--ct-accent-gold)">Edited</Pill>
+            )}
+            {game.is_default_result && (
+              <Pill bg="rgba(239, 68, 68, 0.2)" color="var(--ct-danger)">
+                Default — {defaultWinnerTeam?.name || "Winner"}
+              </Pill>
+            )}
+            {game.exclude_from_awards && (
+              <Pill bg="rgba(245, 158, 11, 0.2)" color="var(--ct-accent-gold)">No awards</Pill>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2 — Teams + score (away left, score center, home right) */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Away team */}
+          <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0">
+            <div
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+              style={{ backgroundColor: awayTeam?.color || "var(--ct-accent)" }}
+            >
+              {awayTeam?.short_name || awayTeam?.name?.[0] || "?"}
+            </div>
+            <span
+              className="text-sm leading-tight truncate"
+              style={{
+                color: showScore && !awayWon ? "var(--ct-text-muted)" : "var(--ct-text-primary)",
+                fontWeight: awayWon ? 700 : 600,
+              }}
+            >
+              {awayTeam?.name || "TBD"}
+            </span>
+            {showScore && (
+              <span
+                className="text-2xl sm:text-3xl font-bold ml-auto flex-shrink-0"
+                style={{ color: awayWon ? scoreColor : (isLive ? "var(--ct-success)" : "var(--ct-text-secondary)") }}
+              >
+                {game.away_score}
+              </span>
+            )}
+          </div>
+
+          {/* Center divider */}
+          <div className="flex-shrink-0 font-medium text-lg select-none" style={{ color: "var(--ct-text-muted)" }}>
+            {showScore ? "—" : "vs"}
+          </div>
+
+          {/* Home team */}
+          <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0 flex-row-reverse">
+            <div
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+              style={{ backgroundColor: homeTeam?.color || "var(--ct-accent)" }}
+            >
+              {homeTeam?.short_name || homeTeam?.name?.[0] || "?"}
+            </div>
+            <span
+              className="text-sm leading-tight truncate text-right"
+              style={{
+                color: showScore && !homeWon ? "var(--ct-text-muted)" : "var(--ct-text-primary)",
+                fontWeight: homeWon ? 700 : 600,
+              }}
+            >
+              {homeTeam?.name || "TBD"}
+            </span>
+            {showScore && (
+              <span
+                className="text-2xl sm:text-3xl font-bold mr-auto flex-shrink-0"
+                style={{ color: homeWon ? scoreColor : (isLive ? "var(--ct-success)" : "var(--ct-text-secondary)") }}
+              >
+                {game.home_score}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Row 3 — Meta (date + venue) */}
+        {(game.scheduled_at || game.venue) && (
+          <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "var(--ct-text-muted)" }}>
+            {game.scheduled_at && (
+              <>
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {format(new Date(game.scheduled_at), "dd MMM yyyy")}
+                </span>
+                <span>{format(new Date(game.scheduled_at), "HH:mm")}</span>
+              </>
+            )}
+            {game.venue && (
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3 h-3" />
+                {game.venue}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Row 4 — POG + Actions */}
+        {(game.status === "final" || isLive || (canManage && game.status === "scheduled")) && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 pt-2"
+            style={{ borderTop: "1px solid var(--ct-border)" }}
+          >
+            {/* Left: POG */}
+            <div className="flex items-center gap-1.5">
+              {game.status === "final" && pogName && (
+                <>
+                  <Trophy className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-accent-gold)" }} />
+                  <span className="text-xs" style={{ color: "var(--ct-text-secondary)" }}>Player of the Game:</span>
+                  <span className="text-xs font-bold" style={{ color: "var(--ct-accent-gold)" }}>{pogName}</span>
+                </>
+              )}
+            </div>
+
+            {/* Right: action buttons */}
+            <div className="flex items-center gap-2 ml-auto">
+              {canManage && game.status === "scheduled" && (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={onStartGame}
+                    className="h-8"
+                    style={{ background: "var(--ct-success)", color: "#ffffff", border: "none" }}
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1" />
+                    Start
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowDefaultDialog(true)}
+                    className="h-8"
+                    style={{ background: "transparent", borderColor: "var(--ct-border)", color: "var(--ct-text-secondary)" }}
+                    title="Mark default winner"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowEditSettings(true)}
+                    className="h-8"
+                    style={{ background: "transparent", borderColor: "var(--ct-border)", color: "var(--ct-text-secondary)" }}
+                    title="Edit game settings"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </Button>
+                </>
+              )}
+
+              {isLive && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/LiveBoxScore?gameId=${game.id}`)}
+                    className="h-8"
+                    style={{ background: "transparent", borderColor: "var(--ct-accent)", color: "var(--ct-accent)" }}
+                  >
+                    <BarChart3 className="w-3.5 h-3.5 mr-1" />
+                    Live Box Score
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={onStartGame}
+                    className="h-8"
+                    style={{ background: "var(--ct-danger)", color: "#ffffff", border: "none" }}
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1" />
+                    Continue
+                  </Button>
+                </>
+              )}
+
+              {game.status === "final" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="h-8"
+                  style={{ background: "transparent", borderColor: "var(--ct-border)", color: "var(--ct-text-secondary)" }}
+                >
+                  <BarChart3 className="w-3.5 h-3.5 mr-1" />
+                  {isExpanded ? "Hide Stats" : "View Stats"}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Expanded box score */}
+      {isExpanded && game.status === "final" && (
+        <div className="px-4 sm:px-5 py-4 space-y-6" style={{ borderTop: "1px solid var(--ct-border)", background: "var(--ct-bg-page)" }}>
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: homeTeam?.color || "var(--ct-accent)" }}
+              />
+              <h4 className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>{homeTeam?.name}</h4>
+              <span className="text-sm" style={{ color: "var(--ct-text-muted)" }}>— {game.home_score} pts</span>
+            </div>
+            {renderBoxScore(homeStats, homeTeam)}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: awayTeam?.color || "var(--ct-accent)" }}
+              />
+              <h4 className="font-semibold" style={{ color: "var(--ct-text-primary)" }}>{awayTeam?.name}</h4>
+              <span className="text-sm" style={{ color: "var(--ct-text-muted)" }}>— {game.away_score} pts</span>
+            </div>
+            {renderBoxScore(awayStats, awayTeam)}
+          </div>
+        </div>
+      )}
 
       {/* Dialogs */}
       <EditGameSettingsDialog

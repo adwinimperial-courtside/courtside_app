@@ -122,41 +122,41 @@ export default function ApplyForLeague() {
   if (!currentUser) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-slate-300 border-t-orange-500 rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[var(--ct-border)] border-t-orange-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (isAppAdmin || userType === "app_admin") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
-        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-          <AlertCircle className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <p className="text-slate-600">App administrators manage league access directly from User Management.</p>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6 flex items-center justify-center">
+        <div className="bg-[var(--ct-bg-card)] rounded-xl border border-[var(--ct-border)] p-8 text-center">
+          <AlertCircle className="w-10 h-10 text-[var(--ct-text-muted)] mx-auto mb-3" />
+          <p className="text-[var(--ct-text-secondary)]">App administrators manage league access directly from User Management.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-4 sm:p-6">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+          <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center ">
             <PlusCircle className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Request League Access</h1>
-            <p className="text-slate-500 text-sm">Apply to join additional leagues with a specific role.</p>
+            <h1 className="text-2xl font-bold text-[var(--ct-text-primary)]">Request League Access</h1>
+            <p className="text-[var(--ct-text-secondary)] text-sm">Apply to join additional leagues with a specific role.</p>
           </div>
         </div>
 
         {assignedLeagueIds.length > 0 && (
-          <Card className="border-slate-200 mb-5 bg-white">
+          <Card className="border-[var(--ct-border)] mb-5 bg-[var(--ct-bg-card)]">
             <CardContent className="pt-4 pb-4">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Your Current Access</p>
+              <p className="text-xs font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider mb-2">Your Current Access</p>
               <div className="flex flex-wrap gap-2">
-                <Badge className="bg-slate-100 text-slate-700 border border-slate-200">
+                <Badge className="bg-[var(--ct-bg-elevated)] text-[var(--ct-text-primary)] border border-[var(--ct-border)]">
                   Role: {ROLE_LABELS[userType] || userType}
                 </Badge>
                 {assignedLeagueIds.map(id => {
@@ -183,21 +183,21 @@ export default function ApplyForLeague() {
         )}
 
         {availableLeagues.length === 0 ? (
-          <Card className="border-slate-200">
+          <Card className="border-[var(--ct-border)]">
             <CardContent className="pt-8 pb-8 text-center">
               <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-3" />
-              <p className="font-semibold text-slate-900 mb-1">You have access to all available leagues.</p>
-              <p className="text-sm text-slate-500">There are no additional leagues to apply for right now.</p>
+              <p className="font-semibold text-[var(--ct-text-primary)] mb-1">You have access to all available leagues.</p>
+              <p className="text-sm text-[var(--ct-text-secondary)]">There are no additional leagues to apply for right now.</p>
             </CardContent>
           </Card>
         ) : (
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-[var(--ct-border)] ">
+            <CardHeader className="border-b border-[var(--ct-border)]">
               <CardTitle className="text-lg">New League Access Request</CardTitle>
             </CardHeader>
             <CardContent className="pt-5 space-y-5">
               <div>
-                <label className="text-sm font-semibold text-slate-700 block mb-2">What role are you applying for?</label>
+                <label className="text-sm font-semibold text-[var(--ct-text-primary)] block mb-2">What role are you applying for?</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {["player", "coach", "viewer", "league_admin"].map(role => (
                     <button
@@ -206,11 +206,11 @@ export default function ApplyForLeague() {
                       className={`text-left p-3 rounded-lg border-2 transition-colors ${
                         selectedRole === role
                           ? "border-orange-500 bg-orange-50"
-                          : "border-slate-200 bg-white hover:border-slate-300"
+                          : "border-[var(--ct-border)] bg-[var(--ct-bg-card)] hover:border-[var(--ct-border)]"
                       }`}
                     >
-                      <p className="font-semibold text-slate-900 text-sm">{ROLE_LABELS[role]}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{ROLE_DESCRIPTIONS[role]}</p>
+                      <p className="font-semibold text-[var(--ct-text-primary)] text-sm">{ROLE_LABELS[role]}</p>
+                      <p className="text-xs text-[var(--ct-text-secondary)] mt-0.5">{ROLE_DESCRIPTIONS[role]}</p>
                     </button>
                   ))}
                 </div>
@@ -218,8 +218,8 @@ export default function ApplyForLeague() {
 
               {selectedRole && selectedRole !== "player" && (
                 <div>
-                  <label className="text-sm font-semibold text-slate-700 block mb-2">Select league(s)</label>
-                  <div className="space-y-2 border border-slate-200 rounded-lg p-3 bg-slate-50">
+                  <label className="text-sm font-semibold text-[var(--ct-text-primary)] block mb-2">Select league(s)</label>
+                  <div className="space-y-2 border border-[var(--ct-border)] rounded-lg p-3 bg-[var(--ct-bg-page)]">
                     {availableLeagues.map(l => (
                       <label key={l.id} className="flex items-center gap-3 cursor-pointer">
                         <input
@@ -228,8 +228,8 @@ export default function ApplyForLeague() {
                           onChange={() => toggleLeagueId(l.id)}
                           className="w-4 h-4 accent-orange-500"
                         />
-                        <span className="text-sm text-slate-800 font-medium">{l.name}</span>
-                        <span className="text-xs text-slate-400">({l.season})</span>
+                        <span className="text-sm text-[var(--ct-text-primary)] font-medium">{l.name}</span>
+                        <span className="text-xs text-[var(--ct-text-muted)]">({l.season})</span>
                       </label>
                     ))}
                   </div>
@@ -239,7 +239,7 @@ export default function ApplyForLeague() {
               {selectedRole === "player" && (
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-semibold text-slate-700 block mb-2">Select league</label>
+                    <label className="text-sm font-semibold text-[var(--ct-text-primary)] block mb-2">Select league</label>
                     <Select value={selectedLeagueId} onValueChange={v => { setSelectedLeagueId(v); setSelectedTeamId(""); }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Choose a league…" />
@@ -254,9 +254,9 @@ export default function ApplyForLeague() {
 
                   {selectedLeagueId && (
                     <div>
-                      <label className="text-sm font-semibold text-slate-700 block mb-2">Select team</label>
+                      <label className="text-sm font-semibold text-[var(--ct-text-primary)] block mb-2">Select team</label>
                       {teamsInSelectedLeague.length === 0 ? (
-                        <p className="text-sm text-slate-500 italic">No teams found in this league.</p>
+                        <p className="text-sm text-[var(--ct-text-secondary)] italic">No teams found in this league.</p>
                       ) : (
                         <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                           <SelectTrigger>
@@ -289,7 +289,7 @@ export default function ApplyForLeague() {
                 {submitting ? "Submitting…" : "Submit Request"}
               </Button>
 
-              <p className="text-xs text-slate-400 text-center">
+              <p className="text-xs text-[var(--ct-text-muted)] text-center">
                 Your request will be reviewed by the app administrator. You'll gain access once approved.
               </p>
             </CardContent>
@@ -321,16 +321,16 @@ function PendingRequests({ currentUser, leagues }) {
 
   return (
     <div className="mt-6">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Your Previous Requests</p>
+      <p className="text-xs font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider mb-3">Your Previous Requests</p>
       <div className="space-y-2">
         {myApps.map(app => {
           const leagueName = leagues.find(l => l.id === app.league_id)?.name || "—";
           const statusColor = app.status === "approved" ? "bg-green-100 text-green-800" : app.status === "rejected" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800";
           return (
-            <div key={app.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-3">
+            <div key={app.id} className="bg-[var(--ct-bg-card)] border border-[var(--ct-border)] rounded-lg p-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800">{ROLE_LABELS[app.requested_role] || app.requested_role} — {leagueName}</p>
-                <p className="text-xs text-slate-400">{app.created_at ? new Date(app.created_at).toLocaleDateString() : ""}</p>
+                <p className="text-sm font-semibold text-[var(--ct-text-primary)]">{ROLE_LABELS[app.requested_role] || app.requested_role} — {leagueName}</p>
+                <p className="text-xs text-[var(--ct-text-muted)]">{app.created_at ? new Date(app.created_at).toLocaleDateString() : ""}</p>
               </div>
               <Badge className={`${statusColor} text-xs flex-shrink-0`}>{app.status}</Badge>
             </div>

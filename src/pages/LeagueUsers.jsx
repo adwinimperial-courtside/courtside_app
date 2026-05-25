@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { format, formatDistanceToNow, isPast } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
+import { useIsNarrowLayout } from "@/lib/DevicePreviewContext";
 import {
   Search, Users, ChevronDown, ChevronUp, Download,
   UserMinus, RefreshCw, Shield, UserPlus, Copy, Mail,
@@ -17,11 +19,13 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// Dark Court palette — translucent bg + role-coloured text
 const ROLE_COLORS = {
-  player:       "bg-blue-100 text-blue-800",
-  coach:        "bg-green-100 text-green-800",
-  league_admin: "bg-purple-100 text-purple-800",
-  viewer:       "bg-slate-100 text-slate-700",
+  player:       "bg-[rgb(var(--ct-success-rgb)/0.2)] text-[var(--ct-success)]",
+  coach:        "bg-[rgb(var(--ct-accent-rgb)/0.2)] text-[var(--ct-accent)]",
+  league_admin: "bg-[rgb(var(--ct-accent-gold-rgb)/0.2)] text-[var(--ct-accent-gold)]",
+  viewer:       "bg-[rgb(var(--ct-text-secondary-rgb)/0.2)] text-[var(--ct-text-secondary)]",
+  app_admin:    "bg-[rgb(var(--ct-danger-rgb)/0.2)] text-[var(--ct-danger)]",
 };
 
 const ROLE_LABELS = {
@@ -35,7 +39,7 @@ const AVATAR_COLORS = {
   player:       "bg-blue-500",
   coach:        "bg-green-500",
   league_admin: "bg-purple-500",
-  viewer:       "bg-slate-400",
+  viewer:       "bg-[var(--ct-text-muted)]",
 };
 
 const ROLES = ["viewer", "player", "coach", "league_admin"];
@@ -105,53 +109,53 @@ function UserRow({ user, isAppAdmin, managedLeagueIds, onRoleChange, onRemove })
   }
 
   return (
-    <div className="border-b border-slate-100 last:border-0">
+    <div className="border-b border-[var(--ct-border)] last:border-0">
       <div
-        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors"
+        className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--ct-bg-elevated)] cursor-pointer transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
-        <div className={`w-9 h-9 rounded-full ${AVATAR_COLORS[primaryRole] ?? "bg-slate-400"} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
+        <div className={`w-9 h-9 rounded-full ${AVATAR_COLORS[primaryRole] ?? "bg-[var(--ct-text-muted)]"} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
           {name.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-slate-900 truncate">{name}</p>
-          <p className="text-xs text-slate-500 truncate">{user.profile.email || "—"}</p>
+          <p className="font-semibold text-[var(--ct-text-primary)] truncate">{name}</p>
+          <p className="text-xs text-[var(--ct-text-secondary)] truncate">{user.profile.email || "—"}</p>
         </div>
         <div className="hidden sm:flex flex-wrap gap-1 justify-end max-w-[200px]">
           {[...new Set(user.memberships.map(m => m.role))].map(role => (
             <Badge key={role} className={`${ROLE_COLORS[role]} text-xs`}>{ROLE_LABELS[role]}</Badge>
           ))}
         </div>
-        <div className="hidden md:block text-xs text-slate-400 w-24 text-right flex-shrink-0">
+        <div className="hidden md:block text-xs text-[var(--ct-text-muted)] w-24 text-right flex-shrink-0">
           {user.memberships[0]?.joined_at ? format(new Date(user.memberships[0].joined_at), "MMM d, yyyy") : "—"}
         </div>
-        <div className="hidden lg:block text-xs text-slate-400 w-24 text-right flex-shrink-0">
+        <div className="hidden lg:block text-xs text-[var(--ct-text-muted)] w-24 text-right flex-shrink-0">
           {relativeTime(user.profile.last_active)}
         </div>
-        <div className="text-slate-400 flex-shrink-0">
+        <div className="text-[var(--ct-text-muted)] flex-shrink-0">
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
       </div>
 
       {expanded && (
-        <div className="px-4 pb-4 pt-2 bg-slate-50/60 border-t border-slate-100">
+        <div className="px-4 pb-4 pt-2 bg-[var(--ct-bg-page)]/60 border-t border-[var(--ct-border)]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Email</p>
-              <p className="text-sm text-slate-700">{user.profile.email || "—"}</p>
+              <p className="text-xs font-semibold text-[var(--ct-text-muted)] uppercase tracking-wider mb-1">Email</p>
+              <p className="text-sm text-[var(--ct-text-primary)]">{user.profile.email || "—"}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Last Active</p>
-              <p className="text-sm text-slate-700">{relativeTime(user.profile.last_active)}</p>
+              <p className="text-xs font-semibold text-[var(--ct-text-muted)] uppercase tracking-wider mb-1">Last Active</p>
+              <p className="text-sm text-[var(--ct-text-primary)]">{relativeTime(user.profile.last_active)}</p>
             </div>
           </div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">League Memberships</p>
+          <p className="text-xs font-semibold text-[var(--ct-text-muted)] uppercase tracking-wider mb-2">League Memberships</p>
           <div className="space-y-2">
             {manageableMemberships.map(m => (
-              <div key={m.id} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-slate-200">
+              <div key={m.id} className="flex items-center gap-3 bg-[var(--ct-bg-card)] rounded-lg px-3 py-2 border border-[var(--ct-border)]">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{m.league_name}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-sm font-medium text-[var(--ct-text-primary)] truncate">{m.league_name}</p>
+                  <p className="text-xs text-[var(--ct-text-secondary)]">
                     Joined {m.joined_at ? format(new Date(m.joined_at), "MMM d, yyyy") : "—"}
                   </p>
                 </div>
@@ -161,7 +165,7 @@ function UserRow({ user, isAppAdmin, managedLeagueIds, onRoleChange, onRemove })
                     {ROLES.map(r => <SelectItem key={r} value={r} className="text-xs">{ROLE_LABELS[r]}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                {updatingMembership === m.id && <RefreshCw className="w-4 h-4 animate-spin text-slate-400" />}
+                {updatingMembership === m.id && <RefreshCw className="w-4 h-4 animate-spin text-[var(--ct-text-muted)]" />}
                 {isAppAdmin && (
                   <Button
                     variant="ghost" size="sm"
@@ -173,7 +177,7 @@ function UserRow({ user, isAppAdmin, managedLeagueIds, onRoleChange, onRemove })
                 )}
               </div>
             ))}
-            {manageableMemberships.length === 0 && <p className="text-sm text-slate-400">No manageable memberships</p>}
+            {manageableMemberships.length === 0 && <p className="text-sm text-[var(--ct-text-muted)]">No manageable memberships</p>}
           </div>
         </div>
       )}
@@ -191,7 +195,7 @@ function PendingInvites({ invites, isAppAdmin, currentUser, managedLeagues, onRe
     <div className="mb-5">
       <button
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 mb-2"
+        className="flex items-center gap-2 text-sm font-semibold text-[var(--ct-text-primary)] hover:text-[var(--ct-text-primary)] mb-2"
       >
         <Mail className="w-4 h-4 text-orange-500" />
         Pending Invites ({invites.length})
@@ -199,10 +203,10 @@ function PendingInvites({ invites, isAppAdmin, currentUser, managedLeagues, onRe
       </button>
 
       {open && (
-        <div className="bg-white rounded-xl border border-orange-200 overflow-hidden">
+        <div className="bg-[var(--ct-bg-card)] rounded-xl border border-orange-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-orange-50 text-xs text-slate-500 border-b border-orange-200">
+              <thead className="bg-orange-50 text-xs text-[var(--ct-text-secondary)] border-b border-orange-200">
                 <tr>
                   <th className="py-2 px-4 text-left">Email</th>
                   <th className="py-2 px-3 text-left">Role</th>
@@ -213,29 +217,29 @@ function PendingInvites({ invites, isAppAdmin, currentUser, managedLeagues, onRe
                   <th className="py-2 px-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[var(--ct-border)]">
                 {invites.map(inv => {
                   const expired = isPast(new Date(inv.expires_at));
                   const leagueName = managedLeagues.find(l => l.id === inv.league_id)?.name ?? "—";
                   return (
                     <tr key={inv.id} className={expired ? "opacity-60" : ""}>
-                      <td className="py-2 px-4 font-medium text-slate-700">{inv.email}</td>
+                      <td className="py-2 px-4 font-medium text-[var(--ct-text-primary)]">{inv.email}</td>
                       <td className="py-2 px-3">
                         <Badge className={`${ROLE_COLORS[inv.role]} text-xs`}>{ROLE_LABELS[inv.role]}</Badge>
                       </td>
-                      {isAppAdmin && <td className="py-2 px-3 text-slate-600 text-xs">{leagueName}</td>}
-                      <td className="py-2 px-3 text-slate-500 text-xs">
+                      {isAppAdmin && <td className="py-2 px-3 text-[var(--ct-text-secondary)] text-xs">{leagueName}</td>}
+                      <td className="py-2 px-3 text-[var(--ct-text-secondary)] text-xs">
                         {inv.inviter?.full_name || inv.inviter?.display_name || "—"}
                       </td>
-                      <td className="py-2 px-3 text-slate-500 text-xs">{relativeTime(inv.created_at)}</td>
-                      <td className={`py-2 px-3 text-xs font-medium ${expired ? "text-red-600" : "text-slate-500"}`}>
+                      <td className="py-2 px-3 text-[var(--ct-text-secondary)] text-xs">{relativeTime(inv.created_at)}</td>
+                      <td className={`py-2 px-3 text-xs font-medium ${expired ? "text-red-600" : "text-[var(--ct-text-secondary)]"}`}>
                         {expired ? "Expired" : `in ${formatDistanceToNow(new Date(inv.expires_at))}`}
                       </td>
                       <td className="py-2 px-3">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost" size="sm"
-                            className="h-7 px-2 text-xs text-slate-500"
+                            className="h-7 px-2 text-xs text-[var(--ct-text-secondary)]"
                             title="Copy invite link"
                             onClick={() => { navigator.clipboard.writeText(inviteUrl(inv.token)); toast({ title: "Link copied" }); }}
                           >
@@ -269,11 +273,173 @@ function PendingInvites({ invites, isAppAdmin, currentUser, managedLeagues, onRe
   );
 }
 
+// ─── Mobile user card ─────────────────────────────────────────────────────────
+
+// Pick the "most privileged" role across all of a user's memberships for display.
+const ROLE_RANK = { league_admin: 3, coach: 2, player: 1, viewer: 0 };
+function primaryRoleOf(user) {
+  let best = "viewer";
+  let bestRank = -1;
+  for (const m of user.memberships) {
+    const r = ROLE_RANK[m.role] ?? -1;
+    if (r > bestRank) { best = m.role; bestRank = r; }
+  }
+  return best;
+}
+
+function UserCardMobile({ user, isAppAdmin, managedLeagueIds, onRoleChange, onRemove }) {
+  const [expanded, setExpanded] = useState(false);
+  const [updatingMembership, setUpdatingMembership] = useState(null);
+  const name = displayName(user.profile);
+  const role = primaryRoleOf(user);
+
+  const manageableMemberships = isAppAdmin
+    ? user.memberships
+    : user.memberships.filter(m => managedLeagueIds.includes(m.league_id));
+
+  async function handleRoleChange(membershipId, newRole) {
+    setUpdatingMembership(membershipId);
+    try {
+      const { error } = await supabase
+        .from("user_league_memberships")
+        .update({ role: newRole, updated_at: new Date().toISOString() })
+        .eq("id", membershipId);
+      if (error) throw error;
+      toast({ title: "Role updated" });
+      onRoleChange(user.profile.id, membershipId, newRole);
+    } catch (err) {
+      toast({ title: "Failed to update role", description: err.message, variant: "destructive" });
+    } finally {
+      setUpdatingMembership(null);
+    }
+  }
+
+  return (
+    <div
+      className="rounded-xl mb-2"
+      style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)", padding: "16px" }}
+    >
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full text-left bg-transparent border-0 p-0 cursor-pointer"
+        style={{ minHeight: 44 }}
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-medium text-sm truncate" style={{ color: "var(--ct-text-primary)" }}>
+                {name}
+              </span>
+              <span
+                className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full flex-shrink-0 ${ROLE_COLORS[role] || ROLE_COLORS.viewer}`}
+              >
+                {ROLE_LABELS[role] || role}
+              </span>
+            </div>
+            <p className="text-xs truncate" style={{ color: "var(--ct-text-muted)" }}>
+              {user.profile.email || "—"}
+            </p>
+          </div>
+          <ChevronDown
+            className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 mt-0.5 ${expanded ? "rotate-180" : ""}`}
+            style={{ color: "var(--ct-text-muted)" }}
+          />
+        </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ overflow: "hidden" }}
+          >
+            <div
+              className="mt-3 rounded-lg p-3 flex flex-col gap-3"
+              style={{ background: "var(--ct-bg-page)" }}
+            >
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--ct-text-muted)" }}>
+                  Last Active
+                </p>
+                <p className="text-sm" style={{ color: "var(--ct-text-primary)" }}>
+                  {relativeTime(user.profile.last_active)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--ct-text-muted)" }}>
+                  League Memberships
+                </p>
+                {manageableMemberships.length === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--ct-text-muted)" }}>No manageable memberships</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {manageableMemberships.map(m => (
+                      <div
+                        key={m.id}
+                        className="rounded-lg p-2.5 flex flex-col gap-2"
+                        style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)" }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium truncate" style={{ color: "var(--ct-text-primary)" }}>
+                            {m.league_name}
+                          </span>
+                          {updatingMembership === m.id && (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin flex-shrink-0" style={{ color: "var(--ct-text-muted)" }} />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={m.role}
+                            onValueChange={v => handleRoleChange(m.id, v)}
+                            disabled={updatingMembership === m.id}
+                          >
+                            <SelectTrigger className="flex-1 h-10 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROLES.map(r => (
+                                <SelectItem key={r} value={r} className="text-xs">
+                                  {ROLE_LABELS[r]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {isAppAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onRemove(user.profile, m)}
+                              className="h-10 w-10 p-0 flex-shrink-0"
+                              style={{ color: "var(--ct-danger)" }}
+                              title="Remove from league"
+                            >
+                              <UserMinus className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function LeagueUsers() {
   const { currentUser, isAppAdmin, userType, userProfile } = useAuth();
   const canAccess = isAppAdmin || userType === "league_admin";
+  const isNarrow = useIsNarrowLayout();
 
   // ── Users data ───────────────────────────────────────────────────────────────
   const [allUsers, setAllUsers] = useState([]);
@@ -568,11 +734,11 @@ export default function LeagueUsers() {
   // ── Access guard ─────────────────────────────────────────────────────────────
   if (!canAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
-        <div className="bg-white rounded-xl border border-red-200 p-8 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6 flex items-center justify-center">
+        <div className="bg-[var(--ct-bg-card)] rounded-xl border border-red-200 p-8 text-center">
           <Shield className="w-12 h-12 text-red-600 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
-          <p className="text-slate-600">You don't have permission to access this page.</p>
+          <h1 className="text-2xl font-bold text-[var(--ct-text-primary)] mb-2">Access Denied</h1>
+          <p className="text-[var(--ct-text-secondary)]">You don't have permission to access this page.</p>
         </div>
       </div>
     );
@@ -580,18 +746,39 @@ export default function LeagueUsers() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen p-4 md:p-6" style={{ background: "var(--color-bg-page)" }}>
       <div className="max-w-5xl mx-auto">
 
-        {/* Header */}
+        {/* Mobile header (compact, no action buttons — those are in the mobile action row below) */}
+        {isNarrow && (
+          <div className="flex items-center gap-3 mb-4">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #8B5CF6, #7C3AED)" }}
+            >
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold leading-tight truncate" style={{ color: "var(--ct-text-primary)" }}>
+                League Users
+              </h1>
+              <p className="text-xs truncate" style={{ color: "var(--ct-text-muted)" }}>
+                {isAppAdmin ? "All leagues" : `${managedLeagues.length} league${managedLeagues.length !== 1 ? "s" : ""} you manage`}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop header */}
+        {!isNarrow && (
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center ">
               <Users className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">League Users</h1>
-              <p className="text-slate-500 text-sm">
+              <h1 className="text-3xl font-bold text-[var(--ct-text-primary)]">League Users</h1>
+              <p className="text-[var(--ct-text-secondary)] text-sm">
                 {isAppAdmin ? "All leagues" : `${managedLeagues.length} league${managedLeagues.length !== 1 ? "s" : ""} you manage`}
               </p>
             </div>
@@ -605,12 +792,117 @@ export default function LeagueUsers() {
             </Button>
           </div>
         </div>
+        )}
 
-        {/* Role summary chips */}
+        {/* Mobile: 2x2 stats grid */}
+        {isNarrow && (
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {[
+              { label: "Total Users", value: filtered.length },
+              { label: "Players", value: roleCounts.player },
+              { label: "Coaches", value: roleCounts.coach },
+              { label: "Viewers", value: roleCounts.viewer },
+            ].map((m) => (
+              <div
+                key={m.label}
+                className="rounded-xl p-3"
+                style={{ background: "var(--ct-bg-card)", border: "1px solid var(--ct-border)" }}
+              >
+                <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ct-text-muted)" }}>
+                  {m.label}
+                </p>
+                <p className="text-2xl font-bold" style={{ color: "var(--ct-text-primary)" }}>
+                  {m.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Mobile: action buttons */}
+        {isNarrow && (
+          <div className="flex gap-2 mb-4">
+            <Button
+              onClick={openInviteModal}
+              className="flex-1 rounded-lg"
+              style={{ background: "var(--ct-accent)", color: "#ffffff", border: "none", height: 44 }}
+            >
+              <UserPlus className="w-4 h-4 mr-1.5" /> Invite User
+            </Button>
+            <Button
+              variant="outline"
+              onClick={exportCSV}
+              className="flex-1 rounded-lg"
+              style={{ background: "var(--ct-bg-elevated)", color: "var(--ct-text-secondary)", border: "none", height: 44 }}
+            >
+              <Download className="w-4 h-4 mr-1.5" /> Export
+            </Button>
+          </div>
+        )}
+
+        {/* Mobile: role filter pills */}
+        {isNarrow && (
+          <div
+            className="flex gap-2 overflow-x-auto mb-4"
+            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {[
+              { id: "all", label: "All" },
+              { id: "league_admin", label: "Admin" },
+              { id: "coach", label: "Coach" },
+              { id: "player", label: "Player" },
+              { id: "viewer", label: "Viewer" },
+            ].map((p) => {
+              const active = filterRole === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => { setFilterRole(p.id); setPage(1); }}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap"
+                  style={{
+                    background: active ? "var(--ct-accent)" : "var(--ct-bg-elevated)",
+                    color:      active ? "#ffffff" : "var(--ct-text-secondary)",
+                    border: "none",
+                    cursor: "pointer",
+                    minHeight: 32,
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Mobile: compact search */}
+        {isNarrow && (
+          <div className="relative mb-4">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+              style={{ color: "var(--ct-text-muted)" }}
+            />
+            <input
+              type="text"
+              placeholder="Search users…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="w-full pl-9 pr-3 py-2 rounded-full text-sm focus:outline-none"
+              style={{
+                background: "var(--ct-bg-elevated)",
+                border: "1px solid var(--ct-border)",
+                color: "var(--ct-text-primary)",
+                height: 44,
+              }}
+            />
+          </div>
+        )}
+
+        {/* Desktop-only: role summary chips */}
+        {!isNarrow && (
         <div className="flex flex-wrap gap-2 mb-5">
           <button
             onClick={() => setFilterRole("all")}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${filterRole === "all" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${filterRole === "all" ? "bg-[var(--ct-accent)] text-white" : "bg-[var(--ct-bg-elevated)] text-[var(--ct-text-primary)] hover:bg-[var(--ct-bg-elevated)]"}`}
           >
             All: {filtered.length}
           </button>
@@ -626,41 +918,58 @@ export default function LeagueUsers() {
             )
           ))}
         </div>
+        )}
 
-        {/* Pending invites */}
-        <PendingInvites
-          invites={pendingInvites}
-          isAppAdmin={isAppAdmin}
-          currentUser={currentUser}
-          managedLeagues={managedLeagues}
-          onResend={handleResend}
-          onRevoke={setRevokeTarget}
-        />
+        {/* Pending invites — desktop-only (has a wide table that overflows on mobile) */}
+        {!isNarrow && (
+          <PendingInvites
+            invites={pendingInvites}
+            isAppAdmin={isAppAdmin}
+            currentUser={currentUser}
+            managedLeagues={managedLeagues}
+            onResend={handleResend}
+            onRevoke={setRevokeTarget}
+          />
+        )}
 
-        {/* Filters */}
+        {/* Mobile: one-line pending-invites summary */}
+        {isNarrow && pendingInvites.length > 0 && (
+          <div
+            className="rounded-lg px-3 py-2 mb-3 flex items-center gap-2"
+            style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)" }}
+          >
+            <Mail className="w-4 h-4 flex-shrink-0" style={{ color: "var(--ct-accent-gold)" }} />
+            <span className="text-xs" style={{ color: "var(--ct-accent-gold)" }}>
+              {pendingInvites.length} pending invite{pendingInvites.length !== 1 ? "s" : ""} — manage on desktop
+            </span>
+          </div>
+        )}
+
+        {/* Desktop-only filters */}
+        {!isNarrow && (
         <div className="flex flex-col sm:flex-row gap-3 mb-5">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--ct-text-muted)]" />
             <Input placeholder="Search name or email…" value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
-              className="pl-9 bg-white shadow-sm" />
+              className="pl-9 bg-[var(--ct-bg-card)] " />
           </div>
           <Select value={filterLeague} onValueChange={v => { setFilterLeague(v); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-48 bg-white shadow-sm"><SelectValue placeholder="All Leagues" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-48 bg-[var(--ct-bg-card)] "><SelectValue placeholder="All Leagues" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Leagues</SelectItem>
               {managedLeagues.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterRole} onValueChange={v => { setFilterRole(v); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-36 bg-white shadow-sm"><SelectValue placeholder="All Roles" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-36 bg-[var(--ct-bg-card)] "><SelectValue placeholder="All Roles" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
               {ROLES.map(r => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-44 bg-white shadow-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-44 bg-[var(--ct-bg-card)] "><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="name_asc">Name A–Z</SelectItem>
               <SelectItem value="name_desc">Name Z–A</SelectItem>
@@ -670,19 +979,36 @@ export default function LeagueUsers() {
             </SelectContent>
           </Select>
         </div>
+        )}
 
         {/* User list */}
         {loading ? (
           <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 bg-white rounded-xl animate-pulse" />)}
+            {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 bg-[var(--ct-bg-card)] rounded-xl animate-pulse" />)}
           </div>
         ) : paginated.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-            <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">No users found{search ? ` for "${search}"` : ""}.</p>
+          <div className="bg-[var(--ct-bg-card)] rounded-xl border border-[var(--ct-border)] p-12 text-center">
+            <Users className="w-10 h-10 text-[var(--ct-text-muted)] mx-auto mb-3" />
+            <p className="text-[var(--ct-text-secondary)]">No users found{search ? ` for "${search}"` : ""}.</p>
+          </div>
+        ) : isNarrow ? (
+          <div>
+            {paginated.map(user => (
+              <UserCardMobile
+                key={user.profile.id}
+                user={user}
+                isAppAdmin={isAppAdmin}
+                managedLeagueIds={managedLeagues.map(l => l.id)}
+                onRoleChange={handleRoleChange}
+                onRemove={(profile, membership) => setRemoveTarget({ profile, membership })}
+              />
+            ))}
+            <p className="text-xs text-center mt-2" style={{ color: "var(--ct-text-muted)" }}>
+              Showing {paginated.length} of {filtered.length} user{filtered.length !== 1 ? "s" : ""}
+            </p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-[var(--ct-bg-card)] rounded-xl border border-[var(--ct-border)] overflow-hidden">
             {paginated.map(user => (
               <UserRow
                 key={user.profile.id}
@@ -693,7 +1019,7 @@ export default function LeagueUsers() {
                 onRemove={(profile, membership) => setRemoveTarget({ profile, membership })}
               />
             ))}
-            <div className="px-4 py-2 text-xs text-slate-400 border-t border-slate-100">
+            <div className="px-4 py-2 text-xs text-[var(--ct-text-muted)] border-t border-[var(--ct-border)]">
               Showing {paginated.length} of {filtered.length} user{filtered.length !== 1 ? "s" : ""}
             </div>
           </div>
@@ -744,7 +1070,7 @@ export default function LeagueUsers() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[var(--ct-text-secondary)]">
               If this email already has an account, they'll be added instantly. Otherwise an invite link will be sent.
             </p>
           </div>
@@ -766,7 +1092,7 @@ export default function LeagueUsers() {
       <Dialog open={!!removeTarget} onOpenChange={v => { if (!v) setRemoveTarget(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle className="text-red-700">Remove from League</DialogTitle></DialogHeader>
-          <p className="text-sm text-slate-600 py-2">
+          <p className="text-sm text-[var(--ct-text-secondary)] py-2">
             Remove <span className="font-semibold">{displayName(removeTarget?.profile)}</span> from{" "}
             <span className="font-semibold">{removeTarget?.membership.league_name}</span>? This cannot be undone.
           </p>
@@ -783,7 +1109,7 @@ export default function LeagueUsers() {
       <Dialog open={!!revokeTarget} onOpenChange={v => { if (!v) setRevokeTarget(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Revoke Invitation</DialogTitle></DialogHeader>
-          <p className="text-sm text-slate-600 py-2">
+          <p className="text-sm text-[var(--ct-text-secondary)] py-2">
             Revoke the invitation sent to <span className="font-semibold">{revokeTarget?.email}</span>?
             The invite link will no longer work.
           </p>

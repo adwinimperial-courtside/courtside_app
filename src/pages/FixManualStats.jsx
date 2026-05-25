@@ -34,11 +34,11 @@ export default function FixManualStats() {
 
   if (userType && !isAppAdmin && userType !== "app_admin") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="max-w-2xl mx-auto bg-white rounded-xl border border-red-200 p-8 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6">
+        <div className="max-w-2xl mx-auto bg-[var(--ct-bg-card)] rounded-xl border border-red-200 p-8 text-center">
           <Key className="w-12 h-12 text-red-600 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
-          <p className="text-slate-600">You don't have permission to access this page.</p>
+          <h1 className="text-2xl font-bold text-[var(--ct-text-primary)] mb-2">Access Denied</h1>
+          <p className="text-[var(--ct-text-secondary)]">You don't have permission to access this page.</p>
         </div>
       </div>
     );
@@ -136,19 +136,19 @@ export default function FixManualStats() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--ct-bg-page)] to-[var(--ct-bg-elevated)] p-6">
       <div className="max-w-3xl mx-auto">
         <div className="mb-8 flex items-center gap-3">
           <Wrench className="w-8 h-8 text-orange-600" />
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Fix Manual Game Stats</h1>
-            <p className="text-slate-600 mt-1">Recalculates and normalizes player stats for all manual and edited games so the box score always matches what was entered.</p>
+            <h1 className="text-3xl font-bold text-[var(--ct-text-primary)]">Fix Manual Game Stats</h1>
+            <p className="text-[var(--ct-text-secondary)] mt-1">Recalculates and normalizes player stats for all manual and edited games so the box score always matches what was entered.</p>
           </div>
         </div>
 
-        <Card className="border-slate-200 shadow-lg mb-6">
-          <CardHeader className="border-b border-slate-200 bg-slate-50">
-            <CardTitle className="flex items-center gap-2 text-slate-800">
+        <Card className="border-[var(--ct-border)] mb-6">
+          <CardHeader className="border-b border-[var(--ct-border)] bg-[var(--ct-bg-page)]">
+            <CardTitle className="flex items-center gap-2 text-[var(--ct-text-primary)]">
               <Filter className="w-5 h-5 text-orange-600" />
               Select League
             </CardTitle>
@@ -190,7 +190,7 @@ export default function FixManualStats() {
         </Card>
 
         {results && (
-          <Card className={`border shadow-lg ${results.success ? 'border-green-200' : 'border-red-200'}`}>
+          <Card className={`border ${results.success ? 'border-green-200' : 'border-red-200'}`}>
             <CardContent className="pt-6">
               {results.success ? (
                 <div className="space-y-4">
@@ -205,8 +205,8 @@ export default function FixManualStats() {
                       const home = teams.find(t => t.id === g.home_team_id);
                       const away = teams.find(t => t.id === g.away_team_id);
                       return (
-                        <div key={g.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-2 text-sm">
-                          <span className="text-slate-700">
+                        <div key={g.id} className="flex items-center justify-between bg-[var(--ct-bg-page)] rounded-lg px-4 py-2 text-sm">
+                          <span className="text-[var(--ct-text-primary)]">
                             {home?.name} vs {away?.name}
                           </span>
                           <div className="flex items-center gap-2">

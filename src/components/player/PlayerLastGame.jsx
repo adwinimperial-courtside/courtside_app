@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { totalPoints } from "@/lib/playerStats";
 
 function didPlayerParticipate(stat) {
   const hasStats = (stat.points_2 || 0) + (stat.points_3 || 0) + (stat.free_throws || 0) +
@@ -40,15 +41,15 @@ export default function PlayerLastGame({ games, myStats, teams, teamId }) {
   );
 
   return (
-    <div className={`rounded-2xl shadow-sm border overflow-hidden transition-all ${!lastGame ? 'bg-white border-slate-100' : lastGame.home_team_id === teamId && lastGame.home_score > lastGame.away_score || lastGame.away_team_id === teamId && lastGame.away_score > lastGame.home_score ? 'bg-green-50 border-green-200 border-l-4 border-l-green-500' : 'bg-red-50 border-red-200 border-l-4 border-l-red-500'}`}>
+    <div className={`rounded-2xl border overflow-hidden transition-all ${!lastGame ? 'bg-[var(--ct-bg-card)] border-[var(--ct-border)]' : lastGame.home_team_id === teamId && lastGame.home_score > lastGame.away_score || lastGame.away_team_id === teamId && lastGame.away_score > lastGame.home_score ? 'bg-green-50 border-green-200 border-l-4 border-l-green-500' : 'bg-red-50 border-red-200 border-l-4 border-l-red-500'}`}>
       <div className="px-6 pt-5 pb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wider">Last Game</h3>
-        {lastGame && <ChevronRight className="w-4 h-4 text-slate-300" />}
+        <h3 className="text-sm font-semibold text-[var(--ct-text-secondary)] uppercase tracking-wider">Last Game</h3>
+        {lastGame && <ChevronRight className="w-4 h-4 text-[var(--ct-text-muted)]" />}
       </div>
 
       {!lastGame ? (
         <div className="px-6 pb-5 pt-2">
-          <p className="text-slate-400 text-sm">No game stats available yet.</p>
+          <p className="text-[var(--ct-text-muted)] text-sm">No game stats available yet.</p>
         </div>
       ) : (
         <button
@@ -63,7 +64,7 @@ export default function PlayerLastGame({ games, myStats, teams, teamId }) {
             const oppScore = isHome ? lastGame.away_score : lastGame.home_score;
             const won = myScore > oppScore;
 
-            const pts = statLine ? (statLine.points_2||0)*2 + (statLine.points_3||0)*3 + (statLine.free_throws||0) : null;
+            const pts = statLine ? totalPoints(statLine) : null;
             const reb = statLine ? (statLine.offensive_rebounds||0) + (statLine.defensive_rebounds||0) : null;
             const ast = statLine ? statLine.assists || 0 : null;
             const min = statLine ? Math.round(statLine.minutes_played || 0) : null;

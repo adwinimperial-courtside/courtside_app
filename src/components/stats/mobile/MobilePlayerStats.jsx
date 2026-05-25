@@ -78,19 +78,19 @@ export default function MobilePlayerStats({ players, teams, stats, games = [] })
   }).filter(p => p.gp > 0).sort((a, b) => parseFloat(b.ppg) - parseFloat(a.ppg));
 
   if (playerAggregates.length === 0) {
-    return <p className="text-slate-500 text-center py-8">No player stats yet</p>;
+    return <p className="text-[var(--ct-text-secondary)] text-center py-8">No player stats yet</p>;
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <User className="w-4 h-4 text-purple-600" />
-        <h2 className="text-base font-semibold text-slate-900">Player Statistics (Per Game)</h2>
+        <h2 className="text-base font-semibold text-[var(--ct-text-primary)]">Player Statistics (Per Game)</h2>
       </div>
       {playerAggregates.map(player => {
         const isExpanded = expandedPlayer === player.id;
         return (
-          <Card key={player.id} className="border-slate-200 shadow-sm">
+          <Card key={player.id} className="border-[var(--ct-border)] ">
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div
@@ -100,28 +100,28 @@ export default function MobilePlayerStats({ players, teams, stats, games = [] })
                   {player.jersey_number}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-900 text-sm truncate">{player.name}</p>
-                  <p className="text-xs text-slate-500">{player.team?.name} • {player.gp} GP</p>
+                  <p className="font-bold text-[var(--ct-text-primary)] text-sm truncate">{player.name}</p>
+                  <p className="text-xs text-[var(--ct-text-secondary)]">{player.team?.name} • {player.gp} GP</p>
                 </div>
               </div>
 
               <div className="mb-2">
                 <span className="text-2xl font-extrabold text-purple-600">{player.ppg}</span>
-                <span className="text-sm text-slate-500 ml-1">PPG</span>
+                <span className="text-sm text-[var(--ct-text-secondary)] ml-1">PPG</span>
               </div>
 
-              <div className="flex gap-3 text-xs text-slate-500 mb-2">
-                <span>2PM <span className="font-semibold text-slate-700">{player.twopm}</span></span>
+              <div className="flex gap-3 text-xs text-[var(--ct-text-secondary)] mb-2">
+                <span>2PM <span className="font-semibold text-[var(--ct-text-primary)]">{player.twopm}</span></span>
                 <span>•</span>
-                <span>3PM <span className="font-semibold text-slate-700">{player.threepm}</span></span>
+                <span>3PM <span className="font-semibold text-[var(--ct-text-primary)]">{player.threepm}</span></span>
                 <span>•</span>
-                <span>FTM <span className="font-semibold text-slate-700">{player.ftm}</span></span>
+                <span>FTM <span className="font-semibold text-[var(--ct-text-primary)]">{player.ftm}</span></span>
               </div>
 
-              <div className="flex gap-3 text-xs text-slate-500 mb-3">
-                <span>RPG <span className="font-semibold text-slate-700">{player.rpg}</span></span>
+              <div className="flex gap-3 text-xs text-[var(--ct-text-secondary)] mb-3">
+                <span>RPG <span className="font-semibold text-[var(--ct-text-primary)]">{player.rpg}</span></span>
                 <span>•</span>
-                <span>APG <span className="font-semibold text-slate-700">{player.apg}</span></span>
+                <span>APG <span className="font-semibold text-[var(--ct-text-primary)]">{player.apg}</span></span>
               </div>
 
               <button
@@ -132,16 +132,16 @@ export default function MobilePlayerStats({ players, teams, stats, games = [] })
               </button>
 
               {isExpanded && (
-                <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                  <span>OREB <span className="font-semibold text-slate-700">{player.orebpg}</span></span>
+                <div className="mt-3 pt-3 border-t border-[var(--ct-border)] flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--ct-text-secondary)]">
+                  <span>OREB <span className="font-semibold text-[var(--ct-text-primary)]">{player.orebpg}</span></span>
                   <span>•</span>
-                  <span>DREB <span className="font-semibold text-slate-700">{player.drebpg}</span></span>
+                  <span>DREB <span className="font-semibold text-[var(--ct-text-primary)]">{player.drebpg}</span></span>
                   <span>•</span>
-                  <span>STL <span className="font-semibold text-slate-700">{player.spg}</span></span>
+                  <span>STL <span className="font-semibold text-[var(--ct-text-primary)]">{player.spg}</span></span>
                   <span>•</span>
-                  <span>BLK <span className="font-semibold text-slate-700">{player.bpg}</span></span>
+                  <span>BLK <span className="font-semibold text-[var(--ct-text-primary)]">{player.bpg}</span></span>
                   <span>•</span>
-                  <span>TO <span className="font-semibold text-slate-700">{player.tpg}</span></span>
+                  <span>TO <span className="font-semibold text-[var(--ct-text-primary)]">{player.tpg}</span></span>
                 </div>
               )}
             </CardContent>
