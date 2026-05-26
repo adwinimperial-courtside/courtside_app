@@ -10,6 +10,8 @@ const DEFAULT_STATE = {
   streamer_text: '',
   streamer_visible: false,
   current_graphic: null,
+  lower_third_started_at: null,
+  lower_third_duration_ms: 6000,
 };
 
 export function useBroadcastState(gameId) {

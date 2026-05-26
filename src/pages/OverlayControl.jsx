@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Tv2, Upload, X, Loader2 } from 'lucide-react';
+import { Tv2, Upload, Loader2, Radio } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useBroadcastState } from '@/hooks/useBroadcastState';
 import { supabase } from '@/lib/supabaseClient';
@@ -98,6 +98,38 @@ function ToggleRow({ id, label, description, checked, onCheckedChange, disabled 
   );
 }
 
+// ─── Lower thirds config ──────────────────────────────────────────────────────
+
+const LOWER_THIRD_TYPES = [
+  { id: 'player_intro',         label: 'Player intro',   durationMs: 7000, needsPlayer: true  },
+  { id: 'stat_callout',         label: 'Stat callout',   durationMs: 6000, needsPlayer: true  },
+  { id: 'leading_scorer',       label: 'Leading scorer', durationMs: 6000, needsPlayer: false },
+  { id: 'quarter_recap',        label: 'Quarter recap',  durationMs: 8000, needsPlayer: false },
+  { id: 'team_foul_comparison', label: 'Team fouls',     durationMs: 6000, needsPlayer: false },
+];
+
+// Compute total pts from player_stats row (points_2 * 2 + points_3 * 3 + free_throws).
+// Falls back to legacy `points` field if all new fields are zero.
+function computePts(stat) {
+  const derived = (stat.points_2 || 0) * 2 + (stat.points_3 || 0) * 3 + (stat.free_throws || 0);
+  return derived > 0 ? derived : (stat.points || 0);
+}
+
+function computeReb(stat) {
+  return (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0);
+}
+
+// Extract current-period foul count from the home_team_fouls / away_team_fouls JSONB.
+// The JSONB is keyed by period number as string: { "1": 3, "2": 0 }.
+// Falls back to summing all values if the period key is missing.
+function extractFouls(foulsObj, period) {
+  if (!foulsObj || typeof foulsObj !== 'object') return 0;
+  const key = String(period || 1);
+  if (key in foulsObj) return foulsObj[key] || 0;
+  // Fallback: sum all period values
+  return Object.values(foulsObj).reduce((sum, v) => sum + (Number(v) || 0), 0);
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function OverlayControl() {
@@ -149,6 +181,28 @@ export default function OverlayControl() {
   const isLeagueAdmin = membership?.role === 'league_admin';
   const hasAccess = isAppAdmin || isLeagueAdmin;
 
+  // ── Player stats for this game (for lower thirds player picker) ──────────────
+  const { data: playerStatsData = [] } = useQuery({
+    queryKey: ['overlay-control-player-stats', gameId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('player_stats')
+        .select(`
+          id, player_id,
+          points, points_2, points_3, free_throws,
+          offensive_rebounds, defensive_rebounds, assists,
+          player:players!player_id(id, first_name, last_name, jersey_number),
+          team:teams!team_id(id, name, short_name)
+        `)
+        .eq('game_id', gameId);
+      if (error) throw error;
+      // Sort descending by computed points so leading_scorer is index 0.
+      return (data || []).sort((a, b) => computePts(b) - computePts(a));
+    },
+    enabled: !!gameId,
+    staleTime: 30_000,
+  });
+
   // ── Crew identity local state ────────────────────────────────────────────────
   const [crewName, setCrewName] = useState('');
   const [crewLogoUrl, setCrewLogoUrl] = useState(null);
@@ -160,6 +214,13 @@ export default function OverlayControl() {
   const [streamerText, setStreamerText] = useState('');
   const [savingStreamer, setSavingStreamer] = useState(false);
 
+  // ── Lower thirds local state ─────────────────────────────────────────────────
+  const [ltSelectedType, setLtSelectedType] = useState(null);   // type id string or null
+  const [ltSelectedPlayerId, setLtSelectedPlayerId] = useState('');
+  const [ltFiring, setLtFiring] = useState(false);
+  const [ltClearing, setLtClearing] = useState(false);
+  const [ltCountdown, setLtCountdown] = useState(null);  // seconds remaining, or null
+
   // Sync forms from broadcastState on first load
   const initializedRef = useRef(false);
   useEffect(() => {
@@ -170,6 +231,26 @@ export default function OverlayControl() {
       setStreamerText(broadcastState.streamer_text ?? '');
     }
   }, [bsLoading, broadcastState.crew_name, broadcastState.crew_logo_url, broadcastState.streamer_text]);
+
+  // ── Lower thirds countdown ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!broadcastState.current_graphic || !broadcastState.lower_third_started_at) {
+      setLtCountdown(null);
+      return;
+    }
+    const update = () => {
+      const elapsed = Date.now() - new Date(broadcastState.lower_third_started_at).getTime();
+      const remaining = Math.max(0, (broadcastState.lower_third_duration_ms || 6000) - elapsed);
+      setLtCountdown(Math.ceil(remaining / 1000));
+    };
+    update();
+    const iv = setInterval(update, 250);
+    return () => clearInterval(iv);
+  }, [
+    broadcastState.current_graphic,
+    broadcastState.lower_third_started_at,
+    broadcastState.lower_third_duration_ms,
+  ]);
 
   // ── Auth / access guards ─────────────────────────────────────────────────────
   if (isLoadingAuth) {
@@ -238,6 +319,117 @@ export default function OverlayControl() {
       toast({ title: 'Failed to save', description: err.message, variant: 'destructive' });
     } else {
       toast({ title: 'Streamer message saved' });
+    }
+  };
+
+  // ── Lower thirds handlers ─────────────────────────────────────────────────────
+
+  const handleLtFire = async () => {
+    const typeConfig = LOWER_THIRD_TYPES.find((t) => t.id === ltSelectedType);
+    if (!typeConfig) return;
+
+    let payload = null;
+
+    if (ltSelectedType === 'player_intro' || ltSelectedType === 'stat_callout') {
+      const stat = playerStatsData.find((s) => s.player_id === ltSelectedPlayerId);
+      if (!stat) {
+        toast({ title: 'Select a player first', variant: 'destructive' });
+        return;
+      }
+      const p = stat.player;
+      const t = stat.team;
+      payload = {
+        type: ltSelectedType,
+        name: p ? `${p.first_name} ${p.last_name}` : 'Unknown',
+        jersey: p?.jersey_number || null,
+        team: t?.short_name || t?.name || null,
+        pts: computePts(stat),
+        reb: computeReb(stat),
+        ast: stat.assists || 0,
+      };
+
+    } else if (ltSelectedType === 'leading_scorer') {
+      const top = playerStatsData[0];
+      if (!top) {
+        toast({ title: 'No player stats found for this game', variant: 'destructive' });
+        return;
+      }
+      const p = top.player;
+      const t = top.team;
+      payload = {
+        type: 'leading_scorer',
+        name: p ? `${p.first_name} ${p.last_name}` : 'Unknown',
+        jersey: p?.jersey_number || null,
+        team: t?.short_name || t?.name || null,
+        pts: computePts(top),
+      };
+
+    } else if (ltSelectedType === 'quarter_recap' || ltSelectedType === 'team_foul_comparison') {
+      // Fetch fresh live game data at fire time
+      const { data: liveGame, error: gErr } = await supabase
+        .from('games')
+        .select('home_score, away_score, clock_period, period_type, home_team_fouls, away_team_fouls')
+        .eq('id', gameId)
+        .single();
+      if (gErr) {
+        toast({ title: 'Failed to fetch game data', description: gErr.message, variant: 'destructive' });
+        return;
+      }
+      const period = liveGame.clock_period || 1;
+      const isHalves = liveGame.period_type === 'halves';
+      const periodLabel = isHalves ? `H${period}` : `Q${period}`;
+      const homeName = game?.home_team?.short_name || game?.home_team?.name || 'Home';
+      const awayName = game?.away_team?.short_name || game?.away_team?.name || 'Away';
+
+      if (ltSelectedType === 'quarter_recap') {
+        payload = {
+          type: 'quarter_recap',
+          period,
+          period_label: periodLabel,
+          home_name: homeName,
+          home_score: liveGame.home_score,
+          away_name: awayName,
+          away_score: liveGame.away_score,
+        };
+      } else {
+        payload = {
+          type: 'team_foul_comparison',
+          period,
+          period_label: periodLabel,
+          home_name: homeName,
+          home_fouls: extractFouls(liveGame.home_team_fouls, period),
+          away_name: awayName,
+          away_fouls: extractFouls(liveGame.away_team_fouls, period),
+        };
+      }
+    }
+
+    if (!payload) return;
+
+    setLtFiring(true);
+    const err = await updateBroadcastState(gameId, {
+      current_graphic: payload,
+      lower_third_started_at: new Date().toISOString(),
+      lower_third_duration_ms: typeConfig.durationMs,
+    });
+    setLtFiring(false);
+
+    if (err) {
+      toast({ title: 'Failed to fire graphic', description: err.message, variant: 'destructive' });
+    } else {
+      toast({ title: `${typeConfig.label} fired — ${typeConfig.durationMs / 1000}s` });
+    }
+  };
+
+  const handleLtClear = async () => {
+    setLtClearing(true);
+    const err = await updateBroadcastState(gameId, {
+      current_graphic: null,
+      lower_third_started_at: null,
+    });
+    setLtClearing(false);
+    if (err) {
+      toast({ title: 'Failed to clear graphic', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -637,6 +829,259 @@ export default function OverlayControl() {
                 {savingStreamer ? 'Saving…' : 'Save streamer message'}
               </Button>
             </div>
+
+          </div>
+        </Section>
+
+        {/* ── LOWER THIRDS SECTION ────────────────────────────────────────── */}
+        <Section title="Lower Thirds">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Status line */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '8px 12px',
+                borderRadius: 6,
+                background: broadcastState.current_graphic
+                  ? 'rgba(59,130,246,0.08)'
+                  : 'var(--ct-bg-elevated)',
+                border: `1px solid ${broadcastState.current_graphic ? 'rgba(59,130,246,0.25)' : 'var(--ct-border)'}`,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <div
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: broadcastState.current_graphic && ltCountdown > 0
+                      ? '#22C55E'
+                      : 'var(--ct-text-muted)',
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--ct-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {broadcastState.current_graphic && ltCountdown > 0
+                    ? `${LOWER_THIRD_TYPES.find(t => t.id === broadcastState.current_graphic?.type)?.label ?? broadcastState.current_graphic?.type} — ${ltCountdown}s`
+                    : broadcastState.current_graphic
+                      ? 'Fading out…'
+                      : 'Nothing active'}
+                </span>
+              </div>
+              {broadcastState.current_graphic && (
+                <button
+                  onClick={handleLtClear}
+                  disabled={ltClearing}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'var(--ct-text-muted)',
+                    background: 'none',
+                    border: '1px solid var(--ct-border)',
+                    borderRadius: 4,
+                    padding: '3px 8px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  {ltClearing
+                    ? <Loader2 style={{ width: 10, height: 10 }} className="animate-spin" />
+                    : null}
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Type selector grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 8,
+              }}
+            >
+              {LOWER_THIRD_TYPES.map((t) => {
+                const isSelected = ltSelectedType === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setLtSelectedType(isSelected ? null : t.id);
+                      setLtSelectedPlayerId('');
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      border: `1px solid ${isSelected ? '#3B82F6' : 'var(--ct-border)'}`,
+                      background: isSelected ? 'rgba(59,130,246,0.10)' : 'var(--ct-bg-elevated)',
+                      color: isSelected ? '#3B82F6' : 'var(--ct-text-primary)',
+                      fontSize: 12,
+                      fontWeight: isSelected ? 600 : 400,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'border-color 0.12s, background 0.12s',
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Inline form for selected type */}
+            {ltSelectedType && (() => {
+              const typeConfig = LOWER_THIRD_TYPES.find((t) => t.id === ltSelectedType);
+
+              // ── Player picker (player_intro / stat_callout) ────────────────
+              if (typeConfig.needsPlayer) {
+                return (
+                  <div
+                    style={{
+                      padding: '12px',
+                      borderRadius: 6,
+                      border: '1px solid var(--ct-border)',
+                      background: 'var(--ct-bg-elevated)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                    }}
+                  >
+                    <label
+                      style={{ fontSize: 12, fontWeight: 500, color: 'var(--ct-text-muted)' }}
+                    >
+                      Player
+                    </label>
+                    <select
+                      value={ltSelectedPlayerId}
+                      onChange={(e) => setLtSelectedPlayerId(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '7px 10px',
+                        borderRadius: 6,
+                        border: '1px solid var(--ct-border)',
+                        background: 'var(--ct-bg-card)',
+                        color: 'var(--ct-text-primary)',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <option value="">Select a player…</option>
+                      {playerStatsData.map((s) => {
+                        const p = s.player;
+                        const pts = computePts(s);
+                        const name = p ? `${p.first_name} ${p.last_name}` : 'Unknown';
+                        const jersey = p?.jersey_number ? ` #${p.jersey_number}` : '';
+                        return (
+                          <option key={s.player_id} value={s.player_id}>
+                            {name}{jersey} — {pts} PTS
+                          </option>
+                        );
+                      })}
+                    </select>
+                    {playerStatsData.length === 0 && (
+                      <p style={{ fontSize: 11, color: 'var(--ct-text-muted)', margin: 0 }}>
+                        No players recorded for this game yet.
+                      </p>
+                    )}
+                    <button
+                      onClick={handleLtFire}
+                      disabled={ltFiring || !ltSelectedPlayerId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        padding: '8px 16px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: ltFiring || !ltSelectedPlayerId ? '#374151' : '#DC2626',
+                        color: ltFiring || !ltSelectedPlayerId ? '#6B7280' : '#fff',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: ltFiring || !ltSelectedPlayerId ? 'not-allowed' : 'pointer',
+                        transition: 'background 0.12s',
+                      }}
+                    >
+                      {ltFiring
+                        ? <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
+                        : <Radio style={{ width: 12, height: 12 }} />}
+                      {ltFiring ? 'Firing…' : `Fire — ${typeConfig.durationMs / 1000}s`}
+                    </button>
+                  </div>
+                );
+              }
+
+              // ── Auto-resolve (leading_scorer / quarter_recap / team_foul_comparison) ──
+              let previewLine = '';
+              if (ltSelectedType === 'leading_scorer') {
+                const top = playerStatsData[0];
+                if (top) {
+                  const p = top.player;
+                  const name = p ? `${p.first_name} ${p.last_name}` : 'Unknown';
+                  const jersey = p?.jersey_number ? ` #${p.jersey_number}` : '';
+                  previewLine = `Auto: ${name}${jersey} — ${computePts(top)} PTS`;
+                } else {
+                  previewLine = 'No player stats found for this game yet.';
+                }
+              } else if (ltSelectedType === 'quarter_recap') {
+                previewLine = 'Auto-reads current scores at fire time.';
+              } else if (ltSelectedType === 'team_foul_comparison') {
+                previewLine = 'Auto-reads current-period fouls at fire time.';
+              }
+
+              return (
+                <div
+                  style={{
+                    padding: '12px',
+                    borderRadius: 6,
+                    border: '1px solid var(--ct-border)',
+                    background: 'var(--ct-bg-elevated)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <p style={{ fontSize: 12, color: 'var(--ct-text-muted)', margin: 0 }}>
+                    {previewLine}
+                  </p>
+                  <button
+                    onClick={handleLtFire}
+                    disabled={ltFiring || (ltSelectedType === 'leading_scorer' && playerStatsData.length === 0)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '8px 16px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: (ltFiring || (ltSelectedType === 'leading_scorer' && playerStatsData.length === 0))
+                        ? '#374151'
+                        : '#DC2626',
+                      color: (ltFiring || (ltSelectedType === 'leading_scorer' && playerStatsData.length === 0))
+                        ? '#6B7280'
+                        : '#fff',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'background 0.12s',
+                    }}
+                  >
+                    {ltFiring
+                      ? <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
+                      : <Radio style={{ width: 12, height: 12 }} />}
+                    {ltFiring ? 'Firing…' : `Fire — ${typeConfig.durationMs / 1000}s`}
+                  </button>
+                </div>
+              );
+            })()}
 
           </div>
         </Section>

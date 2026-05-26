@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useBroadcastState } from '@/hooks/useBroadcastState';
 import { useGameOverlayData } from '@/hooks/useGameOverlayData';
 import Scorebug, { CrewStripOverlay } from '@/components/broadcast/Scorebug';
 import BroadcasterLogo from '@/components/broadcast/BroadcasterLogo';
 import StreamerBar from '@/components/broadcast/StreamerBar';
+import LowerThird from '@/components/broadcast/LowerThird';
 
 const pulseKeyframes = `
 @keyframes livePulse {
@@ -44,6 +46,17 @@ export default function LiveGameOverlay() {
   const streamerOn     = overlayOn && broadcastState.streamer_visible && streamerText.length > 0;
   const crewStripOnly  = overlayOn && !scorebugOn && !!(broadcastState.crew_name || '').trim();
   const bottomOffset   = streamerOn ? 64 : 0;
+
+  // ── Lower third visibility ──────────────────────────────────────────────────
+  // Expired check: if the overlay reloads mid-display (OBS reconnect), don't
+  // replay a graphic that already finished its display window.
+  const isLowerThirdExpired =
+    broadcastState.lower_third_started_at &&
+    Date.now() - new Date(broadcastState.lower_third_started_at).getTime() >
+      broadcastState.lower_third_duration_ms;
+  const lowerThirdOn     = overlayOn && !!broadcastState.current_graphic && !isLowerThirdExpired;
+  // Sits above the streamer bar (56px) + 18px base gap. When streamer is off, 18px from bottom.
+  const lowerThirdBottom = streamerOn ? 74 : 18;
 
   return (
     <>
@@ -137,6 +150,30 @@ export default function LiveGameOverlay() {
 
         {/* ── Bottom: streamer ticker ──────────────────────────────────────── */}
         {streamerOn && <StreamerBar text={broadcastState.streamer_text} />}
+
+        {/* ── Bottom-left: lower third graphics ───────────────────────────── */}
+        {/* AnimatePresence drives entrance (slide from left) and exit.        */}
+        {/* key=lower_third_started_at ensures remount on re-fire of same type. */}
+        <AnimatePresence>
+          {lowerThirdOn && (
+            <motion.div
+              key={broadcastState.lower_third_started_at}
+              initial={{ x: -60, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -60, opacity: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              style={{
+                position: 'fixed',
+                bottom: lowerThirdBottom,
+                left: 20,
+                zIndex: 50,
+                pointerEvents: 'none',
+              }}
+            >
+              <LowerThird graphic={broadcastState.current_graphic} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </>
   );
