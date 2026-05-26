@@ -1,0 +1,32 @@
+OVERLAY PHASE 1 — MIGRATION VERIFICATION
+Migration: 20260526000001_broadcast_state.sql
+Date: 2026-05-26
+=====================================================================
+
+1. TABLE STRUCTURE (information_schema.columns)
+   id               | uuid        | NOT NULL | gen_random_uuid()
+   game_id          | uuid        | NOT NULL | (none)
+   overlay_visible  | boolean     | NOT NULL | true
+   scorebug_visible | boolean     | NOT NULL | true
+   crew_name        | text        | NULL     | (none)
+   crew_logo_url    | text        | NULL     | (none)
+   current_graphic  | jsonb       | NULL     | (none)
+   created_at       | timestamptz | NOT NULL | now()
+   updated_at       | timestamptz | NOT NULL | now()
+   PASS
+
+2. RLS POLICIES (pg_policies WHERE tablename = 'broadcast_state')
+   broadcast_state: public can read    | SELECT
+   broadcast_state: admin can insert   | INSERT
+   broadcast_state: admin can update   | UPDATE
+   broadcast_state: app_admin can delete | DELETE
+   PASS (4 policies present)
+
+3. BACKFILL COUNT
+   broadcast_state rows: 43
+   games rows:           43
+   PASS (counts match)
+
+4. REALTIME PUBLICATION
+   pubname=supabase_realtime, tablename=broadcast_state — row present
+   PASS

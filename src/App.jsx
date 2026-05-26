@@ -14,6 +14,7 @@ import AcceptInvitePage from '@/pages/AcceptInvite';
 
 import ApplyForLeaguePage from './pages/ApplyForLeague';
 import LeagueUsersPage from './pages/LeagueUsers';
+import LiveGameOverlay from '@/pages/LiveGameOverlay';
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
@@ -77,7 +78,10 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <Routes>
+            <Route path="/overlay/:gameId" element={<LiveGameOverlay />} />
+            <Route path="*" element={<AuthenticatedApp />} />
+          </Routes>
         </Router>
         <Toaster />
         <VisualEditAgent />
