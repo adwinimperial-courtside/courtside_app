@@ -27,10 +27,41 @@ export default function LeaguesPage() {
   const userId = session?.user?.id;
   const isAppAdmin = session?.user?.user_metadata?.app_admin === true;
 
-  // Fetch this user's league memberships, joining league details
+  // Fetch leagues visible to this user.
+  // - app_admin: every active league (treated as league_admin everywhere).
+  // - everyone else: only leagues they have an active membership row for.
+  // The cache key includes isAppAdmin so the two paths don't collide.
   const { data: memberships = [], isLoading } = useQuery({
-    queryKey: ["league-memberships", userId],
+    queryKey: ["league-memberships", userId, isAppAdmin],
     queryFn: async () => {
+      if (isAppAdmin) {
+        const { data, error } = await supabase
+          .from("leagues")
+          .select(`
+            id,
+            name,
+            slug,
+            country,
+            timezone,
+            sport,
+            logo_url,
+            is_active,
+            created_at
+          `)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        // Shape to match the membership-joined response so LeagueCard works unchanged.
+        return (data ?? []).map((league) => ({
+          id: `app-admin-${league.id}`,
+          role: "league_admin",
+          is_active: true,
+          is_billing_admin: false,
+          league,
+        }));
+      }
+
       const { data, error } = await supabase
         .from("user_league_memberships")
         .select(`
