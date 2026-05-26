@@ -101,6 +101,7 @@ export default function LiveGameOverlay() {
             homeTeam={homeTeam}
             awayTeam={awayTeam}
             clockDisplay={clockDisplay}
+            crewName={broadcastState.crew_name}
           />
         )}
       </div>
