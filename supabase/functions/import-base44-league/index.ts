@@ -27,6 +27,7 @@ import {
   parseGameDate,
   computePoints,
   coerceIntValue,
+  dedupePlayerStats,
 } from "./transforms.ts";
 
 import type {
@@ -451,9 +452,28 @@ serve(async (req) => {
       }
 
       // ── Step E: bulk insert player_stats ───────────────────────────────
+      // Dedup duplicate (game_id, player_id) rows BEFORE building insert array.
+      // Base44 sometimes leaves empty shell rows alongside real stats rows;
+      // we keep the higher-stat-sum row (tie-broken by most recent updated_date).
+      // The Step G count assertion uses dedupedPlayerStats.length, not the raw
+      // payload length — a count mismatch is expected when duplicates were dropped.
+      const { deduped: dedupedPlayerStats, droppedIds: droppedStatsIds } =
+        dedupePlayerStats(payload.player_stats);
+
+      if (droppedStatsIds.length > 0) {
+        const sample = droppedStatsIds.slice(0, 10).join(", ");
+        const more =
+          droppedStatsIds.length > 10
+            ? ` (and ${droppedStatsIds.length - 10} more)`
+            : "";
+        warnings.push(
+          `Dropped ${droppedStatsIds.length} duplicate (game_id, player_id) PlayerStats row(s) — kept rows with higher stat sums. Sample dropped IDs: ${sample}${more}`,
+        );
+      }
+
       const statsRows: SupabasePlayerStatsRow[] = [];
       const statsIdMapping: IdMappingRow[] = [];
-      for (const s of payload.player_stats) {
+      for (const s of dedupedPlayerStats) {
         const newGameId = gameMap.get(s.game_id);
         const newPlayerId = playerMap.get(s.player_id);
         const newTeamId = teamMap.get(s.team_id);
@@ -670,9 +690,12 @@ serve(async (req) => {
           `validation_failed: games ${finalCounts.games} ≠ input ${payload.games.length}`,
         );
       }
-      if (finalCounts.player_stats !== payload.player_stats.length) {
+      // NOTE: expected count is dedupedPlayerStats.length, NOT payload.player_stats.length.
+      // When duplicates were dropped by dedupePlayerStats(), this count is intentionally
+      // lower than the raw payload count.
+      if (finalCounts.player_stats !== dedupedPlayerStats.length) {
         throw new Error(
-          `validation_failed: player_stats ${finalCounts.player_stats} ≠ input ${payload.player_stats.length}`,
+          `validation_failed: player_stats ${finalCounts.player_stats} ≠ deduped input ${dedupedPlayerStats.length} (raw payload was ${payload.player_stats.length}, dropped ${droppedStatsIds.length})`,
         );
       }
       if (finalCounts.game_logs !== payload.game_logs.length) {

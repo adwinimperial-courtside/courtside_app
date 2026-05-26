@@ -6,6 +6,8 @@
 // Authoritative spec: docs/temp/base44-to-supabase-mapping.md
 // =============================================================================
 
+import type { Base44PlayerStats } from "./types.ts";
+
 // ─── slugify ────────────────────────────────────────────────────────────────
 // Lowercase, strip non-alphanumerics except hyphens, collapse runs of spaces
 // to single hyphens, collapse runs of hyphens, trim leading/trailing hyphens.
@@ -139,4 +141,55 @@ export function coerceIntValue(
   }
   // Non-coercible (object, boolean, non-integer string) → preserve raw
   return { value: null, raw: v };
+}
+
+// ─── dedupePlayerStats ──────────────────────────────────────────────────────
+/**
+ * Deduplicate PlayerStats rows by (game_id, player_id).
+ * Base44 sometimes has duplicate stat rows from roster-add workflows where
+ * an empty shell is created before the real stats row. We keep the row with
+ * the higher computed stat sum (points_2*2 + points_3*3 + free_throws);
+ * ties broken by most recent updated_date.
+ *
+ * GameLog rows referencing dropped PlayerStat IDs naturally fall through
+ * to player_stat_id = null via the existing statsIdMapByBase44 lookup, since
+ * dropped IDs are not added to the map. The column is nullable so this is safe.
+ */
+export function dedupePlayerStats(
+  stats: Base44PlayerStats[],
+): { deduped: Base44PlayerStats[]; droppedIds: string[] } {
+  const byKey = new Map<string, Base44PlayerStats>();
+  const droppedIds: string[] = [];
+
+  const statSum = (ps: Base44PlayerStats): number =>
+    (ps.points_2 ?? 0) * 2 + (ps.points_3 ?? 0) * 3 + (ps.free_throws ?? 0);
+
+  for (const ps of stats) {
+    if (!ps.game_id || !ps.player_id) continue; // safety; should already be filtered
+    const key = `${ps.game_id}|${ps.player_id}`;
+    const existing = byKey.get(key);
+
+    if (!existing) {
+      byKey.set(key, ps);
+      continue;
+    }
+
+    const sumNew = statSum(ps);
+    const sumExisting = statSum(existing);
+    const newUpdated = ps.updated_date ?? "";
+    const existingUpdated = existing.updated_date ?? "";
+
+    const newWins =
+      sumNew > sumExisting ||
+      (sumNew === sumExisting && newUpdated > existingUpdated);
+
+    if (newWins) {
+      droppedIds.push(existing.id);
+      byKey.set(key, ps);
+    } else {
+      droppedIds.push(ps.id);
+    }
+  }
+
+  return { deduped: Array.from(byKey.values()), droppedIds };
 }
