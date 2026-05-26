@@ -539,6 +539,13 @@ serve(async (req) => {
       }
 
       // ── Step F: bulk insert game_logs (chunked) ────────────────────────
+      // Build O(1) lookup for player_stat_id remap to avoid O(N×M) array scan
+      // (Season 5: 3,906 logs × 934 stats ≈ 3.6M comparisons otherwise).
+      const statsIdMapByBase44 = new Map<string, string>();
+      for (const m of statsIdMapping) {
+        statsIdMapByBase44.set(m.base44_id, m.supabase_id);
+      }
+
       const logRows: SupabaseGameLogRow[] = [];
       const logsIdMapping: IdMappingRow[] = [];
       for (const l of payload.game_logs) {
@@ -552,8 +559,7 @@ serve(async (req) => {
         // player_stat_id remap: only if the original referenced a stat that was actually imported
         let newPlayerStatId: string | null = null;
         if (l.player_stat_id) {
-          const found = statsIdMapping.find((m) => m.base44_id === l.player_stat_id);
-          newPlayerStatId = found ? found.supabase_id : null;
+          newPlayerStatId = statsIdMapByBase44.get(l.player_stat_id) ?? null;
         }
 
         const { value: oldVal, raw: oldRaw } = coerceIntValue(l.old_value);
