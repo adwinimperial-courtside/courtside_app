@@ -6,6 +6,9 @@ const DEFAULT_STATE = {
   scorebug_visible: true,
   crew_name: null,
   crew_logo_url: null,
+  crew_logo_visible: true,
+  streamer_text: '',
+  streamer_visible: false,
   current_graphic: null,
 };
 

@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useBroadcastState } from '@/hooks/useBroadcastState';
 import { useGameOverlayData } from '@/hooks/useGameOverlayData';
 import Scorebug, { CrewStripOverlay } from '@/components/broadcast/Scorebug';
+import BroadcasterLogo from '@/components/broadcast/BroadcasterLogo';
+import StreamerBar from '@/components/broadcast/StreamerBar';
 
 const pulseKeyframes = `
 @keyframes livePulse {
@@ -25,13 +27,23 @@ export default function LiveGameOverlay() {
     };
   }, []);
 
-  // ── Visibility rules ──────────────────────────────────────────────────────
-  // LIVE badge : always visible — no toggle
-  // overlay_visible = false : hide scorebug + crew strip (LIVE badge stays)
-  // overlay_visible = true, scorebug_visible = false : show standalone crew strip only
-  // overlay_visible = true, scorebug_visible = true  : show full scorebug (incl. crew strip)
-  const overlayOn   = broadcastState.overlay_visible;
-  const scorebugOn  = broadcastState.scorebug_visible;
+  // ── Visibility rules ────────────────────────────────────────────────────────
+  // LIVE badge : always visible (locked)
+  // overlay_visible = false : ONLY LIVE badge renders, nothing else
+  // overlay_visible = true :
+  //   BroadcasterLogo       — if crew_logo_visible AND crew_logo_url
+  //   Scorebug              — if scorebug_visible (text-only crew strip embedded)
+  //   CrewStripOverlay      — if !scorebug_visible AND crew_name
+  //   StreamerBar           — if streamer_visible AND streamer_text non-empty
+  // Scorebug bottom offset is bumped by 64px (56 bar + 8 gap) when StreamerBar
+  // is on so the two don't overlap.
+  const overlayOn      = broadcastState.overlay_visible;
+  const scorebugOn     = overlayOn && broadcastState.scorebug_visible;
+  const logoOn         = overlayOn && broadcastState.crew_logo_visible && !!broadcastState.crew_logo_url;
+  const streamerText   = (broadcastState.streamer_text || '').trim();
+  const streamerOn     = overlayOn && broadcastState.streamer_visible && streamerText.length > 0;
+  const crewStripOnly  = overlayOn && !scorebugOn && !!(broadcastState.crew_name || '').trim();
+  const bottomOffset   = streamerOn ? 64 : 0;
 
   return (
     <>
@@ -100,25 +112,31 @@ export default function LiveGameOverlay() {
           </div>
         </div>
 
-        {/* ── Bottom-right: full scorebug (overlay + scorebug both on) ──────── */}
-        {overlayOn && scorebugOn && (
+        {/* ── Top-right: broadcaster logo ──────────────────────────────────── */}
+        {logoOn && <BroadcasterLogo src={broadcastState.crew_logo_url} alt="Broadcaster logo" />}
+
+        {/* ── Bottom-right: full scorebug ──────────────────────────────────── */}
+        {scorebugOn && (
           <Scorebug
             game={game}
             homeTeam={homeTeam}
             awayTeam={awayTeam}
             clockDisplay={clockDisplay}
             crewName={broadcastState.crew_name}
-            crewLogoUrl={broadcastState.crew_logo_url}
+            bottomOffset={bottomOffset}
           />
         )}
 
-        {/* ── Bottom-right: crew strip only (overlay on, scorebug off) ──────── */}
-        {overlayOn && !scorebugOn && (
+        {/* ── Bottom-right: standalone crew strip (overlay on, scorebug off) ─ */}
+        {crewStripOnly && (
           <CrewStripOverlay
             crewName={broadcastState.crew_name}
-            crewLogoUrl={broadcastState.crew_logo_url}
+            bottomOffset={bottomOffset}
           />
         )}
+
+        {/* ── Bottom: streamer ticker ──────────────────────────────────────── */}
+        {streamerOn && <StreamerBar text={broadcastState.streamer_text} />}
       </div>
     </>
   );

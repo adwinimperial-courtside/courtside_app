@@ -109,7 +109,8 @@ function CrewStripContent({ crewDisplay }) {
 }
 
 // Standalone crew strip — shown when overlay_visible=true but scorebug_visible=false.
-export function CrewStripOverlay({ crewName }) {
+// `bottomOffset` is added to the base bottom: 14 (used to clear the StreamerBar).
+export function CrewStripOverlay({ crewName, bottomOffset = 0 }) {
   const crewDisplay = crewName?.trim() || null;
   if (!crewDisplay) return null;
 
@@ -117,7 +118,7 @@ export function CrewStripOverlay({ crewName }) {
     <div
       style={{
         position: 'absolute',
-        bottom: 14,
+        bottom: 14 + bottomOffset,
         right: 14,
         pointerEvents: 'none',
         background: 'rgba(15,15,26,0.94)',
@@ -135,7 +136,8 @@ export function CrewStripOverlay({ crewName }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewName }) {
+// `bottomOffset` is added to the base bottom: 14 (used to clear the StreamerBar).
+export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewName, bottomOffset = 0 }) {
   if (!game) return null;
 
   // ── Scores ──────────────────────────────────────────────────────────────────
@@ -182,7 +184,7 @@ export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewN
     <div
       style={{
         position: 'absolute',
-        bottom: 14,
+        bottom: 14 + bottomOffset,
         right: 14,
         width: 280,
         pointerEvents: 'none',
