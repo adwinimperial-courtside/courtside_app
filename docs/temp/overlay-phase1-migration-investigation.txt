@@ -1,0 +1,46 @@
+OVERLAY PHASE 1 — MIGRATION INVESTIGATION
+Date: 2026-05-26
+Source migrations examined: 20260419000028_whiteboard_plays.sql,
+  20260416000028_league_invitations.sql, 20260415000009_game_logs_table.sql
+=====================================================================
+
+1. MIGRATION FILENAME CONVENTION
+   Project uses timestamp-based names: YYYYMMDDNNNNNN_description.sql
+   Examples: 20260525000001_games_scheduled_at_nullable.sql
+             20260419000028_whiteboard_plays.sql
+   Spec requested 000028_broadcast_state.sql — does NOT match convention.
+   Decision: use 20260526000001_broadcast_state.sql (today's date, seq 1).
+
+2. updated_at TRIGGER PATTERN
+   Shared trigger function (safe to re-run via CREATE OR REPLACE):
+     create or replace function set_updated_at()
+     returns trigger language plpgsql as $$
+     begin new.updated_at = now(); return new; end; $$;
+   Trigger name pattern: {tablename}_updated_at
+     create trigger {tablename}_updated_at
+       before update on {tablename}
+       for each row execute function set_updated_at();
+
+3. RLS HELPER FUNCTIONS
+   is_app_admin()               — confirmed in multiple migrations
+   get_my_league_role(uuid)     — accepts league_id uuid, returns role text
+   Both are defined in earlier migrations and assumed present in DB already.
+
+4. POLICY NAMING CONVENTION
+   Format: "{tablename}: {description}"
+   Examples: "game_logs: members can read"
+             "invitations: app_admin full access"
+             "whiteboard_plays: creator can update"
+
+5. REALTIME PATTERN
+   Migrations use: alter table {table} replica identity full;
+   No ALTER PUBLICATION supabase_realtime migrations found (likely done via dashboard).
+   Spec step H explicitly requests ALTER PUBLICATION — including both for correctness.
+
+6. games TABLE
+   Has league_id uuid column → allows INSERT/UPDATE policies to resolve league
+   via: (SELECT league_id FROM games WHERE id = <game_id_ref>)
+
+7. INDEX NAMING CONVENTION
+   Pattern: idx_{tablename}_{column}
+   Examples: idx_game_logs_game_id_created, idx_league_invitations_token

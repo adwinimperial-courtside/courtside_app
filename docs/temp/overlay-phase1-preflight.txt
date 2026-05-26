@@ -1,0 +1,26 @@
+OVERLAY PHASE 1 PREFLIGHT
+Run: 2026-05-26
+=========================
+
+--- git status ---
+On branch feature/foul-limit-rename
+Your branch is up to date with 'origin/feature/foul-limit-rename'.
+
+Untracked files:
+  docs/temp/livestattracker-sub-flow-investigation.md
+
+nothing added to commit but untracked files present
+
+--- git branch --show-current ---
+feature/foul-limit-rename
+
+--- supabase status ---
+ERROR: failed to inspect container health: Error response from daemon: No such container: supabase_db_courtside-by-ai
+(Local supabase stack is not running)
+
+--- supabase config.toml project_id ---
+project_id = "courtside-by-ai"
+
+ISSUES TO RESOLVE BEFORE PROCEEDING:
+1. Branch is 'feature/foul-limit-rename', not 'main' or 'feature/live-game-overlay'. Per spec: stop and ask Win.
+2. Supabase local stack not running. db push will target remote (linked to bikjkoyodkduhnnlbzpb).

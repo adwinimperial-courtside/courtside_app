@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { totalPoints } from "@/lib/playerStats";
 import { findPlayerOfGame } from "@/components/utils/pogCalculator";
 import { Button } from "@/components/ui/button";
+import BroadcastActionsMenu from "@/components/broadcast/BroadcastActionsMenu";
 
 const STAGE_LABELS = {
   quarterfinal: "Quarterfinal",
@@ -355,11 +356,14 @@ export default function ScheduleGameCard({
               </span>
             )}
           </div>
-          {game.league?.name && (
-            <span className="text-xs truncate max-w-[40%]" style={{ color: "var(--ct-text-muted)" }}>
-              {game.league.name}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 min-w-0">
+            {game.league?.name && (
+              <span className="text-xs truncate max-w-[120px]" style={{ color: "var(--ct-text-muted)" }}>
+                {game.league.name}
+              </span>
+            )}
+            <BroadcastActionsMenu gameId={game.id} leagueId={game.league_id} />
+          </div>
         </div>
 
         {/* Team rows */}

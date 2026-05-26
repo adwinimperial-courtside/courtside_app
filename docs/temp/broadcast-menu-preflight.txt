@@ -1,0 +1,16 @@
+BROADCAST MENU PREFLIGHT
+Date: 2026-05-26
+=========================
+
+--- git status ---
+On branch feature/live-game-overlay
+Untracked files:
+  docs/Handover/overlay-phase1-complete.md
+  docs/temp/livestattracker-sub-flow-investigation.md
+
+nothing added to commit but untracked files present
+
+--- git branch --show-current ---
+feature/live-game-overlay
+
+STATUS: Clean (no uncommitted tracked changes). Branch is correct.
