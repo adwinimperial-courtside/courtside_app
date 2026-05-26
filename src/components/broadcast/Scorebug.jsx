@@ -107,11 +107,12 @@ export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewN
   const awayFouls = (game.away_team_fouls || {})[foulKey] ?? null;
 
   // ── Timeouts ─────────────────────────────────────────────────────────────────
-  const segment        = getTimeoutSegment(period, periodType, totalPeriods);
-  const maxTO          = getMaxTimeouts(segment, periodType);
-  const homeTOUsed     = (game.home_timeouts || {})[segment] ?? null;
-  const awayTOUsed     = (game.away_timeouts || {})[segment] ?? null;
-  const hasTOData      = homeTOUsed !== null || awayTOUsed !== null;
+  const segment    = getTimeoutSegment(period, periodType, totalPeriods);
+  const maxTO      = getMaxTimeouts(segment, periodType);
+  // Missing segment key means 0 used (game just started / no TOs called yet).
+  // home_timeouts is NOT NULL DEFAULT '{}' so absence of the key ≠ missing data.
+  const homeTOUsed = (game.home_timeouts || {})[segment] ?? 0;
+  const awayTOUsed = (game.away_timeouts || {})[segment] ?? 0;
 
   // ── Possession ───────────────────────────────────────────────────────────────
   const homePossession = game.possession === 'home';
@@ -341,10 +342,7 @@ export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewN
         {/* Home: TO dots + fouls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <span>TO</span>
-          {hasTOData
-            ? <TimeoutDots used={Math.min(homeTOUsed ?? 0, maxTO)} max={maxTO} />
-            : <span style={{ marginLeft: 2 }}>—</span>
-          }
+          <TimeoutDots used={Math.min(homeTOUsed, maxTO)} max={maxTO} />
           <span style={{ marginLeft: 4 }}>
             F{' '}
             <span style={{ color: '#F59E0B', fontWeight: 500 }}>
@@ -362,10 +360,7 @@ export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewN
             </span>
           </span>
           <span style={{ marginLeft: 4 }}>TO</span>
-          {hasTOData
-            ? <TimeoutDots used={Math.min(awayTOUsed ?? 0, maxTO)} max={maxTO} />
-            : <span style={{ marginLeft: 2 }}>—</span>
-          }
+          <TimeoutDots used={Math.min(awayTOUsed, maxTO)} max={maxTO} />
         </div>
       </div>
 
