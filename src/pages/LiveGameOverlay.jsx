@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBroadcastState } from '@/hooks/useBroadcastState';
+import { useGameOverlayData } from '@/hooks/useGameOverlayData';
+import Scorebug from '@/components/broadcast/Scorebug';
 
 const pulseKeyframes = `
 @keyframes livePulse {
@@ -12,6 +14,7 @@ const pulseKeyframes = `
 export default function LiveGameOverlay() {
   const { gameId } = useParams();
   const { broadcastState } = useBroadcastState(gameId);
+  const { game, homeTeam, awayTeam, clockDisplay } = useGameOverlayData(gameId);
   const prevBg = useRef(null);
 
   useEffect(() => {
@@ -90,6 +93,16 @@ export default function LiveGameOverlay() {
             </span>
           </div>
         </div>
+
+        {/* Bottom-centre: scorebug */}
+        {broadcastState.scorebug_visible && (
+          <Scorebug
+            game={game}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            clockDisplay={clockDisplay}
+          />
+        )}
       </div>
     </>
   );
