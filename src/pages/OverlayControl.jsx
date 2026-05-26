@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -155,15 +156,20 @@ export default function OverlayControl() {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Sync crew form from broadcastState on first load
+  // ── Streamer ticker local state ──────────────────────────────────────────────
+  const [streamerText, setStreamerText] = useState('');
+  const [savingStreamer, setSavingStreamer] = useState(false);
+
+  // Sync forms from broadcastState on first load
   const initializedRef = useRef(false);
   useEffect(() => {
     if (!bsLoading && !initializedRef.current) {
       initializedRef.current = true;
       setCrewName(broadcastState.crew_name ?? '');
       setCrewLogoUrl(broadcastState.crew_logo_url ?? null);
+      setStreamerText(broadcastState.streamer_text ?? '');
     }
-  }, [bsLoading, broadcastState.crew_name, broadcastState.crew_logo_url]);
+  }, [bsLoading, broadcastState.crew_name, broadcastState.crew_logo_url, broadcastState.streamer_text]);
 
   // ── Auth / access guards ─────────────────────────────────────────────────────
   if (isLoadingAuth) {
@@ -210,6 +216,29 @@ export default function OverlayControl() {
   const handleScorebugToggle = async (checked) => {
     const err = await updateBroadcastState(gameId, { scorebug_visible: checked });
     if (err) toast({ title: 'Failed to update', description: err.message, variant: 'destructive' });
+  };
+
+  const handleCrewLogoToggle = async (checked) => {
+    const err = await updateBroadcastState(gameId, { crew_logo_visible: checked });
+    if (err) toast({ title: 'Failed to update', description: err.message, variant: 'destructive' });
+  };
+
+  const handleStreamerToggle = async (checked) => {
+    const err = await updateBroadcastState(gameId, { streamer_visible: checked });
+    if (err) toast({ title: 'Failed to update', description: err.message, variant: 'destructive' });
+  };
+
+  const handleSaveStreamer = async () => {
+    setSavingStreamer(true);
+    const err = await updateBroadcastState(gameId, {
+      streamer_text: streamerText.trim(),
+    });
+    setSavingStreamer(false);
+    if (err) {
+      toast({ title: 'Failed to save', description: err.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Streamer message saved' });
+    }
   };
 
   const handleLogoUpload = async (e) => {
@@ -370,6 +399,9 @@ export default function OverlayControl() {
                 paddingLeft: 14,
                 borderLeft: `2px solid ${overlayActive ? 'var(--ct-accent, #3B82F6)' : 'var(--ct-border)'}`,
                 transition: 'border-color 0.2s',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
               }}
             >
               <ToggleRow
@@ -382,6 +414,32 @@ export default function OverlayControl() {
                 }
                 checked={broadcastState.scorebug_visible}
                 onCheckedChange={handleScorebugToggle}
+                disabled={!overlayActive}
+              />
+
+              <ToggleRow
+                id="toggle-crew-logo"
+                label="Show broadcaster logo (top-right)"
+                description={
+                  overlayActive
+                    ? 'Large brand mark, top-right of the overlay. Requires a logo upload.'
+                    : 'No effect — overlay is off.'
+                }
+                checked={broadcastState.crew_logo_visible}
+                onCheckedChange={handleCrewLogoToggle}
+                disabled={!overlayActive}
+              />
+
+              <ToggleRow
+                id="toggle-streamer"
+                label="Show streamer ticker (bottom)"
+                description={
+                  overlayActive
+                    ? 'Scrolling sponsor / announcement bar along the bottom edge.'
+                    : 'No effect — overlay is off.'
+                }
+                checked={broadcastState.streamer_visible}
+                onCheckedChange={handleStreamerToggle}
                 disabled={!overlayActive}
               />
             </div>
@@ -410,7 +468,7 @@ export default function OverlayControl() {
                 style={{ fontSize: 14 }}
               />
               <p style={{ fontSize: 11, color: 'var(--ct-text-muted)', marginTop: 4 }}>
-                Displayed on the scorebug crew strip when set.
+                Displayed as text on the scorebug crew strip when set.
               </p>
             </div>
 
@@ -515,7 +573,7 @@ export default function OverlayControl() {
                 onChange={handleLogoUpload}
               />
               <p style={{ fontSize: 11, color: 'var(--ct-text-muted)', marginTop: 4 }}>
-                JPG, PNG, GIF, WebP, SVG. Shown on scorebug instead of the initial square.
+                JPG, PNG, GIF, WebP, SVG. Displayed as the large broadcaster mark in the top-right of the overlay.
               </p>
             </div>
 
@@ -528,6 +586,55 @@ export default function OverlayControl() {
               >
                 {saving && <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />}
                 {saving ? 'Saving…' : 'Save crew identity'}
+              </Button>
+            </div>
+
+          </div>
+        </Section>
+
+        {/* ── STREAMER / SPONSOR SECTION ──────────────────────────────────── */}
+        <Section title="Streamer / Sponsor">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+            <div>
+              <Label
+                htmlFor="streamer-text"
+                style={{ fontSize: 13, fontWeight: 500, color: 'var(--ct-text-primary)', display: 'block', marginBottom: 6 }}
+              >
+                Streamer message
+              </Label>
+              <Textarea
+                id="streamer-text"
+                value={streamerText}
+                onChange={(e) => setStreamerText(e.target.value.slice(0, 240))}
+                maxLength={240}
+                rows={3}
+                placeholder="e.g. Sponsored by Acme Sports — Game presented by Westside Broadcasting"
+                style={{ fontSize: 14, resize: 'vertical' }}
+              />
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 4,
+                  fontSize: 11,
+                  color: 'var(--ct-text-muted)',
+                }}
+              >
+                <span>This message scrolls across the bottom of the overlay. Keep it short and high-contrast for readability.</span>
+                <span style={{ flexShrink: 0, marginLeft: 12 }}>{streamerText.length}/240</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
+              <Button
+                onClick={handleSaveStreamer}
+                disabled={savingStreamer}
+                size="sm"
+              >
+                {savingStreamer && <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />}
+                {savingStreamer ? 'Saving…' : 'Save streamer message'}
               </Button>
             </div>
 
