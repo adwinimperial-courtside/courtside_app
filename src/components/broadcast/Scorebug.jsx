@@ -77,14 +77,15 @@ function TeamMark({ color, letter }) {
 }
 
 // ─── Crew strip (shared between Scorebug and standalone CrewStripOverlay) ─────
+// Text-only. Broadcaster logo lives in BroadcasterLogo (top-right of the
+// overlay), not on the crew strip.
 
-function CrewStripContent({ crewInitial, crewDisplay, crewLogoUrl }) {
+function CrewStripContent({ crewDisplay }) {
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 7,
         padding: '5px 10px',
         background: 'rgba(0,0,0,0.28)',
         borderTop: '1px solid rgba(255,255,255,0.05)',
@@ -93,41 +94,6 @@ function CrewStripContent({ crewInitial, crewDisplay, crewLogoUrl }) {
         fontFamily: FONT,
       }}
     >
-      {/* Logo image when provided; amber initial square as fallback */}
-      {crewLogoUrl ? (
-        <div
-          style={{
-            width: 14,
-            height: 14,
-            borderRadius: 3,
-            overflow: 'hidden',
-            flexShrink: 0,
-          }}
-        >
-          <img
-            src={crewLogoUrl}
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        </div>
-      ) : (
-        <div
-          style={{
-            width: 14,
-            height: 14,
-            borderRadius: 3,
-            background: '#F59E0B',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: 8, fontWeight: 500, color: '#1A1A2E', fontFamily: FONT }}>
-            {crewInitial}
-          </span>
-        </div>
-      )}
       <span
         style={{
           fontSize: 10,
@@ -143,9 +109,8 @@ function CrewStripContent({ crewInitial, crewDisplay, crewLogoUrl }) {
 }
 
 // Standalone crew strip — shown when overlay_visible=true but scorebug_visible=false.
-export function CrewStripOverlay({ crewName, crewLogoUrl }) {
+export function CrewStripOverlay({ crewName }) {
   const crewDisplay = crewName?.trim() || null;
-  const crewInitial = crewDisplay?.[0]?.toUpperCase() || null;
   if (!crewDisplay) return null;
 
   return (
@@ -163,18 +128,14 @@ export function CrewStripOverlay({ crewName, crewLogoUrl }) {
         fontFamily: FONT,
       }}
     >
-      <CrewStripContent
-        crewInitial={crewInitial}
-        crewDisplay={crewDisplay}
-        crewLogoUrl={crewLogoUrl}
-      />
+      <CrewStripContent crewDisplay={crewDisplay} />
     </div>
   );
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewName, crewLogoUrl }) {
+export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewName }) {
   if (!game) return null;
 
   // ── Scores ──────────────────────────────────────────────────────────────────
@@ -216,8 +177,6 @@ export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewN
 
   // ── Crew ─────────────────────────────────────────────────────────────────────
   const crewDisplay = crewName?.trim() || null;
-  const crewInitial = crewDisplay?.[0]?.toUpperCase() || null;
-  const crewLogo    = crewLogoUrl?.trim() || null;
 
   return (
     <div
@@ -461,14 +420,8 @@ export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewN
         </div>
       </div>
 
-      {/* ── STRIP 5: CREW (conditional) ─────────────────────────────────────── */}
-      {crewDisplay && (
-        <CrewStripContent
-          crewInitial={crewInitial}
-          crewDisplay={crewDisplay}
-          crewLogoUrl={crewLogo}
-        />
-      )}
+      {/* ── STRIP 5: CREW (conditional, text-only) ──────────────────────────── */}
+      {crewDisplay && <CrewStripContent crewDisplay={crewDisplay} />}
 
     </div>
   );
