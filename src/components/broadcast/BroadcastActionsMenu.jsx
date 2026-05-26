@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { MoreVertical, Link } from "lucide-react";
+import { MoreVertical, Link, Tv2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "@/components/ui/use-toast";
@@ -58,7 +58,10 @@ export default function BroadcastActionsMenu({ gameId, leagueId }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {/* Phase 3 will add additional items here: Open broadcast control, Toggle overlay visibility. */}
+        <DropdownMenuItem onClick={() => window.open(`/overlay/${gameId}/control`, '_blank', 'noopener')}>
+          <Tv2 className="w-4 h-4 mr-2" />
+          Open control panel
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleCopyOverlayLink}>
           <Link className="w-4 h-4 mr-2" />
           Copy overlay link

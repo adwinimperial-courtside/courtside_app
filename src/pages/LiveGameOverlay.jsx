@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBroadcastState } from '@/hooks/useBroadcastState';
 import { useGameOverlayData } from '@/hooks/useGameOverlayData';
-import Scorebug from '@/components/broadcast/Scorebug';
+import Scorebug, { CrewStripOverlay } from '@/components/broadcast/Scorebug';
 
 const pulseKeyframes = `
 @keyframes livePulse {
@@ -25,7 +25,13 @@ export default function LiveGameOverlay() {
     };
   }, []);
 
-  if (!broadcastState.overlay_visible) return null;
+  // ── Visibility rules ──────────────────────────────────────────────────────
+  // LIVE badge : always visible — no toggle
+  // overlay_visible = false : hide scorebug + crew strip (LIVE badge stays)
+  // overlay_visible = true, scorebug_visible = false : show standalone crew strip only
+  // overlay_visible = true, scorebug_visible = true  : show full scorebug (incl. crew strip)
+  const overlayOn   = broadcastState.overlay_visible;
+  const scorebugOn  = broadcastState.scorebug_visible;
 
   return (
     <>
@@ -38,7 +44,7 @@ export default function LiveGameOverlay() {
           background: 'transparent',
         }}
       >
-        {/* Top-left: LIVE badge + Courtside credit */}
+        {/* ── Top-left: LIVE badge + Courtside credit — ALWAYS VISIBLE ─────── */}
         <div style={{ position: 'absolute', top: 14, left: 14 }}>
 
           {/* LIVE badge */}
@@ -94,14 +100,23 @@ export default function LiveGameOverlay() {
           </div>
         </div>
 
-        {/* Bottom-centre: scorebug */}
-        {broadcastState.scorebug_visible && (
+        {/* ── Bottom-right: full scorebug (overlay + scorebug both on) ──────── */}
+        {overlayOn && scorebugOn && (
           <Scorebug
             game={game}
             homeTeam={homeTeam}
             awayTeam={awayTeam}
             clockDisplay={clockDisplay}
             crewName={broadcastState.crew_name}
+            crewLogoUrl={broadcastState.crew_logo_url}
+          />
+        )}
+
+        {/* ── Bottom-right: crew strip only (overlay on, scorebug off) ──────── */}
+        {overlayOn && !scorebugOn && (
+          <CrewStripOverlay
+            crewName={broadcastState.crew_name}
+            crewLogoUrl={broadcastState.crew_logo_url}
           />
         )}
       </div>

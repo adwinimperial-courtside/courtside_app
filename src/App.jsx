@@ -14,7 +14,8 @@ import AcceptInvitePage from '@/pages/AcceptInvite';
 
 import ApplyForLeaguePage from './pages/ApplyForLeague';
 import LeagueUsersPage from './pages/LeagueUsers';
-import LiveGameOverlay from '@/pages/LiveGameOverlay';
+import LiveGameOverlay from '@/pages/LiveGameOverlay'
+import OverlayControl from '@/pages/OverlayControl';
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
@@ -80,6 +81,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/overlay/:gameId" element={<LiveGameOverlay />} />
+            <Route path="/overlay/:gameId/control" element={<OverlayControl />} />
             <Route path="*" element={<AuthenticatedApp />} />
           </Routes>
         </Router>

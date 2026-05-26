@@ -76,9 +76,105 @@ function TeamMark({ color, letter }) {
   );
 }
 
+// ─── Crew strip (shared between Scorebug and standalone CrewStripOverlay) ─────
+
+function CrewStripContent({ crewInitial, crewDisplay, crewLogoUrl }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '5px 10px',
+        background: 'rgba(0,0,0,0.28)',
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.70)',
+        fontFamily: FONT,
+      }}
+    >
+      {/* Logo image when provided; amber initial square as fallback */}
+      {crewLogoUrl ? (
+        <div
+          style={{
+            width: 14,
+            height: 14,
+            borderRadius: 3,
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+        >
+          <img
+            src={crewLogoUrl}
+            alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        </div>
+      ) : (
+        <div
+          style={{
+            width: 14,
+            height: 14,
+            borderRadius: 3,
+            background: '#F59E0B',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: 8, fontWeight: 500, color: '#1A1A2E', fontFamily: FONT }}>
+            {crewInitial}
+          </span>
+        </div>
+      )}
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 500,
+          letterSpacing: '0.8px',
+          textTransform: 'uppercase',
+        }}
+      >
+        {crewDisplay}
+      </span>
+    </div>
+  );
+}
+
+// Standalone crew strip — shown when overlay_visible=true but scorebug_visible=false.
+export function CrewStripOverlay({ crewName, crewLogoUrl }) {
+  const crewDisplay = crewName?.trim() || null;
+  const crewInitial = crewDisplay?.[0]?.toUpperCase() || null;
+  if (!crewDisplay) return null;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 14,
+        right: 14,
+        pointerEvents: 'none',
+        background: 'rgba(15,15,26,0.94)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 6,
+        overflow: 'hidden',
+        color: '#fff',
+        fontFamily: FONT,
+      }}
+    >
+      <CrewStripContent
+        crewInitial={crewInitial}
+        crewDisplay={crewDisplay}
+        crewLogoUrl={crewLogoUrl}
+      />
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewName }) {
+export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewName, crewLogoUrl }) {
   if (!game) return null;
 
   // ── Scores ──────────────────────────────────────────────────────────────────
@@ -121,6 +217,7 @@ export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewN
   // ── Crew ─────────────────────────────────────────────────────────────────────
   const crewDisplay = crewName?.trim() || null;
   const crewInitial = crewDisplay?.[0]?.toUpperCase() || null;
+  const crewLogo    = crewLogoUrl?.trim() || null;
 
   return (
     <div
@@ -366,46 +463,11 @@ export default function Scorebug({ game, homeTeam, awayTeam, clockDisplay, crewN
 
       {/* ── STRIP 5: CREW (conditional) ─────────────────────────────────────── */}
       {crewDisplay && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            padding: '5px 10px',
-            background: 'rgba(0,0,0,0.28)',
-            borderTop: '1px solid rgba(255,255,255,0.05)',
-            fontSize: 10,
-            color: 'rgba(255,255,255,0.70)',
-            fontFamily: FONT,
-          }}
-        >
-          <div
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: 3,
-              background: '#F59E0B',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: 8, fontWeight: 500, color: '#1A1A2E', fontFamily: FONT }}>
-              {crewInitial}
-            </span>
-          </div>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 500,
-              letterSpacing: '0.8px',
-              textTransform: 'uppercase',
-            }}
-          >
-            {crewDisplay}
-          </span>
-        </div>
+        <CrewStripContent
+          crewInitial={crewInitial}
+          crewDisplay={crewDisplay}
+          crewLogoUrl={crewLogo}
+        />
       )}
 
     </div>
