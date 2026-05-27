@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useIsNarrowLayout } from "@/lib/DevicePreviewContext";
 import { FileText, Download, List, LayoutList, Clock, User, ChevronDown, Search } from "lucide-react";
 import { format } from "date-fns";
+import DropdownPill from "@/components/ui/DropdownPill";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PERIOD_LABELS = { 1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4", 5: "OT" };
@@ -215,78 +216,6 @@ function TimelineView({ logs, homeTeamId, homeName, awayName }) {
 }
 
 // ─── Mobile helpers ──────────────────────────────────────────────────────────
-
-// Reusable dropdown pill (inlined — same pattern used in Statistics/Schedule)
-function DropdownPill({ label, options, selectedId, onChange, active = false }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative flex-shrink-0">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap"
-        style={{
-          background: active ? "var(--ct-accent)" : "var(--ct-bg-elevated)",
-          color:      active ? "#ffffff"  : "var(--ct-text-secondary)",
-          border: "none",
-          cursor: "pointer",
-          maxWidth: 220,
-          minHeight: 32,
-        }}
-      >
-        <span className="truncate">{label}</span>
-        <ChevronDown className="w-3 h-3 flex-shrink-0" />
-      </button>
-      {open && (
-        <div
-          className="absolute top-full left-0 mt-1 rounded-xl p-2 min-w-[220px] z-50"
-          style={{
-            background: "var(--ct-bg-card)",
-            border: "1px solid var(--ct-border)",
-            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.6)",
-            maxHeight: "60vh",
-            overflowY: "auto",
-          }}
-        >
-          {options.map(opt => {
-            const sel = opt.id === selectedId;
-            return (
-              <button
-                key={opt.id}
-                onClick={() => { onChange(opt.id); setOpen(false); }}
-                className="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap block"
-                style={{
-                  background: "transparent",
-                  color: sel ? "var(--ct-accent)" : "var(--ct-text-secondary)",
-                  border: "none",
-                  cursor: "pointer",
-                  fontWeight: sel ? 600 : 400,
-                }}
-                onMouseEnter={e => {
-                  if (!sel) { e.currentTarget.style.background = "var(--ct-bg-elevated)"; e.currentTarget.style.color = "var(--ct-text-primary)"; }
-                }}
-                onMouseLeave={e => {
-                  if (!sel) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--ct-text-secondary)"; }
-                }}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function CollapsibleSearch({ value, onChange, placeholder }) {
   const [expanded, setExpanded] = useState(!!value);

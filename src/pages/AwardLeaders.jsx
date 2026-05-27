@@ -1,87 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
-import { Trophy, ChevronDown, Loader2 } from "lucide-react";
+import { Trophy, Loader2 } from "lucide-react";
 import AwardLeadersComponent from "../components/stats/AwardLeaders";
-
-// ─── Dropdown pill (same pattern as Statistics / Schedule) ────────────────────
-
-function DropdownPill({ label, options, selectedId, onChange, active = false }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative flex-shrink-0">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
-        style={{
-          background: active ? "var(--ct-accent)" : "var(--ct-bg-elevated)",
-          color:      active ? "#ffffff"  : "var(--ct-text-secondary)",
-          border: "none",
-          cursor: "pointer",
-          maxWidth: 220,
-        }}
-      >
-        <span className="truncate">{label}</span>
-        <ChevronDown className="w-3 h-3 flex-shrink-0" />
-      </button>
-
-      {open && (
-        <div
-          className="absolute top-full left-0 mt-1 rounded-xl p-2 min-w-[220px] z-50"
-          style={{
-            background: "var(--ct-bg-card)",
-            border: "1px solid var(--ct-border)",
-            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.6)",
-            maxHeight: "60vh",
-            overflowY: "auto",
-          }}
-        >
-          {options.map(opt => {
-            const sel = opt.id === selectedId;
-            return (
-              <button
-                key={opt.id}
-                onClick={() => { onChange(opt.id); setOpen(false); }}
-                className="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap block"
-                style={{
-                  background: "transparent",
-                  color: sel ? "var(--ct-accent)" : "var(--ct-text-secondary)",
-                  border: "none",
-                  cursor: "pointer",
-                  fontWeight: sel ? 600 : 400,
-                }}
-                onMouseEnter={e => {
-                  if (!sel) {
-                    e.currentTarget.style.background = "var(--ct-bg-elevated)";
-                    e.currentTarget.style.color = "var(--ct-text-primary)";
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!sel) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "var(--ct-text-secondary)";
-                  }
-                }}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
+import DropdownPill from "@/components/ui/DropdownPill";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
