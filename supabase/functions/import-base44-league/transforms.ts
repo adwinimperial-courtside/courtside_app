@@ -104,11 +104,27 @@ export function parseTimestamp(iso: string | null | undefined): string | null {
 }
 
 // ─── parseGameDate ──────────────────────────────────────────────────────────
-// Base44 game_date is YYYY-MM-DD (date-only). Parse as midnight UTC.
-// Empty / null returns null (the column is nullable since 20260525000001).
+// Base44 game_date is empirically one of:
+//   - ISO datetime, full:    "2025-03-15T19:30:00.000Z"
+//   - ISO datetime, short:   "2025-03-15T19:30"        (no seconds, no TZ)
+//   - Date-only:             "2025-03-15"
+//   - null / undefined / ""
+//
+// We:
+//   - return null for nullish / empty input,
+//   - treat exact YYYY-MM-DD as midnight UTC (append "T00:00:00Z"),
+//   - pass everything else to `new Date()` directly (it accepts both ISO forms).
+//
+// Returns an ISO 8601 string (acceptable to Postgres `timestamptz`), or null if
+// the value can't be parsed. The column is nullable since 20260525000001.
+//
+// Bug history: the previous version unconditionally appended "T00:00:00Z" to
+// the input, which produced "2025-03-15T19:30T00:00:00Z" — invalid — and every
+// Season 5 game ended up with scheduled_at = NULL. See
+// docs/temp/season5-validation-2026-05-26.md, check E.
 export function parseGameDate(dateStr: string | null | undefined): string | null {
   if (dateStr === null || dateStr === undefined || dateStr === "") return null;
-  const iso = `${dateStr}T00:00:00Z`;
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? `${dateStr}T00:00:00Z` : dateStr;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
@@ -116,8 +132,38 @@ export function parseGameDate(dateStr: string | null | undefined): string | null
 
 // ─── computePoints ──────────────────────────────────────────────────────────
 // Base44 doesn't store total points; compute from components.
+// Standard ("digital") formula: points_2 is a *count* of 2-point baskets made.
+// Used only when isDigitalGame() returns true; otherwise use computePointsEdited.
 export function computePoints(p2: number, p3: number, ft: number): number {
   return (p2 || 0) * 2 + (p3 || 0) * 3 + (ft || 0);
+}
+
+// ─── computePointsEdited ────────────────────────────────────────────────────
+// Edited / non-digital formula: points_2 already stores the 2-point *points*
+// contribution directly (basket count is unknown — typically because the game
+// was edited or entered manually as totals).
+//
+// See docs/temp/edited-game-investigation-2026-05-26.md for the empirical proof
+// across Season 5 (alt2 formula = exact match for all 26 edited games + 1
+// manually-entered game flagged edited=false).
+export function computePointsEdited(p2: number, p3: number, ft: number): number {
+  return (p2 || 0) + (p3 || 0) * 3 + (ft || 0);
+}
+
+// ─── isDigitalGame ──────────────────────────────────────────────────────────
+// True iff Base44 stored the game's stats with the "digital" semantic, i.e.
+// points_2 is a basket count and the standard formula applies.
+//
+// Locked-in rule (from Base44 source — see docs/temp/base44-pts-formulas.md):
+//   isDigital = (entry_type === 'digital' && edited === false)
+//
+// Anything else — manual entry, imported, or any digital game that was later
+// edited — uses the alt2 formula (points_2 = 2PT points contribution).
+export function isDigitalGame(
+  entry_type: string | null | undefined,
+  edited: boolean | null | undefined,
+): boolean {
+  return entry_type === "digital" && edited === false;
 }
 
 // ─── coerceIntValue ─────────────────────────────────────────────────────────

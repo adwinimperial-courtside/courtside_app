@@ -1,0 +1,54 @@
+entity,n
+game_logs,3906
+games,37
+leagues,1
+player_stats,924
+players,130
+teams,8
+total_games,matches,mismatches
+37,37,0
+stat_type,n
+2PT,948
+3PT,141
+AST,447
+BLK,36
+DREB,860
+EJECTION,4
+FOUL,377
+FTM,258
+OREB,128
+STL,269
+SUBSTITUTION,370
+TECHNICAL,3
+TIMEOUT,39
+TO,22
+UNSPORTSMANLIKE,4
+sentinel_count
+11
+null_count,out_of_range,min_scheduled,max_scheduled
+0,0,2026-01-04 18:13:00+00,2026-05-10 14:00:00+00
+check,n
+orphan_players_no_team,0
+orphan_ps_player,0
+orphan_ps_game,0
+entity,null_count,total
+game_logs,0,3906
+games,0,37
+leagues,0,1
+player_stats,0,924
+players,0,130
+teams,0,8
+k,n
+I_status:final,37
+J_stage:championship,1
+J_stage:regular,36
+k_non_digital_game_count,k_total_rows,k_correctly_formed,k_violations,l_digital_game_count,l_total_rows,l_total_pts_null,l_total_pts_nonnull
+27,754,754,0,10,170,170,0
+digital_games,std_formula_matches,mismatches
+10,10,0
+player,team,total_points
+Yobz Vasquez,Achilles,276
+Ryan Villanueva,Warriors,232
+Ron Albarico,Bistag,225
+Vhiemz Vequizo,SBP Lovers,180
+Sieg Valdez,Phil-Tamp,161

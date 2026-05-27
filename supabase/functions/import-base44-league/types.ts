@@ -300,6 +300,11 @@ export interface SupabasePlayerStatsRow {
   free_throws_missed: number;
   technical_fouls: number;
   unsportsmanlike_fouls: number;
+  // Authoritative total points override (column added in migration
+  // 20260527000001). NULL = derive from breakdown using the standard formula
+  // (points_2*2 + points_3*3 + free_throws). Set explicitly for non-digital
+  // games, where the 2PT basket count is unknown and points_2 is forced to 0.
+  total_points: number | null;
   is_active: boolean | null;
   created_at: string;
   updated_at: string;

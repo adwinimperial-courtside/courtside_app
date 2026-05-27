@@ -1,0 +1,352 @@
+Season 5 Validation — Raw query output
+=======================================
+Project: bikjkoyodkduhnnlbzpb (Supabase EU-central)
+League:  Fin-Noy Ballers 40up Season 5
+ID:      30639acb-a877-4068-9181-a857675106f6
+Date:    2026-05-26
+Tool:    supabase db query --linked --output csv (psql not installed)
+
+Each section is: [letter] description, then the SQL, then the CSV result.
+
+
+============================================================
+A. Entity counts
+============================================================
+-- SQL --
+
+SELECT 'leagues'      AS entity, count(*)::int AS n FROM leagues      WHERE id         = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'teams',        count(*)::int FROM teams        WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'players',      count(*)::int FROM players      WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'games',        count(*)::int FROM games        WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'player_stats', count(*)::int FROM player_stats WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'game_logs',    count(*)::int FROM game_logs    WHERE league_id = '30639acb-a877-4068-9181-a857675106f6';
+
+-- RESULT --
+entity,n
+leagues,1
+teams,8
+players,130
+games,37
+player_stats,924
+game_logs,3906
+
+============================================================
+B. Score-vs-stat-sum integrity (only MISMATCH rows shown)
+============================================================
+-- SQL --
+
+WITH sums AS (
+  SELECT ps.game_id, ps.team_id,
+         SUM(ps.points_2 * 2 + ps.points_3 * 3 + ps.free_throws)::int AS stat_sum
+  FROM player_stats ps
+  WHERE ps.league_id = '30639acb-a877-4068-9181-a857675106f6'
+  GROUP BY ps.game_id, ps.team_id
+)
+SELECT g.id AS game_id, g.scheduled_at::date AS game_date,
+       g.home_team_id, g.home_score, h.stat_sum AS home_sum,
+       g.away_team_id, g.away_score, a.stat_sum AS away_sum
+FROM games g
+LEFT JOIN sums h ON h.game_id = g.id AND h.team_id = g.home_team_id
+LEFT JOIN sums a ON a.game_id = g.id AND a.team_id = g.away_team_id
+WHERE g.league_id = '30639acb-a877-4068-9181-a857675106f6'
+  AND (COALESCE(h.stat_sum, 0) <> g.home_score OR COALESCE(a.stat_sum, 0) <> g.away_score)
+ORDER BY g.scheduled_at;
+
+-- RESULT --
+game_id,game_date,home_team_id,home_score,home_sum,away_team_id,away_score,away_sum
+e98e84be-9625-448e-800f-75567b64a14b,NULL,0904de78-0579-4879-9b9b-4aa5c946362a,74,109,a7248165-2e15-4e49-83d7-a50df333cebc,71,131
+a7d8a027-11b4-46d7-8891-2c1008681c99,NULL,8a22d471-6298-4869-b2e6-1b8ef196b2a4,69,104,fb843b4a-5f4b-45f8-8302-b7241cf7d317,65,105
+7706c8b9-65bc-4333-899b-81bfe5ef27dd,NULL,75059b21-0571-485d-a9dc-b717454e136d,70,120,0904de78-0579-4879-9b9b-4aa5c946362a,74,114
+4c3b8658-7edb-4efb-b737-f5a81b992c47,NULL,75059b21-0571-485d-a9dc-b717454e136d,81,147,8a22d471-6298-4869-b2e6-1b8ef196b2a4,52,74
+102bbe2c-81c5-43c6-bd86-47cdf002d605,NULL,a7248165-2e15-4e49-83d7-a50df333cebc,68,122,75059b21-0571-485d-a9dc-b717454e136d,66,108
+096fdc05-dd54-48c8-86d2-dbbcc55d26cd,NULL,d2e0d10a-acb4-4985-b1df-a20fbd90212c,65,109,8a22d471-6298-4869-b2e6-1b8ef196b2a4,69,115
+12068430-40d7-446a-b36b-1820eb454f02,NULL,0904de78-0579-4879-9b9b-4aa5c946362a,89,145,441750cf-65c2-40f4-b18c-f22d470a8b6a,65,126
+a9f9f3e2-03d4-4cd1-ba17-f68915394c3a,NULL,a7248165-2e15-4e49-83d7-a50df333cebc,74,130,441750cf-65c2-40f4-b18c-f22d470a8b6a,75,137
+7509e22c-0fba-45eb-b3b0-d80cf2d40a7e,NULL,75059b21-0571-485d-a9dc-b717454e136d,85,149,a7248165-2e15-4e49-83d7-a50df333cebc,72,114
+2330fc23-7b85-4130-9609-481309efebce,NULL,fb843b4a-5f4b-45f8-8302-b7241cf7d317,64,112,d4997d52-0f7a-447b-a4dc-cf3085137884,78,148
+c1da9a6b-cf9d-4f06-bc93-df1c38b65575,NULL,a7248165-2e15-4e49-83d7-a50df333cebc,89,155,8a22d471-6298-4869-b2e6-1b8ef196b2a4,66,114
+b1fe0165-c2c2-4fc5-9c29-f46e234b6915,NULL,d4997d52-0f7a-447b-a4dc-cf3085137884,106,200,0904de78-0579-4879-9b9b-4aa5c946362a,70,124
+0fdb3391-5a9e-4fd7-a59e-3000122bac11,NULL,75059b21-0571-485d-a9dc-b717454e136d,100,176,441750cf-65c2-40f4-b18c-f22d470a8b6a,61,105
+e7233487-b6f1-441a-94fb-8a4ac753522c,NULL,d4997d52-0f7a-447b-a4dc-cf3085137884,101,185,0904de78-0579-4879-9b9b-4aa5c946362a,75,137
+bbe5c42d-3e50-4bcd-9986-c80551f34a4a,NULL,8a22d471-6298-4869-b2e6-1b8ef196b2a4,74,134,d4997d52-0f7a-447b-a4dc-cf3085137884,100,166
+2f6e06ce-2bd1-4a6a-9b55-71ac89304abf,NULL,d2e0d10a-acb4-4985-b1df-a20fbd90212c,85,135,0904de78-0579-4879-9b9b-4aa5c946362a,72,124
+5ec2713f-ff8f-4d7e-9fa1-71b75d80d17e,NULL,d4997d52-0f7a-447b-a4dc-cf3085137884,94,174,a7248165-2e15-4e49-83d7-a50df333cebc,73,119
+cae8d51c-e035-4eb9-9f76-f47b6803be41,NULL,d2e0d10a-acb4-4985-b1df-a20fbd90212c,79,145,d4997d52-0f7a-447b-a4dc-cf3085137884,94,172
+06ec4e2e-3f85-49d7-ae49-a3c647b31db5,NULL,fb843b4a-5f4b-45f8-8302-b7241cf7d317,80,148,0904de78-0579-4879-9b9b-4aa5c946362a,71,107
+73f521db-db20-43a3-ae8b-062115dad24b,NULL,a7248165-2e15-4e49-83d7-a50df333cebc,72,130,d2e0d10a-acb4-4985-b1df-a20fbd90212c,63,103
+370cbf8d-507b-40e1-9d60-537626308dc9,NULL,fb843b4a-5f4b-45f8-8302-b7241cf7d317,77,141,d2e0d10a-acb4-4985-b1df-a20fbd90212c,53,97
+4c28b9f5-5a46-416d-acc0-2c1e980ec6b1,NULL,d4997d52-0f7a-447b-a4dc-cf3085137884,88,170,441750cf-65c2-40f4-b18c-f22d470a8b6a,83,145
+b61cc7a5-b8a0-4f0e-acd5-79d701bd598e,NULL,441750cf-65c2-40f4-b18c-f22d470a8b6a,70,114,8a22d471-6298-4869-b2e6-1b8ef196b2a4,71,119
+6802ef31-dba7-4143-8580-d2acdeac9a81,NULL,441750cf-65c2-40f4-b18c-f22d470a8b6a,63,111,fb843b4a-5f4b-45f8-8302-b7241cf7d317,74,120
+0438562e-d4d0-43e1-9dc8-1d9f195cfaf9,NULL,fb843b4a-5f4b-45f8-8302-b7241cf7d317,70,116,a7248165-2e15-4e49-83d7-a50df333cebc,67,121
+83ef163e-eb6d-4c42-97b9-db6221313418,NULL,75059b21-0571-485d-a9dc-b717454e136d,83,141,fb843b4a-5f4b-45f8-8302-b7241cf7d317,66,104
+6b2ccc10-3cb2-4b4e-99b4-2bc15e8b658f,NULL,441750cf-65c2-40f4-b18c-f22d470a8b6a,116,214,d2e0d10a-acb4-4985-b1df-a20fbd90212c,57,103
+
+============================================================
+B2. Score-vs-stat-sum integrity SUMMARY (count of games / mismatches)
+============================================================
+-- SQL --
+
+WITH sums AS (
+  SELECT ps.game_id, ps.team_id,
+         SUM(ps.points_2 * 2 + ps.points_3 * 3 + ps.free_throws)::int AS stat_sum
+  FROM player_stats ps
+  WHERE ps.league_id = '30639acb-a877-4068-9181-a857675106f6'
+  GROUP BY ps.game_id, ps.team_id
+)
+SELECT count(*)::int AS games_total,
+       sum(CASE WHEN COALESCE(h.stat_sum,0) <> g.home_score OR COALESCE(a.stat_sum,0) <> g.away_score
+                THEN 1 ELSE 0 END)::int AS mismatch_count
+FROM games g
+LEFT JOIN sums h ON h.game_id = g.id AND h.team_id = g.home_team_id
+LEFT JOIN sums a ON a.game_id = g.id AND a.team_id = g.away_team_id
+WHERE g.league_id = '30639acb-a877-4068-9181-a857675106f6';
+
+-- RESULT --
+games_total,mismatch_count
+37,27
+
+============================================================
+C. Distinct stat_type values in game_logs
+============================================================
+-- SQL --
+
+SELECT stat_type, count(*)::int AS n
+FROM game_logs
+WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+GROUP BY stat_type
+ORDER BY stat_type;
+
+-- RESULT --
+stat_type,n
+2PT,948
+3PT,141
+AST,447
+BLK,36
+DREB,860
+EJECTION,4
+FOUL,377
+FTM,258
+OREB,128
+STL,269
+SUBSTITUTION,370
+TECHNICAL,3
+TIMEOUT,39
+TO,22
+UNSPORTSMANLIKE,4
+
+============================================================
+D. Players with last_name = '-' (single-word name sentinel)
+============================================================
+-- SQL --
+
+SELECT count(*)::int AS sentinel_count
+FROM players
+WHERE league_id = '30639acb-a877-4068-9181-a857675106f6' AND last_name = '-';
+
+-- RESULT --
+sentinel_count
+11
+
+============================================================
+D2. Players with sentinel last_name '-' (list)
+============================================================
+-- SQL --
+
+SELECT first_name, last_name, jersey_number, legacy_base44_id
+FROM players
+WHERE league_id = '30639acb-a877-4068-9181-a857675106f6' AND last_name = '-'
+ORDER BY first_name;
+
+-- RESULT --
+first_name,last_name,jersey_number,legacy_base44_id
+Bitangcol,-,22,698b574929b4ece666ae6ae7
+Cartagena,-,4,698b5748985e8edaba61e37f
+Caruz,-,17,698b57490474b1d4375738bc
+Condino,-,14,698b574b4ea996a3bb34a656
+Diego,-,1,698b574cc3492f06dde5cc49
+Dueño,-,8,698b574a711e9e60d7c62b6e
+Guerra,-,23,698b5830b4032dad356cb651
+Jose,-,11,698b574b88951242efaf1b8f
+Olisiman,-,21,698b574a587cb5edc7ce9495
+Ragnar,-,16,698b574b1bac7ecb768f0cdd
+Taroy,-,5,698b582f1bce3bfb6e53ba85
+
+============================================================
+E. Date validity for games (scheduled_at)
+============================================================
+-- SQL --
+
+SELECT
+  count(*) FILTER (WHERE scheduled_at IS NULL)::int AS null_count,
+  count(*) FILTER (WHERE scheduled_at < '2020-01-01')::int AS pre_2020_count,
+  MIN(scheduled_at)::text AS min_scheduled,
+  MAX(scheduled_at)::text AS max_scheduled
+FROM games
+WHERE league_id = '30639acb-a877-4068-9181-a857675106f6';
+
+-- RESULT --
+null_count,pre_2020_count,min_scheduled,max_scheduled
+37,0,NULL,NULL
+
+============================================================
+F. Orphan check: players with no team (Season 5)
+============================================================
+-- SQL --
+
+SELECT count(*)::int AS orphan_count
+FROM players p
+WHERE p.league_id = '30639acb-a877-4068-9181-a857675106f6'
+  AND p.team_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.id = p.team_id);
+
+-- RESULT --
+orphan_count
+0
+
+============================================================
+F2. Orphan check: player_stats with no player (Season 5)
+============================================================
+-- SQL --
+
+SELECT count(*)::int AS orphan_count
+FROM player_stats ps
+WHERE ps.league_id = '30639acb-a877-4068-9181-a857675106f6'
+  AND NOT EXISTS (SELECT 1 FROM players p WHERE p.id = ps.player_id);
+
+-- RESULT --
+orphan_count
+0
+
+============================================================
+F3. Orphan check: player_stats with no game (Season 5)
+============================================================
+-- SQL --
+
+SELECT count(*)::int AS orphan_count
+FROM player_stats ps
+WHERE ps.league_id = '30639acb-a877-4068-9181-a857675106f6'
+  AND NOT EXISTS (SELECT 1 FROM games g WHERE g.id = ps.game_id);
+
+-- RESULT --
+orphan_count
+0
+
+============================================================
+G. Top 5 scorers
+============================================================
+-- SQL --
+
+SELECT p.first_name || ' ' || p.last_name AS player,
+       t.name AS team,
+       SUM(ps.points_2 * 2 + ps.points_3 * 3 + ps.free_throws)::int AS total_points
+FROM player_stats ps
+JOIN players p ON p.id = ps.player_id
+JOIN teams   t ON t.id = ps.team_id
+WHERE ps.league_id = '30639acb-a877-4068-9181-a857675106f6'
+GROUP BY p.id, p.first_name, p.last_name, t.name
+ORDER BY total_points DESC
+LIMIT 5;
+
+-- RESULT --
+player,team,total_points
+Ron Albarico,Bistag,393
+Yobz Vasquez,Achilles,368
+Ryan Villanueva,Warriors,358
+Vhiemz Vequizo,SBP Lovers,260
+Rex Abono,Phil-Tamp,225
+
+============================================================
+H. legacy_base44_id NULL counts (expect 0 everywhere)
+============================================================
+-- SQL --
+
+SELECT 'leagues'      AS entity, count(*) FILTER (WHERE legacy_base44_id IS NULL)::int AS null_count, count(*)::int AS total FROM leagues      WHERE id         = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'teams',        count(*) FILTER (WHERE legacy_base44_id IS NULL)::int, count(*)::int FROM teams        WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'players',      count(*) FILTER (WHERE legacy_base44_id IS NULL)::int, count(*)::int FROM players      WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'games',        count(*) FILTER (WHERE legacy_base44_id IS NULL)::int, count(*)::int FROM games        WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'player_stats', count(*) FILTER (WHERE legacy_base44_id IS NULL)::int, count(*)::int FROM player_stats WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+UNION ALL SELECT 'game_logs',    count(*) FILTER (WHERE legacy_base44_id IS NULL)::int, count(*)::int FROM game_logs    WHERE league_id = '30639acb-a877-4068-9181-a857675106f6';
+
+-- RESULT --
+entity,null_count,total
+leagues,0,1
+teams,0,8
+players,0,130
+games,0,37
+player_stats,0,924
+game_logs,0,3906
+
+============================================================
+I. Game status distribution
+============================================================
+-- SQL --
+
+SELECT status, count(*)::int AS n
+FROM games
+WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+GROUP BY status
+ORDER BY n DESC;
+
+-- RESULT --
+status,n
+final,37
+
+============================================================
+J. Game stage distribution
+============================================================
+-- SQL --
+
+SELECT game_stage, count(*)::int AS n
+FROM games
+WHERE league_id = '30639acb-a877-4068-9181-a857675106f6'
+GROUP BY game_stage
+ORDER BY n DESC;
+
+-- RESULT --
+game_stage,n
+regular,36
+championship,1
+
+============================================================
+B3. Diagnostic: compare player_stats.points_2 to game_logs '2PT' count vs sum
+============================================================
+Looking at any 5 player_stats rows that have points_2 > 0, comparing to their game_log events:
+stat_id,points_2,log_2pt_count,points_3,log_3pt_count,free_throws,log_ftm_count
+e584e683-7e2c-4d4d-9b18-43efd89577ec,30,0,0,0,5,0
+2ecbfc82-16eb-40a5-b249-16322810763c,30,0,0,0,4,0
+3cbafa9e-0a26-4c1a-98c5-47f7cf0340f1,28,0,1,0,0,0
+96fbda45-1364-4c49-8d74-2e12f603dce2,26,0,0,0,1,0
+d1dfca60-d5e5-4a21-8f45-f816b743d37d,26,0,0,0,4,0
+ae63010e-2a1d-4566-8501-cb3d7a949e42,26,15,0,0,9,9
+56437754-668e-4bea-911a-22b3c7385a84,26,0,0,0,0,0
+6e616953-5f29-403d-a7a7-4181235c1799,24,12,1,1,2,2
+13f533ea-4433-45f1-96c2-63a52d8b0f16,24,0,0,0,1,0
+f84556d3-da1c-48fd-98af-8fc1324a022d,24,0,0,0,1,0
+
+Hypothesis test: if points_2 == log_2pt_count, the field is a COUNT (multiply by 2 for points)
+                 if points_2 == log_2pt_count * 2, the field is already TOTAL POINTS
+
+============================================================
+B4. Diagnostic: sum stat_points from game_logs vs game.home_score
+============================================================
+games_total,log_matches_score,log_mismatches_score
+37,10,27
+
+============================================================
+E2. Diagnostic: original Base44 game_date format (from legacy_extras / nearest preserved values)
+============================================================
+has_in_extras,count
+false,37
+-- DIAGNOSTIC: peek at original game_date values from backup file
+Total Season 5 games in backup: 37
+Sample game_date values (first 5):
+  6a005255e3f0742b49952bf2: '2026-05-10T14:00'
+  6a0051e892e7793d225a967c: '2026-05-10T12:30'
+  69ff145b3d098a4bcdba53b2: '2026-05-09T17:30'
+  69ff1439a777b6f0ea85be0a: '2026-05-09T16:00'
+  69edeaa1300747dcfc012350: '2026-04-26T14:00'
+
+Distinct game_date prefixes (date part only):
+  Null/empty: 0
+  Length distribution: {16: 16, 24: 21}

@@ -26,6 +26,8 @@ import {
   parseTimestamp,
   parseGameDate,
   computePoints,
+  computePointsEdited,
+  isDigitalGame,
   coerceIntValue,
   dedupePlayerStats,
 } from "./transforms.ts";
@@ -349,6 +351,15 @@ serve(async (req) => {
 
       // ── Step D: insert games ───────────────────────────────────────────
       const gameMap = new Map<string, string>();
+      // Side-table populated alongside gameMap: parent game's stat-semantic
+      // inputs (entry_type, edited) keyed by Base44 game_id. Step E needs
+      // these to compute isDigitalGame() per player_stats row without
+      // re-walking payload.games. Defensively preserves the raw value as
+      // Base44 returned it (not the column-default-coerced version).
+      const gameMetaByB44 = new Map<
+        string,
+        { entry_type: string | null | undefined; edited: boolean }
+      >();
       for (const g of payload.games) {
         const newId = crypto.randomUUID();
         const home = teamMap.get(g.home_team_id);
@@ -383,6 +394,18 @@ serve(async (req) => {
           extras.away_timeouts_b44 = g.away_timeouts;
         }
         if (gameStageOriginal) extras.game_stage_b44 = gameStageOriginal;
+
+        // Defensive preservation (Change B): keep the raw Base44 inputs that
+        // drive the isDigitalGame() rule and the scheduled_at parse, even
+        // though entry_type/edited also exist as first-class columns and
+        // game_date is parsed into scheduled_at. If a future transform bug
+        // silently coerces or drops these (as parseGameDate did pre-fix),
+        // we can still recover the original from legacy_extras.
+        extras.entry_type_b44 = g.entry_type ?? null;
+        extras.edited_b44 = g.edited ?? false;
+        if (g.game_date !== null && g.game_date !== undefined) {
+          extras.game_date_b44 = g.game_date;
+        }
 
         const createdAt = parseTimestamp(g.created_date) ?? leagueCreatedAt;
         const updatedAt = parseTimestamp(g.updated_date) ?? createdAt;
@@ -449,6 +472,10 @@ serve(async (req) => {
           VALUES ('game', ${g.id}, ${newId})
         `;
         gameMap.set(g.id, newId);
+        gameMetaByB44.set(g.id, {
+          entry_type: g.entry_type,
+          edited: g.edited ?? false,
+        });
       }
 
       // ── Step E: bulk insert player_stats ───────────────────────────────
@@ -473,6 +500,7 @@ serve(async (req) => {
 
       const statsRows: SupabasePlayerStatsRow[] = [];
       const statsIdMapping: IdMappingRow[] = [];
+      let editedRowCount = 0;
       for (const s of dedupedPlayerStats) {
         const newGameId = gameMap.get(s.game_id);
         const newPlayerId = playerMap.get(s.player_id);
@@ -483,13 +511,54 @@ serve(async (req) => {
           );
         }
         const newId = crypto.randomUUID();
-        const p2 = s.points_2 ?? 0;
-        const p3 = s.points_3 ?? 0;
-        const ft = s.free_throws ?? 0;
+        // Raw Base44 inputs (preserved verbatim before any branch logic).
+        const rawP2 = s.points_2 ?? 0;
+        const rawP3 = s.points_3 ?? 0;
+        const rawFt = s.free_throws ?? 0;
+
+        // ── isDigital branch (Change C) ────────────────────────────────
+        // Locked-in rule from Base44 source:
+        //   isDigital = (entry_type === 'digital' && edited === false)
+        // Digital  → points_2 is a basket count; standard formula applies;
+        //            total_points stays NULL (caller derives from breakdown).
+        // Else     → points_2 is the 2PT *points contribution* (basket count
+        //            unknown). Force points_2 = 0 so the standard formula
+        //            doesn't over-count, and store the authoritative total
+        //            in total_points.
+        const meta = gameMetaByB44.get(s.game_id);
+        if (!meta) {
+          throw new Error(
+            `player_stats_${s.id}: game_id ${s.game_id} not in payload.games (meta lookup failed)`,
+          );
+        }
+        const isDigital = isDigitalGame(meta.entry_type, meta.edited);
+
+        let storedP2: number;
+        let storedPoints: number;
+        let storedTotalPoints: number | null;
+        let wasZeroed: boolean;
+        if (isDigital) {
+          storedP2 = rawP2;
+          storedPoints = computePoints(rawP2, rawP3, rawFt);
+          storedTotalPoints = null;
+          wasZeroed = false;
+        } else {
+          storedP2 = 0;
+          storedPoints = computePointsEdited(rawP2, rawP3, rawFt);
+          storedTotalPoints = storedPoints;
+          wasZeroed = true;
+          editedRowCount++;
+        }
+
         const extras: Record<string, unknown> = {};
         if (s.did_play !== null && s.did_play !== undefined) extras.did_play = s.did_play;
         if (s.created_by_id) extras.created_by_id = s.created_by_id;
         if (s.is_sample !== undefined) extras.is_sample = s.is_sample;
+        // Defensive raw preservation (Change C): always store points_2_raw
+        // and a was_zeroed flag so forensic queries can reconstruct what we
+        // received from Base44 vs what we wrote.
+        extras.points_2_raw = rawP2;
+        extras.was_zeroed = wasZeroed;
 
         const createdAt = parseTimestamp(s.created_date) ?? leagueCreatedAt;
         const updatedAt = parseTimestamp(s.updated_date) ?? createdAt;
@@ -500,12 +569,12 @@ serve(async (req) => {
           game_id: newGameId,
           player_id: newPlayerId,
           team_id: newTeamId,
-          points: computePoints(p2, p3, ft),
+          points: storedPoints,
           field_goals_made: 0,
           field_goals_attempted: 0,
           three_pointers_made: 0,
           three_pointers_attempted: 0,
-          free_throws_made: ft,
+          free_throws_made: rawFt,
           free_throws_attempted: 0,
           offensive_rebounds: s.offensive_rebounds ?? 0,
           defensive_rebounds: s.defensive_rebounds ?? 0,
@@ -516,12 +585,13 @@ serve(async (req) => {
           fouls: s.fouls ?? 0,
           minutes_played: s.minutes_played ?? null,
           is_starter: s.is_starter ?? false,
-          points_2: p2,
-          points_3: p3,
-          free_throws: ft,
+          points_2: storedP2,
+          points_3: rawP3,
+          free_throws: rawFt,
           free_throws_missed: s.free_throws_missed ?? 0,
           technical_fouls: s.technical_fouls ?? 0,
           unsportsmanlike_fouls: s.unsportsmanlike_fouls ?? 0,
+          total_points: storedTotalPoints,
           is_active: s.is_active ?? false,
           created_at: createdAt,
           updated_at: updatedAt,
@@ -536,6 +606,12 @@ serve(async (req) => {
         });
       }
 
+      if (editedRowCount > 0) {
+        warnings.push(
+          `Stored ${editedRowCount} player_stats row(s) using the edited/manual formula (points_2 zeroed, authoritative total in total_points). ${dedupedPlayerStats.length - editedRowCount} row(s) used the digital formula.`,
+        );
+      }
+
       if (statsRows.length > 0) {
         const statsColumns = [
           "id", "league_id", "game_id", "player_id", "team_id",
@@ -546,7 +622,7 @@ serve(async (req) => {
           "assists", "steals", "blocks", "turnovers", "fouls",
           "minutes_played", "is_starter",
           "points_2", "points_3", "free_throws", "free_throws_missed",
-          "technical_fouls", "unsportsmanlike_fouls", "is_active",
+          "technical_fouls", "unsportsmanlike_fouls", "total_points", "is_active",
           "created_at", "updated_at",
           "legacy_base44_id", "legacy_created_by_email", "legacy_extras",
         ] as const;
@@ -704,12 +780,15 @@ serve(async (req) => {
         );
       }
 
-      // Sample integrity check: pick first game and reconcile player_stats sums
+      // Sample integrity check: pick first game and reconcile player_stats sums.
+      // Uses COALESCE(total_points, p2*2 + p3*3 + ft) so both digital and edited
+      // rows reconcile correctly. See migration 20260527000001 + isDigitalGame().
       if (payload.games.length > 0 && payload.player_stats.length > 0) {
         const firstGame = payload.games[0];
         const firstGameSupabaseId = gameMap.get(firstGame.id)!;
         const sums = await tx<{ team_id: string; total: number }[]>`
-          SELECT team_id, SUM(points_2*2 + points_3*3 + free_throws)::int AS total
+          SELECT team_id,
+            SUM(COALESCE(total_points, points_2*2 + points_3*3 + free_throws))::int AS total
           FROM player_stats
           WHERE game_id = ${firstGameSupabaseId}
           GROUP BY team_id
