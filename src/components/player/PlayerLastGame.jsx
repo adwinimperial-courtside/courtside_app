@@ -3,19 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { totalPoints } from "@/lib/playerStats";
-
-function didPlayerParticipate(stat) {
-  const hasStats = (stat.points_2 || 0) + (stat.points_3 || 0) + (stat.free_throws || 0) +
-                   (stat.assists || 0) + (stat.steals || 0) + (stat.blocks || 0) +
-                   (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0) +
-                   (stat.fouls || 0) + (stat.technical_fouls || 0) + (stat.unsportsmanlike_fouls || 0) > 0;
-  
-  if (stat.did_play) return true;
-  if ((stat.minutes_played || 0) > 0) return true;
-  if (hasStats) return true;
-  return false;
-}
+import { totalPoints, didPlay } from "@/lib/playerStats";
 
 export default function PlayerLastGame({ games, myStats, teams, teamId }) {
   const navigate = useNavigate();
@@ -28,7 +16,7 @@ export default function PlayerLastGame({ games, myStats, teams, teamId }) {
     
     for (const game of completedGames) {
       const stat = myStats.find(s => s.game_id === game.id);
-      if (stat && didPlayerParticipate(stat)) {
+      if (stat && didPlay(stat)) {
         return game;
       }
     }

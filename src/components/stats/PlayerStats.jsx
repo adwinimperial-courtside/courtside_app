@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { User, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-import { totalPoints } from "@/lib/playerStats";
+import { totalPoints, didPlay } from "@/lib/playerStats";
 
 // Only games that were truly played on the court
 function isActualPlayedGame(g) {
@@ -22,22 +22,10 @@ export default function PlayerStats({ players, teams, stats, games = [] }) {
   const [sortField, setSortField] = useState("points");
   const [sortDirection, setSortDirection] = useState("desc");
 
-  const didPlayerParticipate = (stat) => {
-    const hasStats = (stat.points_2 || 0) + (stat.points_3 || 0) + (stat.free_throws || 0) +
-                     (stat.assists || 0) + (stat.steals || 0) + (stat.blocks || 0) +
-                     (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0) +
-                     (stat.fouls || 0) + (stat.technical_fouls || 0) + (stat.unsportsmanlike_fouls || 0) > 0;
-    
-    if (stat.did_play) return true;
-    if ((stat.minutes_played || 0) > 0) return true;
-    if (hasStats) return true;
-    return false;
-  };
-
   const playerAggregates = players.map(player => {
     // Only count stats from actual played games
     const playerStats = stats.filter(s => s.player_id === player.id && validGameIds.has(s.game_id));
-    const participatedStats = playerStats.filter(didPlayerParticipate);
+    const participatedStats = playerStats.filter(didPlay);
     const team = teams.find(t => t.id === player.team_id);
     
     const totals = participatedStats.reduce((acc, stat) => ({

@@ -2,7 +2,7 @@ import React, { useRef, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Camera, Upload, Trash2, Loader2, Flame, TrendingUp, TrendingDown } from "lucide-react";
 import { getRankMovement } from "@/components/utils/rankMovementTracker";
-import { totalPoints } from "@/lib/playerStats";
+import { totalPoints, didPlay } from "@/lib/playerStats";
 import { getMilestoneProgress } from "./milestoneCalculator";
 import {
   DropdownMenu,
@@ -11,24 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-function didPlayerParticipate(stat) {
-  // Check if player actually participated based on priority:
-  // 1. explicit did_play flag
-  // 2. starter status
-  // 3. minutes_played > 0
-  // 4. any recorded stat or foul > 0
-  if (stat.did_play) return true;
-  if (stat.is_starter) return true;
-  if ((stat.minutes_played || 0) > 0) return true;
-  const hasStats = (stat.points_2 || 0) + (stat.points_3 || 0) + (stat.free_throws || 0) +
-                   (stat.assists || 0) + (stat.steals || 0) + (stat.blocks || 0) +
-                   (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0) +
-                   (stat.fouls || 0) + (stat.technical_fouls || 0) + (stat.unsportsmanlike_fouls || 0) > 0;
-  return hasStats;
-}
-
 function computeStats(stats) {
-  const participatedStats = stats.filter(didPlayerParticipate);
+  const participatedStats = stats.filter(didPlay);
   const gp = participatedStats.length;
   if (gp === 0) return { gp: 0, ppg: null, rpg: null, apg: null };
   
@@ -51,7 +35,7 @@ function getCategoryRank(myPlayerId, allStats, categoryKey) {
 
   const playerStats = {};
   allStats.forEach(s => {
-    if (!didPlayerParticipate(s)) return; // Only count participated games
+    if (!didPlay(s)) return; // Only count participated games
     if (!playerStats[s.player_id]) playerStats[s.player_id] = { total: 0, gp: 0 };
     let catValue = 0;
     if (categoryKey === 'points') {

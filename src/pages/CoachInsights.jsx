@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Target, Users, Trophy, Shield, ArrowUpDown, AlertCircle, Lightbulb, Minus, Plus } from "lucide-react";
-import { totalPoints } from "@/lib/playerStats";
+import { totalPoints, didPlay } from "@/lib/playerStats";
 
 // Leagues where turnovers are not tracked / should be excluded
 const LEAGUES_NO_TURNOVERS = ['698c39d164c376418918321d', '698b4d0c05fbeef938b93720'];
@@ -204,7 +204,7 @@ export default function CoachInsights() {
 
     const oppPlayers = players.filter(p => p.team_id === selectedOpponent);
     const playerAverages = oppPlayers.map(player => {
-      const pStats = playerStats.filter(s => s.player_id === player.id);
+      const pStats = playerStats.filter(s => s.player_id === player.id).filter(didPlay);
       const gamesPlayed = pStats.length;
 
       if (gamesPlayed === 0) return null;
@@ -239,7 +239,7 @@ export default function CoachInsights() {
     const teamPlayers = players.filter(p => p.team_id === selectedTeam);
 
     return teamPlayers.map(player => {
-      const pStats = playerStats.filter(s => s.player_id === player.id);
+      const pStats = playerStats.filter(s => s.player_id === player.id).filter(didPlay);
       const gamesPlayed = pStats.length;
 
       if (gamesPlayed === 0) return null;

@@ -22,3 +22,23 @@ export function totalPoints(stat) {
 export function getPlayerTotalPoints(stat) {
   return totalPoints(stat);
 }
+
+// Returns true if the player did something meaningful in this game.
+// Used to filter out "ghost" player_stats rows (rostered but didn't play,
+// or stub entries never filled with real stats). These ghost rows must
+// not be counted toward Games Played or be in the denominator of per-game
+// averages like PPG/RPG/APG.
+export function didPlay(stat) {
+  if (!stat) return false;
+  const total = stat.total_points != null
+    ? stat.total_points
+    : (stat.points_2 || 0) * 2 + (stat.points_3 || 0) * 3 + (stat.free_throws || 0);
+  return total > 0
+    || (stat.offensive_rebounds || 0) > 0
+    || (stat.defensive_rebounds || 0) > 0
+    || (stat.assists || 0) > 0
+    || (stat.steals || 0) > 0
+    || (stat.blocks || 0) > 0
+    || (stat.turnovers || 0) > 0
+    || (stat.fouls || 0) > 0;
+}

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabaseClient";
 import { useIsNarrowLayout } from "@/lib/DevicePreviewContext";
-import { totalPoints as calcPts } from "@/lib/playerStats";
+import { totalPoints as calcPts, didPlay } from "@/lib/playerStats";
 import {
   BarChart3, Shield, User, Trophy, ChevronUp, ChevronDown, Loader2, Search,
 } from "lucide-react";
@@ -465,7 +465,7 @@ function PlayerStatsTab({ players, teams, allStats, selectedTeamId, playerSearch
     );
 
     return filteredPlayers.map(player => {
-      const ps = allStats.filter(s => s.player_id === player.id);
+      const ps = allStats.filter(s => s.player_id === player.id).filter(didPlay);
       if (ps.length === 0) return null;
 
       const byGame = {};
@@ -700,7 +700,7 @@ function LeaderCategoryCard({ category, rows }) {
 function LeagueLeadersTab({ players, teams, allStats, isNarrow }) {
   const leaderData = useMemo(() => {
     return players.map(player => {
-      const ps = allStats.filter(s => s.player_id === player.id);
+      const ps = allStats.filter(s => s.player_id === player.id).filter(didPlay);
       if (ps.length === 0) return null;
 
       const byGame = {};
