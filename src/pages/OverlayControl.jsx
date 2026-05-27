@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useBroadcastState } from '@/hooks/useBroadcastState';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from '@/components/ui/use-toast';
+import { totalPoints } from '@/lib/playerStats';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -108,11 +109,9 @@ const LOWER_THIRD_TYPES = [
   { id: 'team_foul_comparison', label: 'Team fouls',     durationMs: 6000, needsPlayer: false },
 ];
 
-// Compute total pts from player_stats row (points_2 * 2 + points_3 * 3 + free_throws).
-// Falls back to legacy `points` field if all new fields are zero.
+// Compute total pts from a player_stats row.
 function computePts(stat) {
-  const derived = (stat.points_2 || 0) * 2 + (stat.points_3 || 0) * 3 + (stat.free_throws || 0);
-  return derived > 0 ? derived : (stat.points || 0);
+  return totalPoints(stat);
 }
 
 function computeReb(stat) {

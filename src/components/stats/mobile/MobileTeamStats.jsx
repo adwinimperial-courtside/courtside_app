@@ -2,6 +2,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield } from "lucide-react";
 import TeamLogo from "../../teams/TeamLogo";
+import { totalPoints } from "@/lib/playerStats";
 
 export default function MobileTeamStats({ teams, games, stats }) {
   const teamStatistics = teams.map(team => {
@@ -11,7 +12,7 @@ export default function MobileTeamStats({ teams, games, stats }) {
     const teamStats = stats.filter(s => s.team_id === team.id);
 
     const totals = teamStats.reduce((acc, stat) => ({
-      points: acc.points + ((stat.points_2 || 0) * 2) + ((stat.points_3 || 0) * 3) + (stat.free_throws || 0),
+      points: acc.points + totalPoints(stat),
       offensiveRebounds: acc.offensiveRebounds + (stat.offensive_rebounds || 0),
       defensiveRebounds: acc.defensiveRebounds + (stat.defensive_rebounds || 0),
       rebounds: acc.rebounds + (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0),

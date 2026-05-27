@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronUp, User } from "lucide-react";
+import { totalPoints } from "@/lib/playerStats";
 
 // Only games that were truly played on the court
 function isActualPlayedGame(g) {
@@ -16,12 +17,6 @@ function isActualPlayedGame(g) {
 export default function MobilePlayerStats({ players, teams, stats, games = [] }) {
   // Build a set of valid game IDs — defaults are never included
   const validGameIds = new Set(games.filter(isActualPlayedGame).map(g => g.id));
-
-  const calcPoints = (stat) => {
-    const game = games.find(g => g.id === stat.game_id);
-    const isDigital = game && game.entry_type === 'digital' && !game.edited;
-    return (isDigital ? (stat.points_2 || 0) * 2 : (stat.points_2 || 0)) + ((stat.points_3 || 0) * 3) + (stat.free_throws || 0);
-  };
 
   const didPlayerParticipate = (stat) => {
     const hasStats = (stat.points_2 || 0) + (stat.points_3 || 0) + (stat.free_throws || 0) +
@@ -44,7 +39,7 @@ export default function MobilePlayerStats({ players, teams, stats, games = [] })
     const team = teams.find(t => t.id === player.team_id);
 
     const totals = playerStats.reduce((acc, stat) => ({
-      points: acc.points + calcPoints(stat),
+      points: acc.points + totalPoints(stat),
       points_2: acc.points_2 + (stat.points_2 || 0),
       points_3: acc.points_3 + (stat.points_3 || 0),
       freeThrows: acc.freeThrows + (stat.free_throws || 0),

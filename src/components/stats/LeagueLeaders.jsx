@@ -1,13 +1,9 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Award } from "lucide-react";
+import { totalPoints } from "@/lib/playerStats";
 
 export default function LeagueLeaders({ players, teams, stats, games = [] }) {
-  const calcPoints = (stat) => {
-    const game = games.find(g => g.id === stat.game_id);
-    const isDigital = game && game.entry_type === 'digital' && !game.edited;
-    return (isDigital ? (stat.points_2 || 0) * 2 : (stat.points_2 || 0)) + ((stat.points_3 || 0) * 3) + (stat.free_throws || 0);
-  };
   const didPlayerParticipate = (stat) => {
     const hasStats = (stat.points_2 || 0) + (stat.points_3 || 0) + (stat.free_throws || 0) +
                      (stat.assists || 0) + (stat.steals || 0) + (stat.blocks || 0) +
@@ -35,7 +31,7 @@ export default function LeagueLeaders({ players, teams, stats, games = [] }) {
     const teamGames = teamGameCounts[player.team_id] || 0;
     
     const totals = participatedStats.reduce((acc, stat) => ({
-      points: acc.points + calcPoints(stat),
+      points: acc.points + totalPoints(stat),
       threes: acc.threes + (stat.points_3 || 0),
       rebounds: acc.rebounds + (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0),
       assists: acc.assists + (stat.assists || 0),

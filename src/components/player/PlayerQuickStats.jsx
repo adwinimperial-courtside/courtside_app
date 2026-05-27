@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { totalPoints } from "@/lib/playerStats";
 
 function StatCard({ label, value }) {
   return (
@@ -19,7 +20,7 @@ export default function PlayerQuickStats({ stats }) {
 
     let pts = 0, reb = 0, ast = 0, stl = 0, blk = 0;
     stats.forEach(s => {
-      pts += (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0);
+      pts += totalPoints(s);
       reb += (s.offensive_rebounds || 0) + (s.defensive_rebounds || 0);
       ast += s.assists || 0;
       stl += s.steals || 0;

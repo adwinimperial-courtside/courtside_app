@@ -1,12 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { totalPoints } from "@/lib/playerStats";
 
 export default function PlayerSelector({ players, existingStats, selectedPlayer, onSelectPlayer, teamColor }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       {players.map((player) => {
         const playerStats = existingStats.find(s => s.player_id === player.id);
-        const totalPoints = ((playerStats?.points_2 || 0) * 2) + ((playerStats?.points_3 || 0) * 3);
+        const playerPts = totalPoints(playerStats);
         const isSelected = selectedPlayer?.id === player.id;
 
         return (
@@ -35,7 +36,7 @@ export default function PlayerSelector({ players, existingStats, selectedPlayer,
             </div>
             {playerStats && (
               <div className="flex justify-between text-xs text-slate-300 pt-2 border-t border-white/10">
-                <span>{totalPoints} PTS</span>
+                <span>{playerPts} PTS</span>
                 <span>{(playerStats.offensive_rebounds || 0) + (playerStats.defensive_rebounds || 0)} REB</span>
                 <span>{playerStats.assists || 0} AST</span>
               </div>

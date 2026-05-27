@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award } from "lucide-react";
+import { totalPoints } from "@/lib/playerStats";
 
 function computeMvpRanking(leagueTeams, completedGames, allStats) {
   if (completedGames.length === 0) return [];
@@ -16,7 +17,7 @@ function computeMvpRanking(leagueTeams, completedGames, allStats) {
   completedGames.forEach(game => {
     allStats.filter(s => s.game_id === game.id).forEach(s => {
       if (!scores[s.player_id]) scores[s.player_id] = { gp: 0, sumGis: 0, sumTech: 0, sumUnsp: 0, teamId: s.team_id };
-      const pts = (s.points_2 || 0) * 2 + (s.points_3 || 0) * 3 + (s.free_throws || 0);
+      const pts = totalPoints(s);
       const gis = pts + 1.2*(s.offensive_rebounds||0) + 1.0*(s.defensive_rebounds||0) + 1.5*(s.assists||0) + 2.5*(s.steals||0) + 2.0*(s.blocks||0) - 2.0*(s.turnovers||0) - 0.5*(s.fouls||0) - 3.0*(s.technical_fouls||0) - 4.0*(s.unsportsmanlike_fouls||0);
       scores[s.player_id].gp++;
       scores[s.player_id].sumGis += gis;
@@ -89,13 +90,13 @@ export default function PlayerRecognition({ myStats, allStats, teams, games, mat
   }, [dpoyRanking, matchedPlayerId]);
 
   const doubleDoubles = useMemo(() => myStats.filter(s => {
-    const pts = (s.points_2||0)*2 + (s.points_3||0)*3 + (s.free_throws||0);
+    const pts = totalPoints(s);
     const reb = (s.offensive_rebounds||0) + (s.defensive_rebounds||0);
     return [pts >= 10, reb >= 10, (s.assists||0) >= 10].filter(Boolean).length >= 2;
   }).length, [myStats]);
 
   const twentyPlusGames = useMemo(() => myStats.filter(s => {
-    return (s.points_2||0)*2 + (s.points_3||0)*3 + (s.free_throws||0) >= 20;
+    return totalPoints(s) >= 20;
   }).length, [myStats]);
 
   const badges = [];

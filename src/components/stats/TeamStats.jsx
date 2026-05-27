@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Shield, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import TeamLogo from "../teams/TeamLogo";
+import { totalPoints } from "@/lib/playerStats";
 
 export default function TeamStats({ teams, games, stats, leagues }) {
   const [sortField, setSortField] = useState("ppg");
@@ -15,7 +16,7 @@ export default function TeamStats({ teams, games, stats, leagues }) {
     const teamStats = stats.filter(s => s.team_id === team.id);
     
     const totals = teamStats.reduce((acc, stat) => ({
-      points: acc.points + ((stat.points_2 || 0) * 2) + ((stat.points_3 || 0) * 3) + (stat.free_throws || 0),
+      points: acc.points + totalPoints(stat),
       offensiveRebounds: acc.offensiveRebounds + (stat.offensive_rebounds || 0),
       defensiveRebounds: acc.defensiveRebounds + (stat.defensive_rebounds || 0),
       rebounds: acc.rebounds + (stat.offensive_rebounds || 0) + (stat.defensive_rebounds || 0),
